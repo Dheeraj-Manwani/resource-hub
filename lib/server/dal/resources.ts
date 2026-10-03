@@ -36,6 +36,7 @@ import type {
   ResourceMetadata,
   ResourceType,
 } from "@/lib/resources/types"
+import { publicUrlFor } from "@/lib/server/r2"
 import type {
   ListResourcesQuery,
   UpdateResourceInput,
@@ -58,7 +59,8 @@ function fileDto(file: FileRow): FileDto {
     size: file.size,
     width: file.width,
     height: file.height,
-    url: `/api/files/${file.id}`,
+    url: publicUrlFor(file.r2Key) ?? `/api/files/${file.id}`,
+    downloadUrl: `/api/files/${file.id}?download=1`,
   }
 }
 
@@ -67,12 +69,14 @@ function toDto(
   tags: TagDto[],
   file: FileRow | undefined,
   projectChips: ResourceDto["projects"],
-  taskCount: number
+  taskCount: number,
+  thumbnailKeys: Map<string, string>
 ): ResourceDto {
   const metadata: ResourceMetadata = {
     ...row.metadata,
     ...(row.metadataOverride ?? {}),
   }
+  const thumbnailKey = row.thumbnailFileId ? thumbnailKeys.get(row.thumbnailFileId) : undefined
   return {
     id: row.id,
     type: row.type,
@@ -90,7 +94,7 @@ function toDto(
     isFavorite: row.isFavorite,
     isReviewed: row.isReviewed,
     thumbnailUrl: row.thumbnailFileId
-      ? `/api/files/${row.thumbnailFileId}`
+      ? (thumbnailKey ? publicUrlFor(thumbnailKey) : null) ?? `/api/files/${row.thumbnailFileId}`
       : (row.metadataOverride?.image ?? row.metadata.image ?? null),
     file: file ? fileDto(file) : null,
     tags,
@@ -104,7 +108,10 @@ function toDto(
 async function toDtos(rows: ResourceRow[]): Promise<ResourceDto[]> {
   if (!rows.length) return []
   const ids = rows.map((r) => r.id)
-  const [tagMap, originals, projectMap, taskCountMap] = await Promise.all([
+  const thumbnailFileIds = rows
+    .map((r) => r.thumbnailFileId)
+    .filter((id): id is string => !!id)
+  const [tagMap, originals, projectMap, taskCountMap, thumbnailFiles] = await Promise.all([
     tagsForResources(ids),
     db
       .select()
@@ -118,15 +125,23 @@ async function toDtos(rows: ResourceRow[]): Promise<ResourceDto[]> {
       ),
     projectsForResources(ids),
     taskCountsForResources(ids),
+    thumbnailFileIds.length
+      ? db
+          .select({ id: files.id, r2Key: files.r2Key })
+          .from(files)
+          .where(inArray(files.id, thumbnailFileIds))
+      : Promise.resolve([]),
   ])
   const fileMap = new Map(originals.map((f) => [f.resourceId!, f]))
+  const thumbnailKeys = new Map(thumbnailFiles.map((f) => [f.id, f.r2Key]))
   return rows.map((row) =>
     toDto(
       row,
       tagMap.get(row.id) ?? [],
       fileMap.get(row.id),
       projectMap.get(row.id) ?? [],
-      taskCountMap.get(row.id) ?? 0
+      taskCountMap.get(row.id) ?? 0,
+      thumbnailKeys
     )
   )
 }

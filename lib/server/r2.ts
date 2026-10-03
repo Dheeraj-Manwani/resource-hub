@@ -54,6 +54,18 @@ export function objectKey(userId: string, fileId: string, suffix: string) {
   return `${KEY_PREFIX}u/${userId}/${fileId}/${safe}`
 }
 
+/** A permanent, non-expiring URL for a key when the bucket's public access
+ * (`R2_PUBLIC_URL`: the r2.dev subdomain or a custom domain) is configured —
+ * lets images/video/audio/PDF preview directly without a signed-redirect
+ * round trip or the 5-minute presign expiry. Null when not configured, so
+ * callers fall back to the signed `/api/files/:id` redirect. */
+export function publicUrlFor(key: string): string | null {
+  const base = serverEnv().R2_PUBLIC_URL
+  if (!base) return null
+  const path = key.split("/").map(encodeURIComponent).join("/")
+  return `${base.replace(/\/+$/, "")}/${path}`
+}
+
 /** Presigned PUT with Content-Type and Content-Length signed (R2 enforces them). */
 export async function presignPut(
   key: string,

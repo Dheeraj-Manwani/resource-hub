@@ -6,7 +6,7 @@ import {
   ListIcon,
   Loader2Icon,
   SearchIcon,
-  SparklesIcon,
+  FileExclamationPoint,
   XIcon,
 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -42,7 +42,10 @@ type View = "list" | "board"
 const ALL = "__all"
 
 type SortKey = "manual" | "due" | "priority" | "title" | "created"
-const SORTS: Record<SortKey, { label: string; sort: TaskFilters["sort"]; order: TaskFilters["order"] }> = {
+const SORTS: Record<
+  SortKey,
+  { label: string; sort: TaskFilters["sort"]; order: TaskFilters["order"] }
+> = {
   manual: { label: "Manual order", sort: "sortKey", order: "asc" },
   due: { label: "Due date", sort: "due", order: "asc" },
   priority: { label: "Priority", sort: "priority", order: "desc" },
@@ -60,13 +63,19 @@ const SMART_FILTER_LABELS: Record<SmartFilter, string> = {
 
 function isTypingTarget(el: EventTarget | null) {
   const node = el as HTMLElement | null
-  return !!node && (node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.isContentEditable)
+  return (
+    !!node &&
+    (node.tagName === "INPUT" ||
+      node.tagName === "TEXTAREA" ||
+      node.isContentEditable)
+  )
 }
 
 export function TasksView() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const smartFilter = (searchParams.get("smartFilter") as SmartFilter | null) ?? undefined
+  const smartFilter =
+    (searchParams.get("smartFilter") as SmartFilter | null) ?? undefined
   const { openTask } = useDetailDrawer()
 
   const [view, setView] = useState<View>("list")
@@ -90,9 +99,14 @@ export function TasksView() {
     [smartFilter, status, priority, view, sortKey]
   )
   const query = useTaskList(filters)
-  const items = useMemo(() => query.data?.pages.flatMap((p) => p.items) ?? [], [query.data])
+  const items = useMemo(
+    () => query.data?.pages.flatMap((p) => p.items) ?? [],
+    [query.data]
+  )
   const filteredItems = titleFilter.trim()
-    ? items.filter((t) => t.title.toLowerCase().includes(titleFilter.trim().toLowerCase()))
+    ? items.filter((t) =>
+        t.title.toLowerCase().includes(titleFilter.trim().toLowerCase())
+      )
     : items
 
   const { fetchNextPage, hasNextPage, isFetchingNextPage } = query
@@ -130,9 +144,17 @@ export function TasksView() {
   } else if (!filteredItems.length) {
     body = (
       <EmptyState
-        icon={SparklesIcon}
-        title={smartFilter ? `No ${SMART_FILTER_LABELS[smartFilter].toLowerCase()} tasks` : "No tasks yet"}
-        description={smartFilter ? "Nothing matches this filter right now." : "Try the quick-add bar above — type a title, add #project, !priority or a due date."}
+        icon={FileExclamationPoint}
+        title={
+          smartFilter
+            ? `No ${SMART_FILTER_LABELS[smartFilter].toLowerCase()} tasks`
+            : "No tasks yet"
+        }
+        description={
+          smartFilter
+            ? "Nothing matches this filter right now."
+            : "Try the quick-add bar above — type a title, add #project, !priority or a due date."
+        }
       />
     )
   } else if (view === "board") {
@@ -182,11 +204,17 @@ export function TasksView() {
 
         <Select
           value={status ?? ALL}
-          onValueChange={(v: string | null) => setStatus(!v || v === ALL ? undefined : v)}
+          onValueChange={(v: string | null) =>
+            setStatus(!v || v === ALL ? undefined : v)
+          }
         >
           <SelectTrigger size="sm" aria-label="Filter by status">
             <SelectValue>
-              {(v: string) => (v === ALL ? "All statuses" : TASK_STATUS_LABELS[v as keyof typeof TASK_STATUS_LABELS])}
+              {(v: string) =>
+                v === ALL
+                  ? "All statuses"
+                  : TASK_STATUS_LABELS[v as keyof typeof TASK_STATUS_LABELS]
+              }
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -201,11 +229,17 @@ export function TasksView() {
 
         <Select
           value={priority ?? ALL}
-          onValueChange={(v: string | null) => setPriority(!v || v === ALL ? undefined : v)}
+          onValueChange={(v: string | null) =>
+            setPriority(!v || v === ALL ? undefined : v)
+          }
         >
           <SelectTrigger size="sm" aria-label="Filter by priority">
             <SelectValue>
-              {(v: string) => (v === ALL ? "All priorities" : TASK_PRIORITY_LABELS[v as keyof typeof TASK_PRIORITY_LABELS])}
+              {(v: string) =>
+                v === ALL
+                  ? "All priorities"
+                  : TASK_PRIORITY_LABELS[v as keyof typeof TASK_PRIORITY_LABELS]
+              }
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -221,9 +255,14 @@ export function TasksView() {
         <div className="ml-auto flex items-center gap-2">
           {view === "list" ? (
             <>
-              <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+              <Select
+                value={sortKey}
+                onValueChange={(v) => setSortKey(v as SortKey)}
+              >
                 <SelectTrigger size="sm" aria-label="Sort">
-                  <SelectValue>{(v: string) => SORTS[v as SortKey].label}</SelectValue>
+                  <SelectValue>
+                    {(v: string) => SORTS[v as SortKey].label}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent align="end">
                   {(Object.keys(SORTS) as SortKey[]).map((key) => (
@@ -233,12 +272,25 @@ export function TasksView() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={groupBy} onValueChange={(v) => setGroupBy(v as TaskGroupBy)}>
+              <Select
+                value={groupBy}
+                onValueChange={(v) => setGroupBy(v as TaskGroupBy)}
+              >
                 <SelectTrigger size="sm" aria-label="Group by">
-                  <SelectValue>{(v: string) => `Group: ${v === "none" ? "none" : v}`}</SelectValue>
+                  <SelectValue>
+                    {(v: string) => `Group: ${v === "none" ? "none" : v}`}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent align="end">
-                  {(["none", "status", "project", "due", "priority"] as TaskGroupBy[]).map((g) => (
+                  {(
+                    [
+                      "none",
+                      "status",
+                      "project",
+                      "due",
+                      "priority",
+                    ] as TaskGroupBy[]
+                  ).map((g) => (
                     <SelectItem key={g} value={g}>
                       {g === "none" ? "No grouping" : `By ${g}`}
                     </SelectItem>
@@ -283,8 +335,15 @@ export function TasksView() {
 
       {view === "list" && hasNextPage ? (
         <div className="flex justify-center py-4">
-          <Button variant="ghost" size="sm" disabled={isFetchingNextPage} onClick={loadMore}>
-            {isFetchingNextPage ? <Loader2Icon className="animate-spin" /> : null}
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={isFetchingNextPage}
+            onClick={loadMore}
+          >
+            {isFetchingNextPage ? (
+              <Loader2Icon className="animate-spin" />
+            ) : null}
             Load more
           </Button>
         </div>

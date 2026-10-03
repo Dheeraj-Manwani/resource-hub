@@ -6,8 +6,8 @@ import {
   FolderIcon,
   InboxIcon,
   LibraryBigIcon,
-  SparklesIcon,
   StarIcon,
+  FileExclamationPoint,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -78,9 +78,18 @@ function PanelHeader({
   )
 }
 
-function PanelLink({ href, children }: { href: string; children: React.ReactNode }) {
+function PanelLink({
+  href,
+  children,
+}: {
+  href: string
+  children: React.ReactNode
+}) {
   return (
-    <Link href={href} className="text-xs font-medium text-brand hover:text-brand-hover">
+    <Link
+      href={href}
+      className="text-xs font-medium text-brand hover:text-brand-hover"
+    >
       {children}
     </Link>
   )
@@ -170,7 +179,7 @@ export function OverviewView({ userName }: { userName: string }) {
   if (isError || !data) {
     return (
       <EmptyState
-        icon={SparklesIcon}
+        icon={FileExclamationPoint}
         title="Couldn't load your overview"
         description="Something went wrong pulling your data together."
       >
@@ -209,7 +218,11 @@ export function OverviewView({ userName }: { userName: string }) {
           <div className="flex gap-2">
             <StatTile label="due today" value={tasks.dueToday} />
             <StatTile label="past due" value={tasks.pastDue} tone="danger" />
-            <StatTile label="wrapped up" value={tasks.completedToday} tone="success" />
+            <StatTile
+              label="wrapped up"
+              value={tasks.completedToday}
+              tone="success"
+            />
           </div>
           <div className="mt-4">
             {tasks.upNext.length ? (
@@ -230,9 +243,22 @@ export function OverviewView({ userName }: { userName: string }) {
         <Panel>
           <PanelHeader eyebrow="Library snapshot" title="Your stuff" />
           <div className="space-y-2">
-            <StatRow href="/inbox" icon={InboxIcon} label="Inbox" value={resources.inbox} />
-            <StatRow icon={StarIcon} label="Favorites" value={resources.favorites} />
-            <StatRow icon={LibraryBigIcon} label="Saved in total" value={resources.total} />
+            <StatRow
+              href="/inbox"
+              icon={InboxIcon}
+              label="Inbox"
+              value={resources.inbox}
+            />
+            <StatRow
+              icon={StarIcon}
+              label="Favorites"
+              value={resources.favorites}
+            />
+            <StatRow
+              icon={LibraryBigIcon}
+              label="Saved in total"
+              value={resources.total}
+            />
           </div>
           <div className="mt-3">
             <PanelLink href="/library">Visit library →</PanelLink>
@@ -294,7 +320,9 @@ export function OverviewView({ userName }: { userName: string }) {
           {projects.top.length ? (
             <div className="space-y-2">
               {projects.top.map((p) => {
-                const pct = p.taskTotal ? Math.round((p.taskDone / p.taskTotal) * 100) : 0
+                const pct = p.taskTotal
+                  ? Math.round((p.taskDone / p.taskTotal) * 100)
+                  : 0
                 return (
                   <Link
                     key={p.id}
@@ -309,7 +337,9 @@ export function OverviewView({ userName }: { userName: string }) {
                       <span className="min-w-0 flex-1 truncate text-sm font-medium">
                         {p.name}
                       </span>
-                      <span className="shrink-0 text-xs text-subtle">{p.directCount}</span>
+                      <span className="shrink-0 text-xs text-subtle">
+                        {p.directCount}
+                      </span>
                     </div>
                     {p.taskTotal ? (
                       <div className="mt-2 h-1 overflow-hidden rounded-full bg-border">
@@ -335,8 +365,8 @@ export function OverviewView({ userName }: { userName: string }) {
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-xs text-subtle">
         <span className="flex items-center gap-1.5">
-          <SparklesIcon className="size-3.5" />
-          {resources.total} saved · {tasks.activeTotal} tasks in motion · {projects.total} projects
+          {resources.total} saved · {tasks.activeTotal} tasks in motion ·{" "}
+          {projects.total} projects
         </span>
         <Link
           href="/calendar"

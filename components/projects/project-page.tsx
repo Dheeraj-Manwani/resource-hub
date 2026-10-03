@@ -4,17 +4,18 @@ import {
   ArchiveIcon,
   ArchiveRestoreIcon,
   ChevronRightIcon,
-  FolderIcon,
+  InfoIcon,
   ListPlusIcon,
   MoreHorizontalIcon,
   Trash2Icon,
 } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useMemo, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useCallback, useMemo, useState } from "react"
 
 import { LibraryView } from "@/components/resources/library-view"
 import { ProjectTasksSection } from "@/components/tasks/project-tasks-section"
+import { useProjectTaskProgress } from "@/hooks/queries/tasks"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -24,16 +25,47 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   useDeleteProject,
   useProject,
+  useProjectTree,
   useUpdateProject,
 } from "@/hooks/queries/projects"
 import type { SettingsDto } from "@/lib/server/dal/settings"
 
 import { AddExistingDialog } from "./add-existing-dialog"
 import { DeleteProjectDialog } from "./delete-project-dialog"
+import { ProjectIconPicker } from "./project-icon-picker"
+import { ProjectInfoModal } from "./project-info-modal"
+import { ProjectSubprojectsTab } from "./project-subprojects-tab"
+
+const TABS = ["resources", "tasks", "subprojects"] as const
+type Tab = (typeof TABS)[number]
+
+/** Keeps the active tab in the URL (`?tab=`) so it survives a refresh or a
+ * shared link, matching how the detail drawer and smart filters already
+ * live in the URL elsewhere in this app. */
+function useProjectTab(): [Tab, (tab: Tab) => void] {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const raw = searchParams.get("tab")
+  const tab: Tab = (TABS as readonly string[]).includes(raw ?? "") ? (raw as Tab) : "resources"
+
+  const setTab = useCallback(
+    (next: Tab) => {
+      const params = new URLSearchParams(searchParams.toString())
+      if (next === "resources") params.delete("tab")
+      else params.set("tab", next)
+      const qs = params.toString()
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+    },
+    [pathname, router, searchParams]
+  )
+
+  return [tab, setTab]
+}
 
 function Breadcrumbs({ projectId }: { projectId: string }) {
   const { data } = useProject(projectId)
@@ -54,74 +86,6 @@ function Breadcrumbs({ projectId }: { projectId: string }) {
       <ChevronRightIcon className="size-3.5" />
       <span className="text-text-muted">{data.project.name}</span>
     </nav>
-  )
-}
-
-function EditableName({ projectId }: { projectId: string }) {
-  const { data } = useProject(projectId)
-  const update = useUpdateProject()
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState("")
-  if (!data) return <span className="inline-block h-7 w-40 animate-pulse rounded bg-white/5" />
-
-  if (editing) {
-    return (
-      <input
-        autoFocus
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onFocus={(e) => e.target.select()}
-        onBlur={() => {
-          const trimmed = draft.trim()
-          if (trimmed && trimmed !== data.project.name)
-            update.mutate({ id: projectId, patch: { name: trimmed } })
-          setEditing(false)
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-          if (e.key === "Escape") setEditing(false)
-        }}
-        className="h-9 w-full rounded-md border border-border-strong bg-transparent px-1 text-2xl font-semibold tracking-tight outline-none focus-visible:border-brand/60"
-      />
-    )
-  }
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        setDraft(data.project.name)
-        setEditing(true)
-      }}
-      className="flex items-center gap-2 text-left text-2xl font-semibold tracking-tight hover:text-brand"
-    >
-      <FolderIcon
-        className="size-5 shrink-0"
-        style={{ color: data.project.color ?? undefined }}
-      />
-      {data.project.name}
-    </button>
-  )
-}
-
-function EditableDescription({ projectId }: { projectId: string }) {
-  const { data } = useProject(projectId)
-  const update = useUpdateProject()
-  const [draft, setDraft] = useState<string | null>(null)
-  if (!data) return null
-  const value = draft ?? data.project.description ?? ""
-  return (
-    <Textarea
-      value={value}
-      placeholder="What's this project for?"
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => {
-        if (draft !== null && draft !== (data.project.description ?? ""))
-          update.mutate({ id: projectId, patch: { description: draft || null } })
-        setDraft(null)
-      }}
-      rows={2}
-      className="mt-1 resize-none border-transparent bg-transparent px-0 text-sm text-text-muted shadow-none hover:border-border focus-visible:border-border-strong focus-visible:px-2"
-    />
   )
 }
 
@@ -175,6 +139,11 @@ function ProjectMenu({ projectId }: { projectId: string }) {
   )
 }
 
+function TabCount({ value }: { value: number | undefined }) {
+  if (!value) return null
+  return <span className="ml-1 text-xs text-subtle tabular-nums">{value}</span>
+}
+
 export function ProjectPage({
   projectId,
   initialSettings,
@@ -183,8 +152,19 @@ export function ProjectPage({
   initialSettings: SettingsDto
 }) {
   const { data, isError } = useProject(projectId)
+  const { data: tree } = useProjectTree()
   const [includeDescendants, setIncludeDescendants] = useState(true)
   const [addingExisting, setAddingExisting] = useState(false)
+  const [infoOpen, setInfoOpen] = useState(false)
+  const [tab, setTab] = useProjectTab()
+
+  // Lightweight counts only (not the full lists) so the tab badges stay
+  // accurate without loading an inactive tab's content.
+  const { data: taskProgress } = useProjectTaskProgress(projectId, includeDescendants)
+  const subProjectCount = useMemo(
+    () => tree?.filter((p) => p.parentId === projectId).length ?? 0,
+    [tree, projectId]
+  )
 
   const baseFilters = useMemo(
     () => ({ projectId, includeDescendants }),
@@ -199,13 +179,34 @@ export function ProjectPage({
     )
   }
 
+  const project = data?.project
+
   return (
     <>
       <Breadcrumbs projectId={projectId} />
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <EditableName projectId={projectId} />
-          <EditableDescription projectId={projectId} />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {project ? (
+            <ProjectIconPicker project={project} size={20} />
+          ) : (
+            <span className="size-8 shrink-0" />
+          )}
+          <h1 className="min-w-0 truncate text-2xl font-semibold tracking-tight">
+            {project ? (
+              project.name
+            ) : (
+              <span className="inline-block h-7 w-40 animate-pulse rounded bg-white/5" />
+            )}
+          </h1>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Project info"
+            disabled={!project}
+            onClick={() => setInfoOpen(true)}
+          >
+            <InfoIcon />
+          </Button>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <label className="flex items-center gap-2 text-xs text-text-muted">
@@ -216,34 +217,62 @@ export function ProjectPage({
             />
             Include sub-projects
           </label>
-          <Button variant="outline" size="sm" onClick={() => setAddingExisting(true)}>
-            <ListPlusIcon />
-            Add existing
-          </Button>
           <ProjectMenu projectId={projectId} />
         </div>
       </div>
 
-      <ProjectTasksSection
-        projectId={projectId}
-        projectName={data?.project.name ?? ""}
-        includeDescendants={includeDescendants}
-      />
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+        <TabsList variant="line" className="mb-4 w-full justify-start border-b border-border">
+          <TabsTrigger value="resources">
+            Resources
+            <TabCount value={project?.directCount} />
+          </TabsTrigger>
+          <TabsTrigger value="tasks">
+            Tasks
+            <TabCount value={taskProgress?.total} />
+          </TabsTrigger>
+          <TabsTrigger value="subprojects">
+            Sub-projects
+            <TabCount value={subProjectCount} />
+          </TabsTrigger>
+        </TabsList>
 
-      <LibraryView
-        title={data?.project.name ?? "Project"}
-        initialSettings={initialSettings}
-        baseFilters={baseFilters}
-        emptyTitle="Nothing filed here yet"
-        emptyDescription="Drag a resource onto this project in the sidebar, use the bulk action bar, or add existing Inbox items."
-        hideHeader
-      />
+        <TabsContent value="resources">
+          <div className="mb-3 flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setAddingExisting(true)}>
+              <ListPlusIcon />
+              Add existing
+            </Button>
+          </div>
+          <LibraryView
+            title={project?.name ?? "Project"}
+            initialSettings={initialSettings}
+            baseFilters={baseFilters}
+            emptyTitle="Nothing filed here yet"
+            emptyDescription="Drag a resource onto this project in the sidebar, use the bulk action bar, or add existing Inbox items."
+            hideHeader
+          />
+        </TabsContent>
+
+        <TabsContent value="tasks">
+          <ProjectTasksSection
+            projectId={projectId}
+            projectName={project?.name ?? ""}
+            includeDescendants={includeDescendants}
+          />
+        </TabsContent>
+
+        <TabsContent value="subprojects">
+          <ProjectSubprojectsTab projectId={projectId} includeDescendants={includeDescendants} />
+        </TabsContent>
+      </Tabs>
 
       <AddExistingDialog
         projectId={projectId}
         open={addingExisting}
         onOpenChange={setAddingExisting}
       />
+      <ProjectInfoModal projectId={projectId} open={infoOpen} onOpenChange={setInfoOpen} />
     </>
   )
 }

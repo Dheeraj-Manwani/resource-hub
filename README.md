@@ -34,8 +34,15 @@ pnpm dev                      # http://localhost:3000
 Without R2 the app still works, but uploads return "storage not configured"
 and cards use the remote snapshot images directly.
 
-1. Create a **private** bucket. Never enable public access; files are only
-   reachable through short-lived signed URLs behind `/api/files/:id`.
+1. Create a bucket. By default keep it **private**; files are reachable
+   through short-lived signed URLs behind `/api/files/:id`. You can instead
+   enable the bucket's public access (its `r2.dev` subdomain, or a custom
+   domain) and set `R2_PUBLIC_URL` to it — previews (images, video, audio,
+   PDF) then load straight from that URL instead of a signed redirect, which
+   avoids the redirect hop and the 5-minute presign expiry during long
+   playback. Downloads (`?download=1`, forcing `Content-Disposition:
+   attachment`) always go through the signed route either way, since a public
+   URL can't do that.
 2. Create an R2 API token with _Object Read & Write_ on that bucket. Set
    `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_BUCKET`.
 3. Add a CORS policy so the browser can PUT directly to R2:
@@ -63,6 +70,7 @@ app writes stays under the `resource/` prefix of the bucket.
 | `BETTER_AUTH_URL`                                                        | yes            | App base URL, e.g. `http://localhost:3000`         |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`                              | yes            | Google OAuth client                                |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | for uploads    | Cloudflare R2                                      |
+| `R2_PUBLIC_URL`                                                          | no             | Bucket's public URL, for direct (non-signed) previews |
 | `UPLOAD_MAX_IMAGE_MB` / `UPLOAD_MAX_FILE_MB`                             | no             | Upload limits (defaults 20 / 50)                   |
 | `CRON_SECRET`                                                            | prod (Phase 6) | Protects `/api/cron/*`                             |
 | `GITHUB_TOKEN`                                                           | no             | Higher GitHub API rate limit                       |

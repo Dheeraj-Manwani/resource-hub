@@ -21,7 +21,10 @@ export type FileDto = {
   size: number
   width: number | null
   height: number | null
+  /** Direct public URL when the bucket is public, else the signed `/api/files/:id` redirect. For inline preview. */
   url: string
+  /** Always `/api/files/:id?download=1` — forces a `Content-Disposition: attachment`, which a public URL can't do. */
+  downloadUrl: string
 }
 
 /** Shape returned by /api/v1/resources. */

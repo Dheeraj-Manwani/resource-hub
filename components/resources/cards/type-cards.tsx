@@ -225,7 +225,7 @@ export function FileCardBody({ resource }: { resource: ResourceDto }) {
   const ext = name.includes(".")
     ? name.split(".").pop()!.toUpperCase().slice(0, 4)
     : "FILE"
-  const href = file ? `${file.url}?download=1` : resource.url
+  const href = file ? file.downloadUrl : resource.url
   return (
     <div className="space-y-3 p-3">
       {resource.thumbnailUrl ? (

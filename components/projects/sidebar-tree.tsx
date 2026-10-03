@@ -26,6 +26,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
@@ -42,11 +45,13 @@ import {
 } from "@/hooks/queries/projects"
 import { useCollapsedProjects } from "@/lib/projects/use-collapsed"
 import { buildProjectTree, flattenTree } from "@/lib/projects/tree"
-import { PROJECT_COLORS, type ProjectTreeNode } from "@/lib/projects/types"
+import type { ProjectTreeNode } from "@/lib/projects/types"
 import { cn } from "@/lib/utils"
 
 import { DeleteProjectDialog } from "./delete-project-dialog"
 import { useProjectDndActive } from "./project-dnd"
+import { ProjectIcon } from "./project-icon"
+import { ProjectIconColorFields } from "./project-icon-picker"
 
 type CreateTarget = { parentId: string | null } | null
 
@@ -176,26 +181,15 @@ function ProjectMenu({
           {project.archivedAt ? "Unarchive" : "Archive"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <p className="px-1.5 pt-0.5 pb-1 text-xs font-medium text-muted-foreground">
-          Color
-        </p>
-        <div className="flex flex-wrap items-center gap-1.5 px-1.5 pb-1.5">
-          {PROJECT_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              aria-label={`Color ${c}`}
-              onClick={() =>
-                update.mutate({ id: project.id, patch: { color: c } })
-              }
-              style={{ backgroundColor: c }}
-              className={cn(
-                "size-4 shrink-0 rounded-full ring-1 ring-black/20 transition-transform hover:scale-110",
-                project.color === c && "ring-2 ring-white ring-offset-1 ring-offset-popover"
-              )}
-            />
-          ))}
-        </div>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <ProjectIcon icon={project.icon} color={project.color} size={14} />
+            Icon & color
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-72 overflow-hidden p-0">
+            <ProjectIconColorFields project={project} />
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={onDelete}>
           <Trash2Icon />
@@ -286,10 +280,7 @@ function ProjectRowView({
             )}
           />
         </button>
-        <FolderIcon
-          className="size-3.5 shrink-0"
-          style={{ color: node.color ?? undefined }}
-        />
+        <ProjectIcon icon={node.icon} color={node.color} size={14} />
         {renaming ? (
           <InlineRename project={node} onDone={onDoneRename} />
         ) : (

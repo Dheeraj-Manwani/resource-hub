@@ -19,6 +19,10 @@ const serverSchema = z.object({
   R2_ACCESS_KEY_ID: optional,
   R2_SECRET_ACCESS_KEY: optional,
   R2_BUCKET: optional,
+  /** Base URL of the bucket's public access (r2.dev subdomain or a custom
+   * domain) when it's been made public. When unset, files are served through
+   * signed, expiring redirects instead (see `lib/server/r2.ts`). */
+  R2_PUBLIC_URL: optional,
   UPLOAD_MAX_IMAGE_MB: z.coerce.number().positive().default(20),
   UPLOAD_MAX_FILE_MB: z.coerce.number().positive().default(50),
   USER_STORAGE_QUOTA_MB: z.coerce.number().positive().default(1024),

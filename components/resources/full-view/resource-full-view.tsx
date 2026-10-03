@@ -133,13 +133,20 @@ function FileFullView({ resource }: { resource: ResourceDto }) {
       {src ? (
         <Button
           size="sm"
+          variant="outline"
+          nativeButton={false}
+          render={<a href={src} target="_blank" rel="noopener noreferrer" />}
+        >
+          <ExternalLinkIcon />
+          Open in new tab
+        </Button>
+      ) : null}
+      {file ? (
+        <Button
+          size="sm"
           nativeButton={false}
           render={
-            <a
-              href={file ? `${file.url}?download=1` : src}
-              target="_blank"
-              rel="noopener noreferrer"
-            />
+            <a href={file.downloadUrl} target="_blank" rel="noopener noreferrer" />
           }
         >
           <DownloadIcon />

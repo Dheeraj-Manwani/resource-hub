@@ -7,7 +7,7 @@ import {
   ListIcon,
   Loader2Icon,
   PlusIcon,
-  SparklesIcon,
+  FileExclamationPoint,
   ListChecksIcon,
   StarIcon,
   type LucideIcon,
@@ -390,7 +390,7 @@ export function LibraryView({
   } else if (query.isError) {
     body = (
       <EmptyState
-        icon={SparklesIcon}
+        icon={FileExclamationPoint}
         title="Couldn't load resources"
         description={query.error.message}
       >
@@ -400,7 +400,7 @@ export function LibraryView({
   } else if (!items.length) {
     body = filtered ? (
       <EmptyState
-        icon={SparklesIcon}
+        icon={FileExclamationPoint}
         title="Nothing matches these filters"
         description="Try removing a filter."
       >
@@ -419,7 +419,7 @@ export function LibraryView({
       </EmptyState>
     ) : (
       <EmptyState
-        icon={SparklesIcon}
+        icon={FileExclamationPoint}
         title={emptyTitle}
         description={emptyDescription}
       >
@@ -457,7 +457,11 @@ export function LibraryView({
   return (
     <>
       {hideHeader ? null : (
-        <PageHeader title={title} description={description} actions={headerActions} />
+        <PageHeader
+          title={title}
+          description={description}
+          actions={headerActions}
+        />
       )}
       <FilterBar
         type={type}

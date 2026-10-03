@@ -2,16 +2,15 @@
 
 import { useMemo } from "react"
 
-import { Progress, ProgressIndicator, ProgressTrack } from "@/components/ui/progress"
 import { useProjectTaskProgress, useTaskList } from "@/hooks/queries/tasks"
 import { useDetailDrawer } from "@/hooks/use-detail-drawer"
 
 import { QuickAddBar } from "./quick-add-bar"
 import { TaskList } from "./task-list"
 
-/** Project page's "Tasks" section: a done/total progress bar plus a compact
- * list, scoped to this project (and its sub-projects when `includeDescendants`
- * is on, matching the resource grid above it). */
+/** Project page's "Tasks" tab: a done/total count plus a compact list,
+ * scoped to this project (and its sub-projects when `includeDescendants`
+ * is on, matching the resource grid). */
 export function ProjectTasksSection({
   projectId,
   projectName,
@@ -29,7 +28,6 @@ export function ProjectTasksSection({
   )
   const { data } = useTaskList(filters)
   const items = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data])
-  const pct = progress && progress.total ? (progress.done / progress.total) * 100 : 0
 
   return (
     <div className="mb-8 space-y-3">
@@ -41,13 +39,6 @@ export function ProjectTasksSection({
           </span>
         ) : null}
       </div>
-      {progress?.total ? (
-        <Progress value={pct}>
-          <ProgressTrack>
-            <ProgressIndicator />
-          </ProgressTrack>
-        </Progress>
-      ) : null}
       <QuickAddBar defaultProject={{ id: projectId, name: projectName }} autoFocus={false} />
       {items.length ? (
         <TaskList items={items} groupBy="none" onOpen={openTask} />
