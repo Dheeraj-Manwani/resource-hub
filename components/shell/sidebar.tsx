@@ -1,6 +1,6 @@
 "use client"
 
-import { SettingsIcon } from "lucide-react"
+import { SettingsIcon, Trash2Icon } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Suspense } from "react"
@@ -74,7 +74,19 @@ export function SidebarContent({
       </Suspense>
       <ProjectsSidebarSection draggable={draggable} />
 
-      <div className="mt-auto border-t border-sidebar-border p-2">
+      <div className="mt-auto flex flex-col gap-0.5 border-t border-sidebar-border p-2">
+        <Link
+          href="/trash"
+          onClick={onNavigate}
+          aria-current={isActive("/trash") ? "page" : undefined}
+          className={cn(
+            "flex h-9 items-center gap-3 rounded-lg px-3 text-sm text-text-muted hover:bg-white/[0.04] hover:text-foreground",
+            isActive("/trash") && "bg-brand-soft text-foreground"
+          )}
+        >
+          <Trash2Icon className="size-4 text-subtle" />
+          Trash
+        </Link>
         <Link
           href="/settings"
           onClick={onNavigate}

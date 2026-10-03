@@ -11,15 +11,20 @@ import { cn } from "@/lib/utils"
 
 import { TagChips } from "./cards/card-parts"
 import { ResourceImage } from "./embeds/resource-image"
+import { ResourceContextMenu } from "./resource-context-menu"
 import { TypeIcon } from "./type-icon"
 
 /** Compact, virtualized list (window scrolling). */
 export function ResourceList({
   items,
   onOpen,
+  onPreview,
 }: {
   items: ResourceDto[]
+  /** Opens the resource in the edit panel (used by the right-click menu). */
   onOpen: (id: string) => void
+  /** Opens the large read-only preview modal (the row's default click action). */
+  onPreview: (id: string) => void
 }) {
   const listRef = useRef<HTMLDivElement>(null)
   const [scrollMargin, setScrollMargin] = useState(0)
@@ -49,19 +54,26 @@ export function ResourceList({
       {virtualizer.getVirtualItems().map((row) => {
         const r = items[row.index]!
         return (
-          <button
+          <ResourceContextMenu
             key={r.id}
-            type="button"
-            data-index={row.index}
-            ref={virtualizer.measureElement}
-            onClick={() => onOpen(r.id)}
-            className={cn(
-              "absolute inset-x-0 flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-white/[0.03] focus-visible:bg-brand-soft focus-visible:outline-none",
-              row.index > 0 && "border-t border-border"
-            )}
-            style={{
-              transform: `translateY(${row.start - virtualizer.options.scrollMargin}px)`,
-            }}
+            resource={r}
+            onPreview={onPreview}
+            onEdit={onOpen}
+            trigger={
+              <button
+                type="button"
+                data-index={row.index}
+                ref={virtualizer.measureElement}
+                onClick={() => onPreview(r.id)}
+                className={cn(
+                  "absolute inset-x-0 flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-white/[0.03] focus-visible:bg-brand-soft focus-visible:outline-none",
+                  row.index > 0 && "border-t border-border"
+                )}
+                style={{
+                  transform: `translateY(${row.start - virtualizer.options.scrollMargin}px)`,
+                }}
+              />
+            }
           >
             <ResourceImage
               src={r.thumbnailUrl}
@@ -92,7 +104,7 @@ export function ResourceList({
             <span className="hidden shrink-0 text-xs text-subtle sm:block">
               {formatDate(r.createdAt)}
             </span>
-          </button>
+          </ResourceContextMenu>
         )
       })}
     </div>

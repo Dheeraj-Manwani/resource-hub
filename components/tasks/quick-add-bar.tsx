@@ -62,8 +62,11 @@ export function QuickAddBar({
   const ref = useRef<HTMLInputElement>(null)
 
   const parsed = useMemo(() => parseQuickAdd(text), [text])
-  const typedProject = parsed.projectQuery ? resolveProjectQuery(parsed.projectQuery, options) : null
-  const project = typedProject ?? (parsed.projectQuery ? null : (defaultProject ?? null))
+  const typedProject = parsed.projectQuery
+    ? resolveProjectQuery(parsed.projectQuery, options)
+    : null
+  const project =
+    typedProject ?? (parsed.projectQuery ? null : (defaultProject ?? null))
 
   function submit() {
     if (!parsed.title.trim()) return
@@ -82,7 +85,13 @@ export function QuickAddBar({
     )
   }
 
-  const hasChips = !!(parsed.priority || parsed.tags.length || project || parsed.dueAt || parsed.dueDate)
+  const hasChips = !!(
+    parsed.priority ||
+    parsed.tags.length ||
+    project ||
+    parsed.dueAt ||
+    parsed.dueDate
+  )
 
   return (
     <div className="space-y-1.5">
@@ -104,7 +113,10 @@ export function QuickAddBar({
           placeholder={`finish landing page friday 5pm #project !high`}
           className="h-10 flex-1 text-sm"
         />
-        <Button onClick={submit} disabled={!parsed.title.trim() || create.isPending}>
+        <Button
+          onClick={submit}
+          disabled={!parsed.title.trim() || create.isPending}
+        >
           {create.isPending ? <Loader2Icon className="animate-spin" /> : null}
           Add
         </Button>
@@ -123,7 +135,7 @@ export function QuickAddBar({
               {formatDate(parsed.dueAt ?? parsed.dueDate)}
             </span>
           ) : null}
-          {project ? (
+          {/* {project ? (
             <span
               className={cn(
                 "flex items-center gap-1 rounded-full px-2 py-0.5",
@@ -138,9 +150,12 @@ export function QuickAddBar({
               <FolderIcon className="size-3" />
               no match for &quot;{parsed.projectQuery}&quot;
             </span>
-          ) : null}
+          ) : null} */}
           {parsed.tags.map((tag) => (
-            <span key={tag} className="flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5">
+            <span
+              key={tag}
+              className="flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5"
+            >
               <HashIcon className="size-3" />
               {tag}
             </span>

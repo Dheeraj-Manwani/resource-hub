@@ -5,6 +5,7 @@ import { Suspense } from "react"
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
 import { AddResourceDialog } from "@/components/resources/add-resource-dialog"
 import { LightboxProvider } from "@/components/resources/lightbox/lightbox-provider"
+import { ResourcePreviewProvider } from "@/components/resources/resource-preview-provider"
 import { ProjectDndProvider } from "@/components/projects/project-dnd"
 import { CommandPalette } from "@/components/search/command-palette"
 import { TaskShortcuts } from "@/components/tasks/task-shortcuts"
@@ -42,28 +43,30 @@ export function AppShell({
   return (
     <ShellProvider user={user}>
       <LightboxProvider>
-        <ProjectDndProvider>
-          <div className="flex min-h-svh">
-            <aside className="sticky top-0 hidden h-svh w-60 shrink-0 border-r border-sidebar-border bg-sidebar md:block">
-              <SidebarContent draggable />
-            </aside>
-            <div className="flex min-w-0 flex-1 flex-col">
-              <TopBar />
-              <main className="flex-1 px-4 pt-6 pb-28 md:px-8 md:pb-12">
-                {children}
-              </main>
+        <ResourcePreviewProvider>
+          <ProjectDndProvider>
+            <div className="flex min-h-svh">
+              <aside className="sticky top-0 hidden h-svh w-60 shrink-0 border-r border-sidebar-border bg-sidebar md:block">
+                <SidebarContent draggable />
+              </aside>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <TopBar />
+                <main className="flex-1 px-4 pt-6 pb-28 md:px-8 md:pb-12">
+                  {children}
+                </main>
+              </div>
             </div>
-          </div>
-          <MobileNav />
-          <MobileFab />
-          <OnboardingModal />
-          <Suspense>
-            <AddResourceDialog />
-            <DetailDrawer />
-            <TaskShortcuts />
-            <CommandPalette />
-          </Suspense>
-        </ProjectDndProvider>
+            <MobileNav />
+            <MobileFab />
+            <OnboardingModal />
+            <Suspense>
+              <AddResourceDialog />
+              <DetailDrawer />
+              <TaskShortcuts />
+              <CommandPalette />
+            </Suspense>
+          </ProjectDndProvider>
+        </ResourcePreviewProvider>
       </LightboxProvider>
     </ShellProvider>
   )

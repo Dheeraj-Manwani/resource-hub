@@ -30,9 +30,8 @@ export function ProjectTasksSection({
   const items = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data])
 
   return (
-    <div className="mb-8 space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-text-muted">Tasks</h2>
+    <div className="mb-8 space-y-2">
+      <div className="flex h-6 items-center justify-end">
         {progress?.total ? (
           <span className="text-xs text-subtle tabular-nums">
             {progress.done}/{progress.total} done

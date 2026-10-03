@@ -51,6 +51,7 @@ import { useLightbox } from "./lightbox/lightbox-provider"
 import { Masonry } from "./masonry"
 import { ResourceCard } from "./resource-card"
 import { ResourceList } from "./resource-list"
+import { useResourcePreview } from "./resource-preview-provider"
 import { TypeIcon } from "./type-icon"
 
 type View = SettingsDto["libraryView"]
@@ -324,6 +325,7 @@ export function LibraryView({
 }) {
   const { openAddResource } = useShell()
   const { openResource } = useDetailDrawer()
+  const { openPreview } = useResourcePreview()
   const { openImages } = useLightbox()
   const loadDemo = useLoadDemoData()
   const { data: settings } = useSettings(initialSettings)
@@ -407,13 +409,14 @@ export function LibraryView({
       <ResourceCard
         resource={r}
         onOpen={openResource}
+        onPreview={openPreview}
         onOpenImage={openImage}
         selectable={selectMode}
         selected={selected.has(r.id)}
         onToggleSelect={toggleSelected}
       />
     ),
-    [openResource, openImage, selectMode, selected, toggleSelected]
+    [openResource, openPreview, openImage, selectMode, selected, toggleSelected]
   )
 
   // Cmd/Ctrl+A selects every currently-loaded item while in select mode.
@@ -493,7 +496,9 @@ export function LibraryView({
       </EmptyState>
     )
   } else if (view === "list") {
-    body = <ResourceList items={items} onOpen={openResource} />
+    body = (
+      <ResourceList items={items} onOpen={openResource} onPreview={openPreview} />
+    )
   } else if (view === "focus") {
     body = (
       <FocusView

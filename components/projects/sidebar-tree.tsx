@@ -115,7 +115,10 @@ function InlineRename({
   function submit() {
     const trimmed = name.trim()
     if (!trimmed || trimmed === project.name) return onDone()
-    update.mutate({ id: project.id, patch: { name: trimmed } }, { onSuccess: onDone })
+    update.mutate(
+      { id: project.id, patch: { name: trimmed } },
+      { onSuccess: onDone }
+    )
   }
 
   return (
@@ -154,7 +157,7 @@ function ProjectMenu({
             type="button"
             aria-label={`${project.name} options`}
             onClick={(e) => e.stopPropagation()}
-            className="flex size-5 shrink-0 items-center justify-center rounded text-subtle opacity-0 hover:bg-white/10 hover:text-foreground group-hover/row:opacity-100 data-popup-open:opacity-100"
+            className="flex size-5 shrink-0 items-center justify-center rounded text-subtle opacity-0 group-hover/row:opacity-100 hover:bg-white/10 hover:text-foreground data-popup-open:opacity-100"
           />
         }
       >
@@ -253,7 +256,7 @@ function ProjectRowView({
         onKeyDown={(e) => onKeyNav(e, node)}
         style={{ paddingLeft: `${node.depth * 16 + 4}px` }}
         className={cn(
-          "group/row relative flex h-8 items-center gap-1 rounded-lg pr-1 text-sm text-text-muted outline-none transition-colors hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-brand/40",
+          "group/row relative flex h-8 items-center gap-1 rounded-lg pr-1 text-sm text-text-muted transition-colors outline-none hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-brand/40",
           active && "bg-brand-soft text-foreground",
           drag?.isDropTarget && "bg-brand-soft/70 ring-1 ring-brand/50",
           drag?.isDragging && "opacity-40",
@@ -336,7 +339,8 @@ function SortableProjectRow(props: RowProps) {
         attributes: sortable.attributes,
         listeners: sortable.listeners,
         isDragging: sortable.isDragging,
-        isDropTarget: !!dndActive && dndActive.activeId !== node.id && sortable.isOver,
+        isDropTarget:
+          !!dndActive && dndActive.activeId !== node.id && sortable.isOver,
       }}
     />
   )
@@ -451,7 +455,11 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
         >
           <ul role="tree" aria-label="Projects" className="space-y-0.5">
             {visible.map((node) => (
-              <SortableProjectRow key={node.id} node={node} {...rowProps(node)} />
+              <SortableProjectRow
+                key={node.id}
+                node={node}
+                {...rowProps(node)}
+              />
             ))}
           </ul>
         </SortableContext>
@@ -467,7 +475,8 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
         <InlineCreateRow
           depth={
             creating.parentId
-              ? (visible.find((n) => n.id === creating.parentId)?.depth ?? 0) + 1
+              ? (visible.find((n) => n.id === creating.parentId)?.depth ?? 0) +
+                1
               : 0
           }
           parentId={creating.parentId}

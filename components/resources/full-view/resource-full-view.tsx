@@ -161,9 +161,12 @@ function FileFullView({ resource }: { resource: ResourceDto }) {
 export function ResourceFullView({
   resource,
   onOpenImage,
+  interactive = true,
 }: {
   resource: ResourceDto
   onOpenImage?: (id: string) => void
+  /** false renders notes read-only (used by the preview dialog; editing happens in the edit panel). */
+  interactive?: boolean
 }) {
   const update = useUpdateResource()
   const title = displayTitle(resource)
@@ -224,11 +227,15 @@ export function ResourceFullView({
         <div className="space-y-2">
           <NoteEditor
             content={resource.bodyJson}
-            onSave={(doc, text) =>
-              update.mutate({
-                id: resource.id,
-                patch: { bodyJson: doc, bodyText: text },
-              })
+            editable={interactive}
+            onSave={
+              interactive
+                ? (doc, text) =>
+                    update.mutate({
+                      id: resource.id,
+                      patch: { bodyJson: doc, bodyText: text },
+                    })
+                : undefined
             }
           />
           <div className="flex justify-end">

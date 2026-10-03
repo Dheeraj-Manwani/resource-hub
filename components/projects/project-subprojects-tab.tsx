@@ -68,7 +68,9 @@ export function ProjectSubprojectsTab({
     if (!found) return { node: null, rows: [] }
     return {
       node: found,
-      rows: includeDescendants ? flattenTree(found.children, () => false) : found.children,
+      rows: includeDescendants
+        ? flattenTree(found.children, () => false)
+        : found.children,
     }
   }, [flat, projectId, includeDescendants])
 
@@ -91,29 +93,36 @@ export function ProjectSubprojectsTab({
   }
 
   return (
-    <div className="space-y-2">
-      {rows.map((p) => (
-        <Link
-          key={p.id}
-          href={`/projects/${p.id}`}
-          style={{ paddingLeft: `${(p.depth - baseDepth) * 20 + 12}px` }}
-          className="flex items-center gap-3 rounded-lg border border-border bg-surface py-2.5 pr-3 transition-colors hover:border-brand/40"
-        >
-          <ProjectIcon icon={p.icon} color={p.color} size={18} />
-          <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.name}</span>
-          <span className="shrink-0 text-xs text-subtle">
-            {p.directCount} {p.directCount === 1 ? "resource" : "resources"}
-          </span>
-        </Link>
-      ))}
-      {creating ? (
-        <InlineCreate parentId={projectId} onDone={() => setCreating(false)} />
-      ) : (
-        <Button variant="outline" size="sm" onClick={() => setCreating(true)}>
-          <FolderPlusIcon />
-          New sub-project
-        </Button>
-      )}
+    <div>
+      <div className="mb-2 flex h-6 items-center justify-end">
+        {!creating ? (
+          <Button variant="outline" size="xs" onClick={() => setCreating(true)}>
+            <FolderPlusIcon />
+            New sub-project
+          </Button>
+        ) : null}
+      </div>
+      <div className="space-y-2">
+        {rows.map((p) => (
+          <Link
+            key={p.id}
+            href={`/projects/${p.id}`}
+            style={{ marginLeft: `${(p.depth - baseDepth) * 20 + 12}px` }}
+            className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5 transition-colors hover:border-brand/40"
+          >
+            <ProjectIcon icon={p.icon} color={p.color} size={18} />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">
+              {p.name}
+            </span>
+            <span className="shrink-0 text-xs text-subtle">
+              {p.directCount} {p.directCount === 1 ? "resource" : "resources"}
+            </span>
+          </Link>
+        ))}
+        {creating ? (
+          <InlineCreate parentId={projectId} onDone={() => setCreating(false)} />
+        ) : null}
+      </div>
     </div>
   )
 }

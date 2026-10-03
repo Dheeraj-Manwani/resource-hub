@@ -109,7 +109,11 @@ function Field({
   )
 }
 
-/** Text input that saves on blur/Enter when its value changed. */
+/**
+ * Text input with explicit Save/Cancel controls — nothing is written until
+ * Save is pressed (or Enter, for single-line fields), unlike the instant
+ * writes used for links/tags/projects elsewhere in this panel.
+ */
 function InlineText({
   id,
   value,
@@ -131,35 +135,55 @@ function InlineText({
     setPrevValue(value)
     setDraft(value)
   }
-  const commit = () => {
-    if (draft !== value) onSave(draft)
+  const dirty = draft !== value
+  const save = () => {
+    if (dirty) onSave(draft)
   }
-  if (multiline) {
-    return (
-      <Textarea
-        id={id}
-        value={draft}
-        placeholder={placeholder}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        rows={4}
-        className={className}
-      />
-    )
+  const cancel = () => setDraft(value)
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (e.key === "Escape") {
+      cancel()
+      ;(e.target as HTMLElement).blur()
+    }
+    if (!multiline && e.key === "Enter") {
+      save()
+      ;(e.target as HTMLElement).blur()
+    }
   }
+
   return (
-    <Input
-      id={id}
-      value={draft}
-      placeholder={placeholder}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur()
-        if (e.key === "Escape") setDraft(value)
-      }}
-      className={className}
-    />
+    <div className="space-y-1.5">
+      {multiline ? (
+        <Textarea
+          id={id}
+          value={draft}
+          placeholder={placeholder}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={onKeyDown}
+          rows={4}
+          className={className}
+        />
+      ) : (
+        <Input
+          id={id}
+          value={draft}
+          placeholder={placeholder}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={onKeyDown}
+          className={className}
+        />
+      )}
+      {dirty ? (
+        <div className="flex justify-end gap-1.5">
+          <Button size="sm" variant="ghost" onClick={cancel}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={save}>
+            Save
+          </Button>
+        </div>
+      ) : null}
+    </div>
   )
 }
 

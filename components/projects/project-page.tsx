@@ -25,7 +25,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Tabs,
+  TabsContent,
+  TabsIndicator,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import {
   useDeleteProject,
   useProject,
@@ -33,6 +39,7 @@ import {
   useUpdateProject,
 } from "@/hooks/queries/projects"
 import type { SettingsDto } from "@/lib/server/dal/settings"
+import { cn } from "@/lib/utils"
 
 import { AddExistingDialog } from "./add-existing-dialog"
 import { DeleteProjectDialog } from "./delete-project-dialog"
@@ -51,7 +58,9 @@ function useProjectTab(): [Tab, (tab: Tab) => void] {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const raw = searchParams.get("tab")
-  const tab: Tab = (TABS as readonly string[]).includes(raw ?? "") ? (raw as Tab) : "resources"
+  const tab: Tab = (TABS as readonly string[]).includes(raw ?? "")
+    ? (raw as Tab)
+    : "resources"
 
   const setTab = useCallback(
     (next: Tab) => {
@@ -71,14 +80,20 @@ function Breadcrumbs({ projectId }: { projectId: string }) {
   const { data } = useProject(projectId)
   if (!data) return null
   return (
-    <nav aria-label="Breadcrumb" className="mb-1 flex flex-wrap items-center gap-1 text-sm text-subtle">
+    <nav
+      aria-label="Breadcrumb"
+      className="mb-1 flex flex-wrap items-center gap-1 text-sm text-subtle"
+    >
       <Link href="/resources" className="hover:text-text-muted hover:underline">
         Resources
       </Link>
       {data.ancestors.map((p) => (
         <span key={p.id} className="flex items-center gap-1">
           <ChevronRightIcon className="size-3.5" />
-          <Link href={`/projects/${p.id}`} className="hover:text-text-muted hover:underline">
+          <Link
+            href={`/projects/${p.id}`}
+            className="hover:text-text-muted hover:underline"
+          >
             {p.name}
           </Link>
         </span>
@@ -101,7 +116,9 @@ function ProjectMenu({ projectId }: { projectId: string }) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<Button variant="outline" size="sm" aria-label="Project options" />}
+          render={
+            <Button variant="outline" size="sm" aria-label="Project options" />
+          }
         >
           <MoreHorizontalIcon />
         </DropdownMenuTrigger>
@@ -118,14 +135,21 @@ function ProjectMenu({ projectId }: { projectId: string }) {
             {data.project.archivedAt ? "Unarchive" : "Archive"}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={() => setDeleting(true)}>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => setDeleting(true)}
+          >
             <Trash2Icon />
             Delete…
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <DeleteProjectDialog
-        project={deleting ? { ...data.project, depth: 0, totalCount: 0, children: [] } : null}
+        project={
+          deleting
+            ? { ...data.project, depth: 0, totalCount: 0, children: [] }
+            : null
+        }
         onOpenChange={(open) => !open && setDeleting(false)}
         onConfirm={(mode) => {
           deleteProject.mutate(
@@ -139,9 +163,24 @@ function ProjectMenu({ projectId }: { projectId: string }) {
   )
 }
 
-function TabCount({ value }: { value: number | undefined }) {
+function TabCount({
+  value,
+  active,
+}: {
+  value: number | undefined
+  active?: boolean
+}) {
   if (!value) return null
-  return <span className="ml-1 text-xs text-subtle tabular-nums">{value}</span>
+  return (
+    <span
+      className={cn(
+        "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-semibold tabular-nums transition-colors",
+        active ? "bg-brand/15 text-brand" : "bg-white/[0.06] text-subtle"
+      )}
+    >
+      {value}
+    </span>
+  )
 }
 
 export function ProjectPage({
@@ -160,7 +199,10 @@ export function ProjectPage({
 
   // Lightweight counts only (not the full lists) so the tab badges stay
   // accurate without loading an inactive tab's content.
-  const { data: taskProgress } = useProjectTaskProgress(projectId, includeDescendants)
+  const { data: taskProgress } = useProjectTaskProgress(
+    projectId,
+    includeDescendants
+  )
   const subProjectCount = useMemo(
     () => tree?.filter((p) => p.parentId === projectId).length ?? 0,
     [tree, projectId]
@@ -222,24 +264,32 @@ export function ProjectPage({
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        <TabsList variant="line" className="mb-4 w-full justify-start border-b border-border">
+        <TabsList variant="pill" className="mb-3">
+          <TabsIndicator />
           <TabsTrigger value="resources">
             Resources
-            <TabCount value={project?.directCount} />
+            <TabCount
+              value={project?.directCount}
+              active={tab === "resources"}
+            />
           </TabsTrigger>
           <TabsTrigger value="tasks">
             Tasks
-            <TabCount value={taskProgress?.total} />
+            <TabCount value={taskProgress?.total} active={tab === "tasks"} />
           </TabsTrigger>
           <TabsTrigger value="subprojects">
             Sub-projects
-            <TabCount value={subProjectCount} />
+            <TabCount value={subProjectCount} active={tab === "subprojects"} />
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="resources">
-          <div className="mb-3 flex justify-end">
-            <Button variant="outline" size="sm" onClick={() => setAddingExisting(true)}>
+          <div className="mb-2 flex h-6 items-center justify-end">
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => setAddingExisting(true)}
+            >
               <ListPlusIcon />
               Add existing
             </Button>
@@ -263,7 +313,10 @@ export function ProjectPage({
         </TabsContent>
 
         <TabsContent value="subprojects">
-          <ProjectSubprojectsTab projectId={projectId} includeDescendants={includeDescendants} />
+          <ProjectSubprojectsTab
+            projectId={projectId}
+            includeDescendants={includeDescendants}
+          />
         </TabsContent>
       </Tabs>
 
@@ -272,7 +325,11 @@ export function ProjectPage({
         open={addingExisting}
         onOpenChange={setAddingExisting}
       />
-      <ProjectInfoModal projectId={projectId} open={infoOpen} onOpenChange={setInfoOpen} />
+      <ProjectInfoModal
+        projectId={projectId}
+        open={infoOpen}
+        onOpenChange={setInfoOpen}
+      />
     </>
   )
 }
