@@ -49,7 +49,7 @@ export function useProject(id: string | null) {
 }
 
 function invalidateTree(qc: QueryClient) {
-  return qc.invalidateQueries({ queryKey: projectKeys.tree() })
+  return qc.invalidateQueries({ queryKey: projectKeys.tree() }).catch(() => {})
 }
 
 export function useCreateProject() {

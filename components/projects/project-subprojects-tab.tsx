@@ -2,7 +2,7 @@
 
 import { FolderPlusIcon } from "lucide-react"
 import Link from "next/link"
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 
 import { EmptyState } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
@@ -21,11 +21,17 @@ function InlineCreate({
 }) {
   const [name, setName] = useState("")
   const create = useCreateProject()
+  const submittedRef = useRef(false)
 
   function submit() {
+    if (submittedRef.current) return
     const trimmed = name.trim()
     if (!trimmed) return onDone()
-    create.mutate({ name: trimmed, parentId }, { onSuccess: onDone })
+    submittedRef.current = true
+    create.mutate(
+      { name: trimmed, parentId },
+      { onSuccess: onDone, onError: () => (submittedRef.current = false) }
+    )
   }
 
   return (

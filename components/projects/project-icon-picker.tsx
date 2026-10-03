@@ -45,6 +45,7 @@ export function ProjectIconColorFields({
         <EmojiPicker.Search
           className="mx-2.5 mt-2.5 h-8 shrink-0 rounded-md border border-border bg-surface px-2.5 text-sm outline-none placeholder:text-subtle focus:border-brand/60"
           placeholder="Search emoji…"
+          onKeyDown={(e) => e.stopPropagation()}
         />
         <EmojiPicker.Viewport className={cn("mt-1.5 flex-1", EMOJI_LIST_STYLES)}>
           <EmojiPicker.Loading className="flex h-full items-center justify-center text-sm text-subtle">

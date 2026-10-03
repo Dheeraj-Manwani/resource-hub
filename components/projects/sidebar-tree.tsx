@@ -67,12 +67,18 @@ function InlineCreateRow({
   const [name, setName] = useState("")
   const create = useCreateProject()
   const ref = useRef<HTMLInputElement>(null)
+  const submittedRef = useRef(false)
   useEffect(() => ref.current?.focus(), [])
 
   function submit() {
+    if (submittedRef.current) return
     const trimmed = name.trim()
     if (!trimmed) return onDone()
-    create.mutate({ name: trimmed, parentId }, { onSuccess: onDone })
+    submittedRef.current = true
+    create.mutate(
+      { name: trimmed, parentId },
+      { onSuccess: onDone, onError: () => (submittedRef.current = false) }
+    )
   }
 
   return (
@@ -107,17 +113,20 @@ function InlineRename({
   const [name, setName] = useState(project.name)
   const update = useUpdateProject()
   const ref = useRef<HTMLInputElement>(null)
+  const submittedRef = useRef(false)
   useEffect(() => {
     ref.current?.focus()
     ref.current?.select()
   }, [])
 
   function submit() {
+    if (submittedRef.current) return
     const trimmed = name.trim()
     if (!trimmed || trimmed === project.name) return onDone()
+    submittedRef.current = true
     update.mutate(
       { id: project.id, patch: { name: trimmed } },
-      { onSuccess: onDone }
+      { onSuccess: onDone, onError: () => (submittedRef.current = false) }
     )
   }
 

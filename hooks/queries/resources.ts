@@ -136,7 +136,7 @@ function removeFromLists(qc: QueryClient, id: string) {
 }
 
 export function invalidateResourceLists(qc: QueryClient) {
-  return qc.invalidateQueries({ queryKey: resourceKeys.lists() })
+  return qc.invalidateQueries({ queryKey: resourceKeys.lists() }).catch(() => {})
 }
 
 export type CreateResourceBody = {
