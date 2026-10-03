@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
+import NextTopLoader from "nextjs-toploader"
 
 import "./globals.css"
 import { Providers } from "@/components/providers"
@@ -29,6 +30,7 @@ export default function RootLayout({
       style={{ colorScheme: "dark" }}
     >
       <body>
+        <NextTopLoader color="#ff6a00" showSpinner={false} />
         <Providers>{children}</Providers>
       </body>
     </html>

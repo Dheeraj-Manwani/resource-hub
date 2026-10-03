@@ -3,9 +3,10 @@
 import { TaskItem, TaskList } from "@tiptap/extension-list"
 import Image from "@tiptap/extension-image"
 import { Placeholder } from "@tiptap/extensions"
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model"
+import { Fragment, Slice, type Node as ProseMirrorNode } from "@tiptap/pm/model"
 import type { EditorView } from "@tiptap/pm/view"
 import { EditorContent, useEditor, type Editor } from "@tiptap/react"
+import { BubbleMenu } from "@tiptap/react/menus"
 import StarterKit from "@tiptap/starter-kit"
 import {
   BoldIcon,
@@ -15,11 +16,17 @@ import {
   ListChecksIcon,
   ListIcon,
   ListOrderedIcon,
+  TypeIcon,
 } from "lucide-react"
 import { useEffect, useRef } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
 type Doc = Record<string, unknown>
@@ -147,6 +154,23 @@ function insertSmartLink(view: EditorView, url: string, preview: LinkPreview) {
     .catch(() => {})
 }
 
+/** ProseMirror's default plain-text paste collapses runs of multiple blank
+ * lines into a single paragraph break, which loses the exact spacing of
+ * content copied from an external editor (e.g. Notepad++). This instead
+ * creates one paragraph per source line — blank lines included — so the
+ * pasted shape matches the original one-for-one. */
+function insertLinesPreservingBlanks(view: EditorView, text: string) {
+  const paragraphType = view.state.schema.nodes.paragraph
+  if (!paragraphType) return false
+  const lines = text.replace(/\r\n?/g, "\n").split("\n")
+  const nodes = lines.map((line) =>
+    paragraphType.create(null, line ? view.state.schema.text(line) : undefined)
+  )
+  const slice = new Slice(Fragment.fromArray(nodes), 0, 0)
+  view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView())
+  return true
+}
+
 function ToolbarButton({
   active,
   label,
@@ -173,24 +197,14 @@ function ToolbarButton({
   )
 }
 
-function Toolbar({
-  editor,
-  onUploadImage,
-}: {
-  editor: Editor
-  onUploadImage?: UploadImage
-}) {
-  const fileInput = useRef<HTMLInputElement>(null)
+const FLOATING_BAR_CLASS =
+  "z-[60] flex items-center gap-0.5 rounded-lg border border-border-strong bg-surface-raised p-1 shadow-popover"
 
+/** Appears next to the current text selection — inline formatting only,
+ * so it's there when you've selected text and gone otherwise. */
+function SelectionMenu({ editor }: { editor: Editor }) {
   return (
-    <div className="flex flex-wrap gap-0.5 border-b border-border p-1">
-      <ToolbarButton
-        label="Heading"
-        active={editor.isActive("heading", { level: 2 })}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-      >
-        <Heading2Icon />
-      </ToolbarButton>
+    <BubbleMenu editor={editor} className={FLOATING_BAR_CLASS}>
       <ToolbarButton
         label="Bold"
         active={editor.isActive("bold")}
@@ -205,58 +219,121 @@ function Toolbar({
       >
         <ItalicIcon />
       </ToolbarButton>
-      <ToolbarButton
-        label="Bullet list"
-        active={editor.isActive("bulletList")}
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-      >
-        <ListIcon />
-      </ToolbarButton>
-      <ToolbarButton
-        label="Numbered list"
-        active={editor.isActive("orderedList")}
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-      >
-        <ListOrderedIcon />
-      </ToolbarButton>
-      <ToolbarButton
-        label="Checklist"
-        active={editor.isActive("taskList")}
-        onClick={() => editor.chain().focus().toggleTaskList().run()}
-      >
-        <ListChecksIcon />
-      </ToolbarButton>
-      {onUploadImage ? (
-        <>
-          <ToolbarButton
-            label="Insert image"
-            onClick={() => fileInput.current?.click()}
-          >
-            <ImageIcon />
-          </ToolbarButton>
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              e.target.value = ""
-              if (file) insertImageWithUpload(editor.view, file, onUploadImage)
-            }}
+    </BubbleMenu>
+  )
+}
+
+/** Explicit, always-available trigger for formatting (headings, lists,
+ * image) and inline marks (bold, italic) alike, so block-level controls
+ * don't need a popover of their own at every line. */
+function FormattingMenu({
+  editor,
+  onUploadImage,
+}: {
+  editor: Editor
+  onUploadImage?: UploadImage
+}) {
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Formatting options"
+            className="absolute top-2 right-2 z-10 text-subtle hover:text-text-muted"
           />
-        </>
-      ) : null}
-    </div>
+        }
+      >
+        <TypeIcon />
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-auto flex-row flex-wrap gap-0.5 p-1"
+      >
+        <ToolbarButton
+          label="Heading"
+          active={editor.isActive("heading", { level: 2 })}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 2 }).run()
+          }
+        >
+          <Heading2Icon />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Bold"
+          active={editor.isActive("bold")}
+          onClick={() => editor.chain().focus().toggleBold().run()}
+        >
+          <BoldIcon />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Italic"
+          active={editor.isActive("italic")}
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+        >
+          <ItalicIcon />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Bullet list"
+          active={editor.isActive("bulletList")}
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+        >
+          <ListIcon />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Numbered list"
+          active={editor.isActive("orderedList")}
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        >
+          <ListOrderedIcon />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Checklist"
+          active={editor.isActive("taskList")}
+          onClick={() => editor.chain().focus().toggleTaskList().run()}
+        >
+          <ListChecksIcon />
+        </ToolbarButton>
+        {onUploadImage ? (
+          <>
+            <ToolbarButton
+              label="Insert image"
+              onClick={() => fileInput.current?.click()}
+            >
+              <ImageIcon />
+            </ToolbarButton>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ""
+                if (file)
+                  insertImageWithUpload(editor.view, file, onUploadImage)
+              }}
+            />
+          </>
+        ) : null}
+      </PopoverContent>
+    </Popover>
   )
 }
 
 /**
  * Tiptap editor for note bodies. Saves JSON + plain text with a debounce;
- * read-only mode renders the same document without the toolbar. Pasting or
- * dropping an image uploads it (when `onUploadImage` is given); pasting a
- * bare URL becomes a "smart" link whose text is swapped for the page's
- * title (when `onLinkPreview` is given).
+ * read-only mode renders the same document without the formatting menus.
+ * Formatting controls stay out of view until summoned: select text for a
+ * bold/italic bubble menu, or click the formatting trigger for everything
+ * else (headings, lists, image). Pasting or dropping an image uploads it (when
+ * `onUploadImage` is given); pasting a bare URL becomes a "smart" link whose
+ * text is swapped for the page's title (when `onLinkPreview` is given);
+ * pasting multi-line plain text keeps every blank line exactly as copied.
  */
 export default function NoteEditor({
   content,
@@ -277,9 +354,9 @@ export default function NoteEditor({
    * result locally (no network call) and needs it always current, e.g.
    * to read right before an explicit Save action. */
   debounceMs?: number
-  /** Drops the outer border/background box and the content's own side
-   * padding, for a host (the Quick Notes modal) that already provides its
-   * own chrome and wants the editor to fill the space edge-to-edge. */
+  /** Swaps the bordered-card look for a sunken background instead, for a
+   * host (the Quick Notes modal) that already provides its own chrome but
+   * still wants the editable area visually set apart from it. */
   bare?: boolean
 }) {
   const timer = useRef<number | undefined>(undefined)
@@ -318,8 +395,8 @@ export default function NoteEditor({
     editorProps: {
       attributes: {
         class: cn(
-          "prose-dark min-h-40 py-2 outline-none [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:text-subtle [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
-          bare ? "px-0" : "px-3"
+          "prose-dark px-3 py-2 outline-none [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:text-subtle [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
+          bare ? "min-h-full" : "min-h-40"
         ),
       },
       handlePaste: (view, event) => {
@@ -338,19 +415,25 @@ export default function NoteEditor({
           }
         }
 
+        if (data.types.includes("Files")) return false
+        const html = data.getData("text/html")
+        const text = data.getData("text/plain")
+        if (html || !text) return false
+
         const preview = onLinkPreviewRef.current
-        if (
-          preview &&
-          view.state.selection.empty &&
-          !data.types.includes("Files")
-        ) {
-          const text = data.getData("text/plain")?.trim()
-          const html = data.getData("text/html")
-          if (text && !html && isBareUrl(text)) {
-            event.preventDefault()
-            insertSmartLink(view, text, preview)
-            return true
-          }
+        const trimmed = text.trim()
+        if (preview && view.state.selection.empty && isBareUrl(trimmed)) {
+          event.preventDefault()
+          insertSmartLink(view, trimmed, preview)
+          return true
+        }
+
+        // Plain-text-only clipboard (e.g. copied from Notepad++) with no
+        // HTML to fall back on: preserve every source line ourselves,
+        // since ProseMirror's default parser collapses runs of blank lines.
+        if (text.includes("\n")) {
+          event.preventDefault()
+          return insertLinesPreservingBlanks(view, text)
         }
 
         return false
@@ -411,16 +494,24 @@ export default function NoteEditor({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-lg",
+        "relative overflow-hidden rounded-lg transition-colors",
+        bare && "flex h-full min-h-0 flex-col",
         editable &&
-          !bare &&
-          "border border-border bg-surface focus-within:border-border-strong"
+          (bare
+            ? "bg-bg-sunken ring-1 ring-transparent focus-within:ring-border-strong"
+            : "border border-border bg-surface focus-within:border-border-strong")
       )}
     >
       {editable ? (
-        <Toolbar editor={editor} onUploadImage={onUploadImage} />
+        <>
+          <SelectionMenu editor={editor} />
+          <FormattingMenu editor={editor} onUploadImage={onUploadImage} />
+        </>
       ) : null}
-      <EditorContent editor={editor} />
+      <EditorContent
+        editor={editor}
+        className={bare ? "min-h-0 flex-1 overflow-y-auto" : undefined}
+      />
     </div>
   )
 }

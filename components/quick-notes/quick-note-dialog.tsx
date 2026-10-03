@@ -1,6 +1,6 @@
 "use client"
 
-import { FolderIcon } from "lucide-react"
+import { FolderIcon, XIcon } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useEffect, useRef, useState } from "react"
 
@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -121,55 +122,42 @@ function DialogBody({
 
   return (
     <>
-      <DialogHeader className="shrink-0 gap-0 border-b border-border py-4 pr-14 pl-6">
-        <DialogTitle className="sr-only">
-          {draft.id ? "Edit quick note" : "New quick note"}
-        </DialogTitle>
-        <DialogDescription className="sr-only">
-          An optional title and a rich-text body you can paste images and links
-          into.
-        </DialogDescription>
-        <Input
-          autoFocus
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value)
-            onLiveChange({ title: e.target.value })
-          }}
-          placeholder="Untitled"
-          className="h-auto border-none bg-transparent px-3.5 py-2 text-2xl font-semibold shadow-none focus-visible:ring-0"
-        />
-        <ProjectSinglePicker
-          value={projectId}
-          onChange={(id) => {
-            setProjectId(id)
-            onLiveChange({ projectId: id })
-          }}
+      <DialogHeader className="flex-row shrink-0 items-center gap-2 border-b border-border py-4 pr-4 pl-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-0">
+          <DialogTitle className="sr-only">
+            {draft.id ? "Edit quick note" : "New quick note"}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            An optional title and a rich-text body you can paste images and
+            links into.
+          </DialogDescription>
+          <Input
+            autoFocus
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value)
+              onLiveChange({ title: e.target.value })
+            }}
+            placeholder="Untitled"
+            className="h-auto border-none bg-transparent px-3.5 py-2 text-2xl font-semibold shadow-none focus-visible:ring-0"
+          />
+        </div>
+        <DialogClose
           render={
-            <button
-              type="button"
-              className="mx-3.5 flex h-6 w-fit items-center gap-1.5 rounded-md px-1.5 text-xs text-subtle hover:bg-white/[0.06] hover:text-text-muted"
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0"
+              disabled={saving}
             />
           }
         >
-          {project ? (
-            <>
-              <FolderIcon
-                className="size-3"
-                style={{ color: project.color ?? undefined }}
-              />
-              {project.name}
-            </>
-          ) : (
-            <>
-              <FolderIcon className="size-3" />
-              No project
-            </>
-          )}
-        </ProjectSinglePicker>
+          <XIcon />
+          <span className="sr-only">Close</span>
+        </DialogClose>
       </DialogHeader>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex min-h-0 flex-1 flex-col px-6 py-4">
         <NoteEditor
           content={(draft.bodyJson as Record<string, unknown>) ?? null}
           debounceMs={0}
@@ -182,13 +170,43 @@ function DialogBody({
         />
       </div>
 
-      <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border px-6 py-3">
-        <Button variant="outline" onClick={onCancel} disabled={saving}>
-          Cancel
-        </Button>
-        <Button onClick={onSaveClick} disabled={saving}>
-          {saving ? "Saving…" : "Save"}
-        </Button>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-6 py-3">
+        <ProjectSinglePicker
+          value={projectId}
+          onChange={(id) => {
+            setProjectId(id)
+            onLiveChange({ projectId: id })
+          }}
+          render={
+            <button
+              type="button"
+              className="flex h-8 w-fit items-center gap-1.5 rounded-md border border-border px-2.5 text-xs text-text-muted hover:border-border-strong hover:bg-white/6 hover:text-text"
+            />
+          }
+        >
+          {project ? (
+            <>
+              <FolderIcon
+                className="size-3.5"
+                style={{ color: project.color ?? undefined }}
+              />
+              {project.name}
+            </>
+          ) : (
+            <>
+              <FolderIcon className="size-3.5" />
+              No project
+            </>
+          )}
+        </ProjectSinglePicker>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={onCancel} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={onSaveClick} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </div>
       </div>
     </>
   )
@@ -278,7 +296,7 @@ export function QuickNoteDialog({
         }}
       >
         <DialogContent
-          showCloseButton={!saving}
+          showCloseButton={false}
           className="flex h-[90vh] max-h-250 w-[95vw] max-w-5xl flex-col gap-0 p-0 sm:max-w-5xl"
         >
           {draft ? (
