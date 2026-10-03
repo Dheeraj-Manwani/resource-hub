@@ -1,11 +1,15 @@
 "use client"
 
-import { NotebookPenIcon, PlusIcon } from "lucide-react"
+import { ListPlusIcon, NotebookPenIcon, PlusIcon } from "lucide-react"
 import { useState } from "react"
 
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { EmptyState } from "@/components/empty-state"
-import { PageHeader } from "@/components/page-header"
+import {
+  QuickNoteDialog,
+  type QuickNoteDraft,
+} from "@/components/quick-notes/quick-note-dialog"
+import { QuickNoteCard } from "@/components/quick-notes/quick-note-card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -16,23 +20,35 @@ import {
 } from "@/hooks/queries/quick-notes"
 import type { QuickNoteDto } from "@/lib/quick-notes/dto"
 
-import { QuickNoteCard } from "./quick-note-card"
-import { QuickNoteDialog, type QuickNoteDraft } from "./quick-note-dialog"
+import { AddExistingQuickNoteDialog } from "./add-existing-quick-note-dialog"
 
-export function QuickNotesView() {
-  const { data: notes = [], isPending } = useQuickNotes()
+/** Project page's "Notes" tab: quick notes linked to this project (and its
+ * sub-projects when "Include sub-projects" is on), with the same card grid
+ * as the standalone Quick Notes page. */
+export function ProjectQuickNotesTab({
+  projectId,
+  includeDescendants,
+}: {
+  projectId: string
+  includeDescendants: boolean
+}) {
+  const { data: notes = [], isPending } = useQuickNotes({
+    projectId,
+    includeDescendants,
+  })
   const createNote = useCreateQuickNote()
   const updateNote = useUpdateQuickNote()
   const deleteNote = useDeleteQuickNote()
   const [draft, setDraft] = useState<QuickNoteDraft | null>(null)
   const [deleting, setDeleting] = useState<QuickNoteDto | null>(null)
+  const [addingExisting, setAddingExisting] = useState(false)
 
   const saving = createNote.isPending || updateNote.isPending
 
   function openNew() {
     setDraft({
       id: null,
-      projectId: null,
+      projectId,
       title: "",
       bodyJson: null,
       bodyText: null,
@@ -68,29 +84,29 @@ export function QuickNotesView() {
   }
 
   return (
-    <>
-      <PageHeader
-        title="Quick Notes"
-        description="A scratchpad for loose ideas — jot things down now, turn them into resources or tasks later."
-        actions={
-          <Button size="sm" onClick={openNew}>
-            <PlusIcon />
-            New note
-          </Button>
-        }
-      />
+    <div>
+      <div className="mb-2 flex h-6 items-center justify-end gap-2">
+        <Button variant="outline" size="xs" onClick={() => setAddingExisting(true)}>
+          <ListPlusIcon />
+          Add existing
+        </Button>
+        <Button size="xs" onClick={openNew}>
+          <PlusIcon />
+          New note
+        </Button>
+      </div>
 
       {isPending ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-40 rounded-xl" />
           ))}
         </div>
       ) : notes.length === 0 ? (
         <EmptyState
           icon={NotebookPenIcon}
-          title="No quick notes yet"
-          description="Throw a random idea in here. You can shape it into a resource or task whenever you're ready."
+          title="No quick notes linked"
+          description="Jot a new note scoped to this project, or link one you already wrote."
         >
           <Button size="sm" onClick={openNew}>
             <PlusIcon />
@@ -103,6 +119,7 @@ export function QuickNotesView() {
             <QuickNoteCard
               key={note.id}
               note={note}
+              hideProject={!includeDescendants}
               onOpen={() => openExisting(note)}
               onDelete={() => setDeleting(note)}
             />
@@ -117,6 +134,12 @@ export function QuickNotesView() {
         saving={saving}
       />
 
+      <AddExistingQuickNoteDialog
+        projectId={projectId}
+        open={addingExisting}
+        onOpenChange={setAddingExisting}
+      />
+
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(open) => !open && setDeleting(null)}
@@ -129,6 +152,6 @@ export function QuickNotesView() {
           deleteNote.mutate(deleting.id)
         }}
       />
-    </>
+    </div>
   )
 }

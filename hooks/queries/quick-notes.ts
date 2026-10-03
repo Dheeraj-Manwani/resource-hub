@@ -1,6 +1,11 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { api, toQueryString } from "@/lib/api-client"
@@ -8,19 +13,41 @@ import type { QuickNoteDto } from "@/lib/quick-notes/dto"
 
 const KEY = ["quick-notes"]
 
+export type QuickNoteFilters = {
+  projectId?: string
+  includeDescendants?: boolean
+}
+
+export const quickNoteKeys = {
+  all: KEY,
+  list: (filters?: QuickNoteFilters) =>
+    filters?.projectId ? [...KEY, filters] : KEY,
+}
+
 type QuickNoteInput = {
+  projectId?: string | null
   title?: string | null
   bodyJson?: unknown
   bodyText?: string | null
 }
 
-export function useQuickNotes() {
+export function useQuickNotes(filters: QuickNoteFilters = {}) {
   return useQuery({
-    queryKey: KEY,
+    queryKey: quickNoteKeys.list(filters),
     queryFn: ({ signal }) =>
-      api<{ items: QuickNoteDto[] }>("/api/v1/quick-notes", { signal }),
+      api<{ items: QuickNoteDto[] }>(
+        `/api/v1/quick-notes${toQueryString(filters)}`,
+        { signal }
+      ),
     select: (d) => d.items,
   })
+}
+
+/** Beyond the unfiltered list (patched directly for instant feedback), any
+ * project-scoped lists (the project page's Notes tab) just get invalidated
+ * and refetch from the server. */
+function invalidateFilteredLists(qc: QueryClient) {
+  return qc.invalidateQueries({ queryKey: KEY }).catch(() => {})
 }
 
 export function useCreateQuickNote() {
@@ -32,6 +59,7 @@ export function useCreateQuickNote() {
       qc.setQueryData<{ items: QuickNoteDto[] }>(KEY, (d) =>
         d ? { items: [note, ...d.items] } : { items: [note] }
       )
+      invalidateFilteredLists(qc)
     },
     onError: (error) => toast.error(`Couldn't create note: ${error.message}`),
   })
@@ -55,6 +83,7 @@ export function useUpdateQuickNote() {
             }
           : d
       )
+      invalidateFilteredLists(qc)
     },
     onError: (error) => toast.error(`Couldn't save note: ${error.message}`),
   })
@@ -73,6 +102,7 @@ export function useDeleteQuickNote() {
       qc.setQueryData<{ items: QuickNoteDto[] }>(KEY, (d) =>
         d ? { items: d.items.filter((n) => n.id !== id) } : d
       )
+      invalidateFilteredLists(qc)
       toast.success("Note deleted")
     },
     onError: (error) => toast.error(`Couldn't delete: ${error.message}`),

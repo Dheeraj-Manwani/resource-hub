@@ -1,11 +1,15 @@
 import "server-only"
 
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, inArray } from "drizzle-orm"
 import { uuidv7 } from "uuidv7"
 
 import { db } from "@/lib/db"
-import { files, quickNotes } from "@/lib/db/schema"
-import { toQuickNoteDto, type QuickNoteDto } from "@/lib/quick-notes/dto"
+import { files, projects, quickNotes } from "@/lib/db/schema"
+import {
+  toQuickNoteDto,
+  type QuickNoteDto,
+  type QuickNoteProjectDto,
+} from "@/lib/quick-notes/dto"
 import { badRequest, notFound } from "@/lib/server/api"
 import { getUserFile, markFileReady } from "@/lib/server/dal/files"
 import { imageDimensions } from "@/lib/server/images"
@@ -17,43 +21,97 @@ import {
 } from "@/lib/server/r2"
 
 type QuickNoteInput = {
+  projectId?: string | null
   title?: string | null
   bodyJson?: unknown
   bodyText?: string | null
 }
 
-export async function listQuickNotes(userId: string): Promise<QuickNoteDto[]> {
+type QuickNoteRow = typeof quickNotes.$inferSelect
+
+async function projectsForNoteRows(rows: QuickNoteRow[]) {
+  const ids = [
+    ...new Set(rows.map((r) => r.projectId).filter((id): id is string => !!id)),
+  ]
+  const map = new Map<string, QuickNoteProjectDto>()
+  if (!ids.length) return map
+  const projectRows = await db
+    .select({
+      id: projects.id,
+      name: projects.name,
+      icon: projects.icon,
+      color: projects.color,
+    })
+    .from(projects)
+    .where(inArray(projects.id, ids))
+  for (const row of projectRows) map.set(row.id, row)
+  return map
+}
+
+async function toDtos(rows: QuickNoteRow[]): Promise<QuickNoteDto[]> {
+  if (!rows.length) return []
+  const projectMap = await projectsForNoteRows(rows)
+  return rows.map((row) =>
+    toQuickNoteDto(row, row.projectId ? (projectMap.get(row.projectId) ?? null) : null)
+  )
+}
+
+async function assertProjectOwnership(userId: string, projectId: string) {
+  const [row] = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
+    .limit(1)
+  return !!row
+}
+
+export async function listQuickNotes(
+  userId: string,
+  scope?: { projectIds?: string[] }
+): Promise<QuickNoteDto[]> {
+  const conditions = [eq(quickNotes.userId, userId)]
+  if (scope?.projectIds?.length) {
+    conditions.push(inArray(quickNotes.projectId, scope.projectIds))
+  }
   const rows = await db
     .select()
     .from(quickNotes)
-    .where(eq(quickNotes.userId, userId))
+    .where(and(...conditions))
     .orderBy(desc(quickNotes.updatedAt))
-  return rows.map(toQuickNoteDto)
+  return toDtos(rows)
 }
 
 export async function createQuickNote(
   userId: string,
   input: QuickNoteInput = {}
-): Promise<QuickNoteDto> {
+): Promise<QuickNoteDto | null> {
+  if (input.projectId && !(await assertProjectOwnership(userId, input.projectId))) {
+    return null
+  }
   const [row] = await db
     .insert(quickNotes)
     .values({ id: uuidv7(), userId, ...input })
     .returning()
-  return toQuickNoteDto(row)
+  const [dto] = await toDtos([row])
+  return dto
 }
 
 export async function updateQuickNote(
   userId: string,
   id: string,
   input: QuickNoteInput
-): Promise<QuickNoteDto> {
+): Promise<QuickNoteDto | null> {
+  if (input.projectId && !(await assertProjectOwnership(userId, input.projectId))) {
+    return null
+  }
   const [row] = await db
     .update(quickNotes)
     .set(input)
     .where(and(eq(quickNotes.id, id), eq(quickNotes.userId, userId)))
     .returning()
   if (!row) throw notFound("Note")
-  return toQuickNoteDto(row)
+  const [dto] = await toDtos([row])
+  return dto
 }
 
 export async function deleteQuickNote(

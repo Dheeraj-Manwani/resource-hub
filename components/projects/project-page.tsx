@@ -16,6 +16,7 @@ import { useCallback, useMemo, useState } from "react"
 import { LibraryView } from "@/components/resources/library-view"
 import { ProjectTasksSection } from "@/components/tasks/project-tasks-section"
 import { useProjectTaskProgress } from "@/hooks/queries/tasks"
+import { useQuickNotes } from "@/hooks/queries/quick-notes"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -45,9 +46,10 @@ import { AddExistingDialog } from "./add-existing-dialog"
 import { DeleteProjectDialog } from "./delete-project-dialog"
 import { ProjectIconPicker } from "./project-icon-picker"
 import { ProjectInfoModal } from "./project-info-modal"
+import { ProjectQuickNotesTab } from "./project-quick-notes-tab"
 import { ProjectSubprojectsTab } from "./project-subprojects-tab"
 
-const TABS = ["resources", "tasks", "subprojects"] as const
+const TABS = ["resources", "tasks", "subprojects", "notes"] as const
 type Tab = (typeof TABS)[number]
 
 /** Keeps the active tab in the URL (`?tab=`) so it survives a refresh or a
@@ -207,6 +209,7 @@ export function ProjectPage({
     () => tree?.filter((p) => p.parentId === projectId).length ?? 0,
     [tree, projectId]
   )
+  const { data: notes } = useQuickNotes({ projectId, includeDescendants })
 
   const baseFilters = useMemo(
     () => ({ projectId, includeDescendants }),
@@ -281,6 +284,10 @@ export function ProjectPage({
             Sub-projects
             <TabCount value={subProjectCount} active={tab === "subprojects"} />
           </TabsTrigger>
+          <TabsTrigger value="notes">
+            Notes
+            <TabCount value={notes?.length} active={tab === "notes"} />
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="resources">
@@ -314,6 +321,13 @@ export function ProjectPage({
 
         <TabsContent value="subprojects">
           <ProjectSubprojectsTab
+            projectId={projectId}
+            includeDescendants={includeDescendants}
+          />
+        </TabsContent>
+
+        <TabsContent value="notes">
+          <ProjectQuickNotesTab
             projectId={projectId}
             includeDescendants={includeDescendants}
           />

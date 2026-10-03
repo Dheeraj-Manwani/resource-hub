@@ -1,6 +1,6 @@
 "use client"
 
-import { Trash2Icon } from "lucide-react"
+import { FolderIcon, Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { formatRelative } from "@/lib/format"
@@ -11,10 +11,14 @@ export function QuickNoteCard({
   note,
   onOpen,
   onDelete,
+  hideProject,
 }: {
   note: QuickNoteDto
   onOpen: () => void
   onDelete: () => void
+  /** Suppress the project badge when every card in the list already belongs
+   * to the same project (the project page's Notes tab). */
+  hideProject?: boolean
 }) {
   const preview = note.bodyText?.trim()
   return (
@@ -53,9 +57,18 @@ export function QuickNoteCard({
         {preview || <span className="text-subtle italic">Empty note</span>}
       </p>
 
-      <span className="mt-2 text-xs text-subtle">
-        {formatRelative(note.updatedAt)}
-      </span>
+      <div className="mt-2 flex items-center gap-1.5 text-xs text-subtle">
+        <span>{formatRelative(note.updatedAt)}</span>
+        {!hideProject && note.project ? (
+          <span className="flex min-w-0 items-center gap-1 truncate rounded-full bg-white/[0.06] px-1.5 py-0.5">
+            <FolderIcon
+              className="size-3 shrink-0"
+              style={{ color: note.project.color ?? undefined }}
+            />
+            <span className="truncate">{note.project.name}</span>
+          </span>
+        ) : null}
+      </div>
     </div>
   )
 }

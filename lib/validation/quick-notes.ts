@@ -2,7 +2,16 @@ import { z } from "zod"
 
 import { UPLOAD_IMAGE_MIME } from "@/lib/validation/resources"
 
+export const listQuickNotesQuerySchema = z.object({
+  projectId: z.uuid().optional(),
+  includeDescendants: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+})
+
 export const updateQuickNoteSchema = z.object({
+  projectId: z.uuid().nullable().optional(),
   title: z.string().trim().max(200).nullable().optional(),
   bodyJson: z.unknown().optional(),
   bodyText: z.string().nullable().optional(),

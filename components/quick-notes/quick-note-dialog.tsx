@@ -1,8 +1,13 @@
 "use client"
 
+import { FolderIcon } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useEffect, useRef, useState } from "react"
 
+import {
+  ProjectSinglePicker,
+  useProjectOptions,
+} from "@/components/projects/project-picker"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -18,6 +23,7 @@ import {
   fetchQuickNoteLinkPreview,
   uploadQuickNoteImage,
 } from "@/hooks/queries/quick-notes"
+import type { QuickNoteProjectDto } from "@/lib/quick-notes/dto"
 
 const NoteEditor = dynamic(
   () => import("@/components/resources/full-view/note-editor"),
@@ -26,14 +32,22 @@ const NoteEditor = dynamic(
 
 export type QuickNoteDraft = {
   id: string | null
+  projectId: string | null
+  project?: QuickNoteProjectDto | null
   title: string
   bodyJson: unknown
   bodyText: string | null
 }
 
-type LiveDraft = { title: string; bodyJson: unknown; bodyText: string | null }
+type LiveDraft = {
+  projectId: string | null
+  title: string
+  bodyJson: unknown
+  bodyText: string | null
+}
 
 function isDirty(draft: QuickNoteDraft, live: LiveDraft) {
+  if (live.projectId !== draft.projectId) return true
   if (live.title !== draft.title) return true
   if ((live.bodyText ?? "") !== (draft.bodyText ?? "")) return true
   return (
@@ -99,6 +113,11 @@ function DialogBody({
   saving: boolean
 }) {
   const [title, setTitle] = useState(draft.title)
+  const [projectId, setProjectId] = useState(draft.projectId)
+  const { options: projectOptions } = useProjectOptions()
+  const project = projectId
+    ? (projectOptions.find((p) => p.id === projectId) ?? draft.project ?? null)
+    : null
 
   return (
     <>
@@ -120,6 +139,34 @@ function DialogBody({
           placeholder="Untitled"
           className="h-auto border-none bg-transparent px-3.5 py-2 text-2xl font-semibold shadow-none focus-visible:ring-0"
         />
+        <ProjectSinglePicker
+          value={projectId}
+          onChange={(id) => {
+            setProjectId(id)
+            onLiveChange({ projectId: id })
+          }}
+          render={
+            <button
+              type="button"
+              className="mx-3.5 flex h-6 w-fit items-center gap-1.5 rounded-md px-1.5 text-xs text-subtle hover:bg-white/[0.06] hover:text-text-muted"
+            />
+          }
+        >
+          {project ? (
+            <>
+              <FolderIcon
+                className="size-3"
+                style={{ color: project.color ?? undefined }}
+              />
+              {project.name}
+            </>
+          ) : (
+            <>
+              <FolderIcon className="size-3" />
+              No project
+            </>
+          )}
+        </ProjectSinglePicker>
       </DialogHeader>
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -163,7 +210,12 @@ export function QuickNoteDialog({
   onSave: (next: QuickNoteDraft) => void
   saving: boolean
 }) {
-  const live = useRef<LiveDraft>({ title: "", bodyJson: null, bodyText: null })
+  const live = useRef<LiveDraft>({
+    projectId: null,
+    title: "",
+    bodyJson: null,
+    bodyText: null,
+  })
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   // Re-seed the "current" snapshot every time a (possibly different) note
@@ -171,11 +223,12 @@ export function QuickNoteDialog({
   useEffect(() => {
     live.current = draft
       ? {
+          projectId: draft.projectId,
           title: draft.title,
           bodyJson: draft.bodyJson,
           bodyText: draft.bodyText,
         }
-      : { title: "", bodyJson: null, bodyText: null }
+      : { projectId: null, title: "", bodyJson: null, bodyText: null }
   }, [draft])
 
   // Closing/reloading the tab mid-edit would otherwise silently drop
@@ -209,6 +262,7 @@ export function QuickNoteDialog({
     setConfirmOpen(false)
     onSave({
       id: draft.id,
+      projectId: live.current.projectId,
       title: live.current.title,
       bodyJson: live.current.bodyJson,
       bodyText: live.current.bodyText,

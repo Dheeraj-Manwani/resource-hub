@@ -8,6 +8,7 @@ import {
 } from "drizzle-orm/pg-core"
 
 import { user } from "./auth"
+import { projects } from "./projects"
 
 const timestamps = {
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -27,6 +28,7 @@ export const quickNotes = pgTable(
     userId: text()
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    projectId: uuid().references(() => projects.id, { onDelete: "set null" }),
     title: text(),
     bodyJson: jsonb(),
     bodyText: text(),
@@ -34,5 +36,6 @@ export const quickNotes = pgTable(
   },
   (t) => [
     index("quick_notes_user_updated_idx").on(t.userId, t.updatedAt.desc()),
+    index("quick_notes_project_idx").on(t.projectId),
   ]
 )

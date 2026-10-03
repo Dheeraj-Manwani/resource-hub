@@ -11,7 +11,9 @@ export const PATCH = route(async (request, ctx: Ctx) => {
   await writeLimit(user.id)
   const id = parseId((await ctx.params).id)
   const patch = await parseBody(request, updateQuickNoteSchema)
-  return json(await updateQuickNote(user.id, id, patch))
+  const note = await updateQuickNote(user.id, id, patch)
+  if (!note) throw notFound("Note")
+  return json(note)
 })
 
 export const DELETE = route(async (_request, ctx: Ctx) => {

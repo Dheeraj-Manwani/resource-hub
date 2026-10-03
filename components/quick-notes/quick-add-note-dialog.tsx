@@ -9,6 +9,7 @@ import { QuickNoteDialog, type QuickNoteDraft } from "./quick-note-dialog"
 
 const EMPTY_DRAFT: QuickNoteDraft = {
   id: null,
+  projectId: null,
   title: "",
   bodyJson: null,
   bodyText: null,
@@ -27,7 +28,12 @@ export function QuickAddNoteDialog() {
       saving={createNote.isPending}
       onSave={(next) => {
         createNote.mutate(
-          { title: next.title || null, bodyJson: next.bodyJson, bodyText: next.bodyText },
+          {
+            projectId: next.projectId,
+            title: next.title || null,
+            bodyJson: next.bodyJson,
+            bodyText: next.bodyText,
+          },
           {
             onSuccess: () => {
               toast.success("Note saved")
