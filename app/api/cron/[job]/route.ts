@@ -21,6 +21,11 @@ function checkSecret(request: Request) {
  * purges Trash older than 30 days (R2 objects included), drops upload rows
  * that never completed, and (when R2 is configured) removes R2 objects with
  * no matching `files` row.
+ *
+ * Runs once a day (`vercel.json`) rather than hourly: Vercel's Hobby plan
+ * only allows daily cron schedules, and every threshold here (24h, 30 days)
+ * tolerates that cadence fine — metadata retries are already drained far
+ * sooner than this by the client's own polling (see Phase 2 notes).
  */
 export const GET = route(async (request, ctx: Ctx) => {
   checkSecret(request)
