@@ -15,7 +15,14 @@ import {
 import { uuidv7 } from "uuidv7"
 
 import { db } from "@/lib/db"
-import { files, projects, projectResources, resources, resourceTags } from "@/lib/db/schema"
+import {
+  files,
+  projects,
+  projectResources,
+  resources,
+  resourceTags,
+  taskResources,
+} from "@/lib/db/schema"
 import { nextSortKey } from "@/lib/projects/sort-key"
 import type {
   FileDto,
@@ -36,6 +43,7 @@ import type {
 
 import { projectsForResources } from "./project-links"
 import { ensureTags, setResourceTags, tagsForResources } from "./tags"
+import { taskCountsForResources } from "./tasks"
 
 type ResourceRow = typeof resources.$inferSelect
 type FileRow = typeof files.$inferSelect
@@ -58,7 +66,8 @@ function toDto(
   row: ResourceRow,
   tags: TagDto[],
   file: FileRow | undefined,
-  projectChips: ResourceDto["projects"]
+  projectChips: ResourceDto["projects"],
+  taskCount: number
 ): ResourceDto {
   const metadata: ResourceMetadata = {
     ...row.metadata,
@@ -86,6 +95,7 @@ function toDto(
     file: file ? fileDto(file) : null,
     tags,
     projects: projectChips,
+    taskCount,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
@@ -94,7 +104,7 @@ function toDto(
 async function toDtos(rows: ResourceRow[]): Promise<ResourceDto[]> {
   if (!rows.length) return []
   const ids = rows.map((r) => r.id)
-  const [tagMap, originals, projectMap] = await Promise.all([
+  const [tagMap, originals, projectMap, taskCountMap] = await Promise.all([
     tagsForResources(ids),
     db
       .select()
@@ -107,6 +117,7 @@ async function toDtos(rows: ResourceRow[]): Promise<ResourceDto[]> {
         )
       ),
     projectsForResources(ids),
+    taskCountsForResources(ids),
   ])
   const fileMap = new Map(originals.map((f) => [f.resourceId!, f]))
   return rows.map((row) =>
@@ -114,7 +125,8 @@ async function toDtos(rows: ResourceRow[]): Promise<ResourceDto[]> {
       row,
       tagMap.get(row.id) ?? [],
       fileMap.get(row.id),
-      projectMap.get(row.id) ?? []
+      projectMap.get(row.id) ?? [],
+      taskCountMap.get(row.id) ?? 0
     )
   )
 }
@@ -217,6 +229,15 @@ export async function listResources(
         )
       )
     )
+  }
+  if (query.hasTasks !== undefined) {
+    const linked = exists(
+      db
+        .select({ one: sql`1` })
+        .from(taskResources)
+        .where(eq(taskResources.resourceId, resources.id))
+    )
+    conditions.push(query.hasTasks ? linked : not(linked))
   }
 
   const cursor = query.cursor ? decodeCursor(query.cursor) : null

@@ -21,6 +21,7 @@ export type ResourceFilters = {
   favorite?: boolean
   reviewed?: boolean
   unsorted?: boolean
+  hasTasks?: boolean
   projectId?: string
   includeDescendants?: boolean
   sort?: "created" | "updated" | "title"
@@ -54,6 +55,8 @@ export function useResourceList(filters: ResourceFilters) {
               ? undefined
               : String(filters.reviewed),
           unsorted: filters.unsorted ? "true" : undefined,
+          hasTasks:
+            filters.hasTasks === undefined ? undefined : String(filters.hasTasks),
           includeDescendants: filters.includeDescendants ? "true" : undefined,
           cursor: pageParam ?? undefined,
         })}`,

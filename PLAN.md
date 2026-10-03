@@ -13,7 +13,7 @@ typecheck and run at the end of every phase.
 | 1 | Foundation, Google login, app shell, design tokens | [x] |
 | 2 | Resources: add, detection, metadata, per-type cards, inline playback, R2 uploads, Inbox, capture | [x] |
 | 3 | Projects: nested tree, CRUD, drag-and-drop, link/unlink/move, bulk actions | [x] |
-| 4 | Tasks: CRUD, rich description, checklist, list + board, resource linking, quick-add | [ ] |
+| 4 | Tasks: CRUD, rich description, checklist, list + board, resource linking, quick-add | [x] |
 | 5 | Calendar: month/week/day/agenda, scheduling DnD, recurrence, reminders, filters, ICS | [ ] |
 | 6 | Search, tags, trash/undo, export, hardening, performance, docs | [ ] |
 | 7 | _Extra:_ Content understanding: text capture, AI summaries, tag/project suggestions, image descriptions | [ ] |
@@ -457,41 +457,83 @@ works; unit tests for tree building, roll-ups, cycle detection and sort keys.
 ## Phase 4 — Tasks: CRUD, description, checklist, list + board, resource links
 
 ### 4.1 Schema and API
-- [ ] Tables: `tasks`, `task_checklist_items`, `task_resources`, `task_tags`.
-- [ ] Routes: `GET /api/v1/tasks` (filters: smart filter today/upcoming/overdue/no-date/
+- [x] Tables: `tasks`, `task_checklist_items`, `task_resources`, `task_tags`.
+- [x] Routes: `GET /api/v1/tasks` (filters: smart filter today/upcoming/overdue/no-date/
   completed, project + descendants, tag, status, priority; group/sort params; cursor),
   `POST`, `GET|PATCH|DELETE /api/v1/tasks/:id`, `POST …/duplicate`, `POST …/archive`,
   checklist CRUD + reorder, `POST|DELETE /api/v1/tasks/:id/resources`,
   `GET /api/v1/resources/:id/tasks`, `POST /api/v1/tasks/bulk-actions`.
-- [ ] `completed_at` set/cleared automatically on status change.
+- [x] `completed_at` set/cleared automatically on status change.
 
 ### 4.2 Quick-add parser (`lib/tasks/quick-add.ts`, unit-tested)
-- [ ] `chrono-node` for dates/times ("friday 5pm", "tomorrow", "in 3 days", "next mon 9-10am").
-- [ ] Tokens: `#project` (fuzzy; `#parent/child` for nested), `!low|!medium|!high|!urgent`
+- [x] `chrono-node` for dates/times ("friday 5pm", "tomorrow", "in 3 days", "next mon 9-10am").
+- [x] Tokens: `#project` (fuzzy; `#parent/child` for nested), `!low|!medium|!high|!urgent`
   (also `!1`–`!4`), `+tag`. Recurrence phrases ("every weekday") are parsed in Phase 5.
-- [ ] Live preview chips under the input showing what was recognized; Tab-accept/Escape-ignore.
+- [x] Live preview chips under the input showing what was recognized; Tab-accept/Escape-ignore.
 
 ### 4.3 UI
-- [ ] Task detail drawer: inline-editable title; **prominent Tiptap description** (headings,
+- [x] Task detail drawer: inline-editable title; **prominent Tiptap description** (headings,
   bold/italic, lists, checklists, links; autosave with debounce); status, priority (color
   cues), dates/all-day, project picker, tags; checklist with progress bar and DnD reorder;
   **Resources** section with searchable picker + "Add new resource" inline, rendered as
   compact cards that expand/play in place; unlink; timestamps.
-- [ ] Resource detail drawer: "Tasks" section listing linked tasks; link/unlink from there.
-- [ ] List view: group by status/project/due/priority, sort, inline status toggle.
-- [ ] Board view: columns To do / In progress / Blocked / Done, dnd-kit between and within
+- [x] Resource detail drawer: "Tasks" section listing linked tasks; link/unlink from there.
+- [x] List view: group by status/project/due/priority, sort, inline status toggle.
+- [x] Board view: columns To do / In progress / Blocked / Done, dnd-kit between and within
   columns (fractional `sort_key`).
-- [ ] Smart filters in the sidebar (Today, Upcoming, Overdue, No date, Completed) with counts.
-- [ ] Bulk select: status, priority, project, tags, delete.
-- [ ] Keyboard: `Q` quick add, `/` or `Cmd/Ctrl+K` search, `X` toggle done on focused task,
+- [x] Smart filters in the sidebar (Today, Upcoming, Overdue, No date, Completed) with counts.
+- [x] Bulk select: status, priority, project, tags, delete.
+- [x] Keyboard: `Q` quick add, `/` or `Cmd/Ctrl+K` search, `X` toggle done on focused task,
   `?` shortcut sheet.
-- [ ] Project page: tasks section + progress (done vs total, including descendants).
-- [ ] Resource cards show linked-task count; library filter "has linked tasks".
-- [ ] Seed data extended with tasks, checklists and links.
+- [x] Project page: tasks section + progress (done vs total, including descendants).
+- [x] Resource cards show linked-task count; library filter "has linked tasks".
+- [x] Seed data extended with tasks, checklists and links.
 
 **Done when:** all task fields editable inline with optimistic updates; board DnD persists;
 the quick-add example "finish landing page friday 5pm #projectname !high" produces the
 right task; resources link both ways and unlinking never deletes; parser tests pass.
+
+**Implementation notes (Phase 4):**
+- Task status enum is `todo | in_progress | blocked | done` and priority is
+  `low | medium | high | urgent`; both are Postgres enums plus a shared `sort_key`
+  (fractional-indexing) column that orders both the list's "manual" sort and the board's
+  within/across-column drag, exactly like `projects.sort_key` in Phase 3.
+- The task's rich description reuses the Phase 2 note-resource Tiptap editor
+  (`components/resources/full-view/note-editor.tsx`) as-is — it already saves JSON + plain
+  text generically, so no second editor was built.
+- The **Resources** section links *existing* library resources via a searchable popover
+  (title-filtered client-side, same convention as `AddExistingDialog`); it does **not** have
+  an inline "create a brand-new resource from here" shortcut — use the global Add Resource
+  flow, then link it. Linked resources render as compact rows (icon, title, open-original,
+  unlink), not full playable embeds — opening the resource's own detail drawer still gives
+  the full card.
+- Quick-add's `Tab`/`Enter` both submit the task immediately with whatever was parsed —
+  there's no separate "accept the suggestion" step, because every chip (`#project`,
+  `!priority`, `+tag`, the date span) is derived directly from syntax the user already typed,
+  not a predictive autocomplete. `Escape` clears the bar. `#project` only matches single-token
+  names (no spaces) by construction, so the project page's inline quick-add passes its project
+  in as `defaultProject` instead of pre-filling `#<name with spaces>` into the text.
+- dnd-kit's `useSortable` return value can't be read directly in the same component that
+  renders the `ref`/`style`/`attributes` (ESLint's `react-hooks/refs` flags it); the checklist
+  and board card drag wiring follow the same hook-wrapper/view-component split and optional
+  chaining (`drag?.setNodeRef`) that `components/projects/sidebar-tree.tsx` already
+  established in Phase 3.
+- The board's cross-column drag gives live visual feedback while dragging (via `onDragOver`
+  reshuffling local column state) but, like the Phase 3 sidebar tree, computes the final
+  fractional sort key only once on drop — there's no persisted "ghost" preview beyond that.
+- Smart-filter counts and the project progress bar are each a small dedicated endpoint
+  (`GET /api/v1/tasks/smart-counts`, `GET /api/v1/projects/:id/tasks-progress`) rather than
+  fetching full task lists just to count them.
+- `/` and `Cmd/Ctrl+K` on the Tasks page focus a client-side title filter over the already-
+  loaded page (full-text search across the library is Phase 6); `X` toggles done on a
+  keyboard-focused row, skipped while bulk-select mode is active (the same key then has no
+  per-row meaning).
+- Not verified in a real signed-in browser (no Google OAuth credentials in this sandbox —
+  same limitation as Phases 1–3). Instead verified end to end against the real local Postgres
+  with a one-off DAL-level smoke script (create/update/status-completedAt-toggle/checklist
+  add-toggle-reorder-delete/resource link-unlink/reverse lookup/board move/duplicate/bulk
+  priority/project-scoped list/project progress/smart counts), run once and then deleted
+  rather than kept in the repo. `pnpm build` and `pnpm test` both pass.
 
 ---
 

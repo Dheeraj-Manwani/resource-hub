@@ -11,10 +11,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 import { useShell } from "./shell-context"
-import { notifyTasksComingSoon } from "./top-bar"
 
 export function MobileFab() {
-  const { openAddResource } = useShell()
+  const { openAddResource, openAddTask } = useShell()
   return (
     <div className="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 md:hidden">
       <DropdownMenu>
@@ -34,7 +33,7 @@ export function MobileFab() {
             <LinkIcon />
             Add resource
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={notifyTasksComingSoon}>
+          <DropdownMenuItem onClick={() => openAddTask()}>
             <ListPlusIcon />
             Add task
           </DropdownMenuItem>

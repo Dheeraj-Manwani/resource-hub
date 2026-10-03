@@ -1,6 +1,6 @@
 "use client"
 
-import { FolderIcon, Loader2Icon, RefreshCwIcon, TriangleAlertIcon } from "lucide-react"
+import { FolderIcon, ListChecksIcon, Loader2Icon, RefreshCwIcon, TriangleAlertIcon } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 
@@ -130,6 +130,21 @@ export function ProjectChips({
         </span>
       ) : null}
     </div>
+  )
+}
+
+export function TaskCountChip({ count, className }: { count: number; className?: string }) {
+  if (!count) return null
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-text-muted",
+        className
+      )}
+    >
+      <ListChecksIcon className="size-2.5" />
+      {count}
+    </span>
   )
 }
 

@@ -2,7 +2,6 @@
 
 import { ListPlusIcon, MenuIcon, PlusIcon, SearchIcon } from "lucide-react"
 import Link from "next/link"
-import { toast } from "sonner"
 
 import { LogoMark } from "@/components/logo"
 import { Button } from "@/components/ui/button"
@@ -10,14 +9,8 @@ import { Button } from "@/components/ui/button"
 import { useShell } from "./shell-context"
 import { UserMenu } from "./user-menu"
 
-export function notifyTasksComingSoon() {
-  toast("Tasks arrive in Phase 4", {
-    description: "This button is already wired into the shell.",
-  })
-}
-
 export function TopBar() {
-  const { openAddResource, setMobileNavOpen } = useShell()
+  const { openAddResource, openAddTask, setMobileNavOpen } = useShell()
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-3 backdrop-blur-md md:px-6">
@@ -43,7 +36,7 @@ export function TopBar() {
       </Link>
 
       <div className="hidden items-center gap-2 md:flex">
-        <Button variant="outline" onClick={notifyTasksComingSoon}>
+        <Button variant="outline" onClick={() => openAddTask()}>
           <ListPlusIcon />
           Add task
         </Button>

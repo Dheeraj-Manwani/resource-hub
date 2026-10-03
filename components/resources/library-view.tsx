@@ -8,6 +8,7 @@ import {
   Loader2Icon,
   PlusIcon,
   SparklesIcon,
+  ListChecksIcon,
   StarIcon,
   type LucideIcon,
 } from "lucide-react"
@@ -83,6 +84,8 @@ function FilterBar({
   setTag,
   favorite,
   setFavorite,
+  hasTasks,
+  setHasTasks,
   reviewed,
   setReviewed,
   sort,
@@ -98,6 +101,8 @@ function FilterBar({
   setTag: (t: string | undefined) => void
   favorite: boolean
   setFavorite: (v: boolean) => void
+  hasTasks: boolean
+  setHasTasks: (v: boolean) => void
   reviewed: "all" | "reviewed" | "unreviewed"
   setReviewed: (v: "all" | "reviewed" | "unreviewed") => void
   sort: SortKey
@@ -207,6 +212,17 @@ function FilterBar({
         Favorites
       </Button>
 
+      <Button
+        size="sm"
+        variant="outline"
+        aria-pressed={hasTasks}
+        onClick={() => setHasTasks(!hasTasks)}
+        className={cn(hasTasks && "border-brand/50 bg-brand-soft text-foreground")}
+      >
+        <ListChecksIcon />
+        Has tasks
+      </Button>
+
       <div className="ml-auto flex items-center gap-2">
         <Button
           size="sm"
@@ -291,6 +307,7 @@ export function LibraryView({
   const [type, setType] = useState<ResourceType | undefined>()
   const [tag, setTag] = useState<string | undefined>()
   const [favorite, setFavorite] = useState(false)
+  const [hasTasks, setHasTasks] = useState(false)
   const [reviewed, setReviewed] = useState<"all" | "reviewed" | "unreviewed">(
     "all"
   )
@@ -304,18 +321,19 @@ export function LibraryView({
       type,
       tag,
       favorite: favorite || undefined,
+      hasTasks: hasTasks || undefined,
       reviewed: reviewed === "all" ? undefined : reviewed === "reviewed",
       sort: SORTS[sort].sort,
       order: SORTS[sort].order,
     }),
-    [baseFilters, type, tag, favorite, reviewed, sort]
+    [baseFilters, type, tag, favorite, hasTasks, reviewed, sort]
   )
   const query = useResourceList(filters)
   const items = useMemo(
     () => query.data?.pages.flatMap((p) => p.items) ?? [],
     [query.data]
   )
-  const filtered = type || tag || favorite || reviewed !== "all"
+  const filtered = type || tag || favorite || hasTasks || reviewed !== "all"
 
   const { fetchNextPage, hasNextPage, isFetchingNextPage } = query
   const loadMore = useCallback(() => {
@@ -399,6 +417,7 @@ export function LibraryView({
             setType(undefined)
             setTag(undefined)
             setFavorite(false)
+            setHasTasks(false)
             setReviewed("all")
           }}
         >
@@ -454,6 +473,8 @@ export function LibraryView({
         setTag={setTag}
         favorite={favorite}
         setFavorite={setFavorite}
+        hasTasks={hasTasks}
+        setHasTasks={setHasTasks}
         reviewed={reviewed}
         setReviewed={setReviewed}
         sort={sort}

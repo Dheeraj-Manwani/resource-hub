@@ -12,7 +12,7 @@ import type { ResourceDto } from "@/lib/resources/dto"
 import { displayTitle } from "@/lib/resources/dto"
 import { cn } from "@/lib/utils"
 
-import { MetadataStatusNote, ProjectChips, TagChips } from "./cards/card-parts"
+import { MetadataStatusNote, ProjectChips, TagChips, TaskCountChip } from "./cards/card-parts"
 import { GithubCardBody } from "./cards/github-card"
 import {
   FileCardBody,
@@ -103,10 +103,14 @@ export const ResourceCard = memo(function ResourceCard({
 
       {resource.tags.length ||
       resource.projects.length ||
+      resource.taskCount ||
       resource.metadataStatus !== "ok" ? (
         <div className="space-y-2 px-3 pb-3">
           <MetadataStatusNote resource={resource} />
-          <ProjectChips projects={resource.projects} />
+          <div className="flex flex-wrap gap-1">
+            <ProjectChips projects={resource.projects} />
+            <TaskCountChip count={resource.taskCount} />
+          </div>
           <TagChips tags={resource.tags} />
         </div>
       ) : null}

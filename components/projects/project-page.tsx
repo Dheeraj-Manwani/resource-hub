@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation"
 import { useMemo, useState } from "react"
 
 import { LibraryView } from "@/components/resources/library-view"
+import { ProjectTasksSection } from "@/components/tasks/project-tasks-section"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -223,9 +224,11 @@ export function ProjectPage({
         </div>
       </div>
 
-      <p className="mb-4 text-xs text-subtle">
-        Task progress for this project arrives in Phase 4.
-      </p>
+      <ProjectTasksSection
+        projectId={projectId}
+        projectName={data?.project.name ?? ""}
+        includeDescendants={includeDescendants}
+      />
 
       <LibraryView
         title={data?.project.name ?? "Project"}

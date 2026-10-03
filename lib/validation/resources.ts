@@ -71,6 +71,8 @@ export const listResourcesQuerySchema = z.object({
   reviewed: boolParam.optional(),
   /** Resources not filed into any project. */
   unsorted: boolParam.optional(),
+  /** Has at least one (true) or no (false) linked task. */
+  hasTasks: boolParam.optional(),
   /** Scope to one project (and, if set, its descendants). */
   projectId: z.uuid().optional(),
   includeDescendants: boolParam.optional(),

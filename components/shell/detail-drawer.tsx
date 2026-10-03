@@ -1,10 +1,8 @@
 "use client"
 
-import { ListTodoIcon } from "lucide-react"
-
-import { EmptyState } from "@/components/empty-state"
 import { ResourceDetail } from "@/components/resources/resource-detail"
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
+import { TaskDetail } from "@/components/tasks/task-detail"
+import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { useDetailDrawer } from "@/hooks/use-detail-drawer"
 
 /** Right-hand drawer driven by `?r=<resourceId>` / `?t=<taskId>`. */
@@ -25,14 +23,7 @@ export function DetailDrawer() {
         {target?.kind === "resource" ? (
           <ResourceDetail key={target.id} id={target.id} />
         ) : target?.kind === "task" ? (
-          <div className="p-6 pt-14">
-            <SheetTitle className="sr-only">Task</SheetTitle>
-            <EmptyState
-              icon={ListTodoIcon}
-              title="Tasks arrive in Phase 4"
-              description="This drawer will show the task's description, checklist and linked resources."
-            />
-          </div>
+          <TaskDetail key={target.id} id={target.id} />
         ) : null}
       </SheetContent>
     </Sheet>

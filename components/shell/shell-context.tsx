@@ -15,6 +15,9 @@ type ShellContextValue = {
   addResource: { open: boolean; initialText?: string }
   openAddResource: (initialText?: string) => void
   closeAddResource: () => void
+  addTask: { open: boolean; initialText?: string }
+  openAddTask: (initialText?: string) => void
+  closeAddTask: () => void
   mobileNavOpen: boolean
   setMobileNavOpen: (open: boolean) => void
 }
@@ -34,6 +37,9 @@ export function ShellProvider({
   }>({
     open: false,
   })
+  const [addTask, setAddTask] = useState<{ open: boolean; initialText?: string }>({
+    open: false,
+  })
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const openAddResource = useCallback(
     (initialText?: string) => setAddResource({ open: true, initialText }),
@@ -43,6 +49,11 @@ export function ShellProvider({
     () => setAddResource({ open: false }),
     []
   )
+  const openAddTask = useCallback(
+    (initialText?: string) => setAddTask({ open: true, initialText }),
+    []
+  )
+  const closeAddTask = useCallback(() => setAddTask({ open: false }), [])
 
   const value = useMemo(
     () => ({
@@ -50,10 +61,22 @@ export function ShellProvider({
       addResource,
       openAddResource,
       closeAddResource,
+      addTask,
+      openAddTask,
+      closeAddTask,
       mobileNavOpen,
       setMobileNavOpen,
     }),
-    [user, addResource, openAddResource, closeAddResource, mobileNavOpen]
+    [
+      user,
+      addResource,
+      openAddResource,
+      closeAddResource,
+      addTask,
+      openAddTask,
+      closeAddTask,
+      mobileNavOpen,
+    ]
   )
   return <ShellContext.Provider value={value}>{children}</ShellContext.Provider>
 }

@@ -4,6 +4,7 @@ import { detectUrl } from "@/lib/resources/detect"
 import { linkResources } from "@/lib/server/dal/project-links"
 import { createProject } from "@/lib/server/dal/projects"
 import { insertResources, type NewResource } from "@/lib/server/dal/resources"
+import { addChecklistItem, createTask, linkTaskResources } from "@/lib/server/dal/tasks"
 
 function fromUrl(
   url: string,
@@ -231,5 +232,79 @@ export async function seedDemoData(userId: string) {
     await linkResources(userId, moodboard.id, ids)
   }
 
+  await seedDemoTasks(userId, byTitle, { readingId: reading?.id ?? null, moodboardId: moodboard?.id ?? null })
+
   return created
+}
+
+function daysFromNow(days: number) {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d
+}
+
+async function seedDemoTasks(
+  userId: string,
+  byTitle: Map<string | null, string>,
+  projects: { readingId: string | null; moodboardId: string | null }
+) {
+  const flexboxId = byTitle.get("An Interactive Guide to Flexbox")
+  const nextjsId = byTitle.get("vercel/next.js")
+  const lakeId = byTitle.get("Mountain lake at dawn")
+  const igId = byTitle.get("Instagram post")
+
+  const flexboxTask = await createTask(userId, {
+    title: "Finish the flexbox guide",
+    projectId: projects.readingId,
+    priority: "high",
+    status: "in_progress",
+    dueAt: daysFromNow(2).toISOString(),
+    tags: ["demo"],
+  })
+  if (flexboxTask) {
+    await addChecklistItem(userId, flexboxTask.id, "Read sections 1-4")
+    await addChecklistItem(userId, flexboxTask.id, "Try the interactive examples")
+    await addChecklistItem(userId, flexboxTask.id, "Summarize key takeaways")
+    if (flexboxId) await linkTaskResources(userId, flexboxTask.id, [flexboxId])
+  }
+
+  const moodboardTask = await createTask(userId, {
+    title: "Review moodboard inspiration",
+    projectId: projects.moodboardId,
+    priority: "medium",
+    status: "todo",
+    dueDate: daysFromNow(5).toISOString().slice(0, 10),
+    allDay: true,
+    tags: ["demo"],
+  })
+  if (moodboardTask) {
+    const ids = [lakeId, igId].filter((id): id is string => !!id)
+    if (ids.length) await linkTaskResources(userId, moodboardTask.id, ids)
+  }
+
+  const shipTask = await createTask(userId, {
+    title: "Ship the Next.js experiment",
+    projectId: projects.readingId,
+    priority: "urgent",
+    status: "blocked",
+    tags: ["demo"],
+  })
+  if (shipTask) {
+    await addChecklistItem(userId, shipTask.id, "Unblock: waiting on design review")
+    if (nextjsId) await linkTaskResources(userId, shipTask.id, [nextjsId])
+  }
+
+  await createTask(userId, {
+    title: "Plan the weekly review",
+    priority: "low",
+    status: "done",
+    tags: ["demo"],
+  })
+
+  await createTask(userId, {
+    title: "Watch one talk per day",
+    priority: "medium",
+    status: "todo",
+    tags: ["demo"],
+  })
 }

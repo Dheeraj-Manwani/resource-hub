@@ -9,20 +9,27 @@ import {
   Loader2Icon,
   PlusIcon,
   RefreshCwIcon,
+  SearchIcon,
   StarIcon,
   Trash2Icon,
   TriangleAlertIcon,
   XIcon,
 } from "lucide-react"
 import Link from "next/link"
-import { useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { EmptyState } from "@/components/empty-state"
 import { ProjectSinglePicker } from "@/components/projects/project-picker"
+import { StatusIcon } from "@/components/tasks/task-status"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Select,
   SelectContent,
@@ -46,6 +53,12 @@ import {
   useResource,
   useUpdateResource,
 } from "@/hooks/queries/resources"
+import {
+  useLinkTaskResources,
+  useResourceTasks,
+  useTaskList,
+  useUnlinkTaskResources,
+} from "@/hooks/queries/tasks"
 import { useDetailDrawer } from "@/hooks/use-detail-drawer"
 import { uploadFile } from "@/hooks/use-uploads"
 import { useQueryClient } from "@tanstack/react-query"
@@ -261,6 +274,111 @@ function ProjectsField({ resource }: { resource: ResourceDto }) {
   )
 }
 
+/** Searchable popover to pick an existing task to link (title filter
+ * client-side, same convention as `ProjectSinglePicker`'s project search —
+ * full-text search across all tasks arrives in Phase 6). */
+function LinkTaskPicker({ resourceId, excludeIds }: { resourceId: string; excludeIds: Set<string> }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const { data } = useTaskList({})
+  const link = useLinkTaskResources()
+  const items = useMemo(
+    () => (data?.pages.flatMap((p) => p.items) ?? []).filter((t) => !excludeIds.has(t.id)),
+    [data, excludeIds]
+  )
+  const filtered = query.trim()
+    ? items.filter((t) => t.title.toLowerCase().includes(query.trim().toLowerCase()))
+    : items
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            aria-label="Link task"
+            className="flex h-6 items-center gap-1 rounded-full border border-dashed border-border-strong px-2 text-xs text-subtle hover:border-brand/50 hover:text-brand"
+          />
+        }
+      >
+        <PlusIcon className="size-3" />
+        Link task
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64">
+        <div className="relative">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-subtle" />
+          <Input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Find a task…"
+            className="h-8 pl-7 text-sm"
+          />
+        </div>
+        <div className="mt-2 max-h-64 space-y-0.5 overflow-y-auto">
+          {filtered.length ? (
+            filtered.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  link.mutate({ taskId: t.id, resourceIds: [resourceId] })
+                  setOpen(false)
+                  setQuery("")
+                }}
+                className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-white/[0.06]"
+              >
+                <StatusIcon status={t.status} className="size-3.5 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{t.title}</span>
+              </button>
+            ))
+          ) : (
+            <p className="px-2 py-3 text-center text-xs text-subtle">No matching tasks</p>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function TasksField({ resource }: { resource: ResourceDto }) {
+  const { data: tasks = [] } = useResourceTasks(resource.id)
+  const unlink = useUnlinkTaskResources()
+  const { openTask } = useDetailDrawer()
+  const linkedIds = new Set(tasks.map((t) => t.id))
+
+  return (
+    <Field label="Tasks">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {tasks.map((t) => (
+          <span
+            key={t.id}
+            className="inline-flex h-6 items-center gap-1 rounded-full bg-white/[0.06] pr-1 pl-2 text-xs"
+          >
+            <button
+              type="button"
+              onClick={() => openTask(t.id)}
+              className="flex items-center gap-1 hover:underline"
+            >
+              <StatusIcon status={t.status} className="size-3" />
+              {t.title}
+            </button>
+            <button
+              type="button"
+              aria-label={`Unlink ${t.title}`}
+              onClick={() => unlink.mutate({ taskId: t.id, resourceIds: [resource.id] })}
+              className="rounded-full p-0.5 text-text-muted hover:bg-white/10 hover:text-foreground"
+            >
+              <XIcon className="size-3" />
+            </button>
+          </span>
+        ))}
+        <LinkTaskPicker resourceId={resource.id} excludeIds={linkedIds} />
+      </div>
+    </Field>
+  )
+}
+
 function DetailContent({ resource }: { resource: ResourceDto }) {
   const update = useUpdateResource()
   const remove = useDeleteResource()
@@ -449,6 +567,8 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
         </Field>
 
         <ProjectsField resource={resource} />
+
+        <TasksField resource={resource} />
 
         {resource.url ? (
           <Field label="Type">

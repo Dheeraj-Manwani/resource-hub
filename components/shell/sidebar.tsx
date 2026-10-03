@@ -3,8 +3,10 @@
 import { SettingsIcon } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { Suspense } from "react"
 
 import { ProjectsSidebarSection } from "@/components/projects/sidebar-tree"
+import { TasksSmartFiltersSection } from "@/components/tasks/smart-filters-sidebar"
 import { Logo } from "@/components/logo"
 import { cn } from "@/lib/utils"
 
@@ -67,6 +69,9 @@ export function SidebarContent({
         </ul>
       </nav>
 
+      <Suspense fallback={null}>
+        <TasksSmartFiltersSection />
+      </Suspense>
       <ProjectsSidebarSection draggable={draggable} />
 
       <div className="mt-auto border-t border-sidebar-border p-2">

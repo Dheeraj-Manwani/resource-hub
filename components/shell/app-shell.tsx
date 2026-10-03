@@ -5,6 +5,7 @@ import { Suspense } from "react"
 import { AddResourceDialog } from "@/components/resources/add-resource-dialog"
 import { LightboxProvider } from "@/components/resources/lightbox/lightbox-provider"
 import { ProjectDndProvider } from "@/components/projects/project-dnd"
+import { TaskShortcuts } from "@/components/tasks/task-shortcuts"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import type { AppUser } from "@/lib/server/dal/session"
 
@@ -56,6 +57,7 @@ export function AppShell({
           <Suspense>
             <AddResourceDialog />
             <DetailDrawer />
+            <TaskShortcuts />
           </Suspense>
         </ProjectDndProvider>
       </LightboxProvider>

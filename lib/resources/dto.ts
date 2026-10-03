@@ -47,6 +47,8 @@ export type ResourceDto = {
   file: FileDto | null
   tags: TagDto[]
   projects: ProjectChipDto[]
+  /** Linked (non-deleted) task count, for the card badge and the "has tasks" filter. */
+  taskCount: number
   createdAt: string
   updatedAt: string
 }
