@@ -260,4 +260,59 @@
   .prose-dark > :first-child {
     @apply mt-0;
   }
+
+  /*
+   * FullCalendar v6 injects its own CSS and exposes these custom properties
+   * for theming (see fullcalendar.io/docs/css-customization) — set once
+   * here instead of fighting its stylesheet with overrides everywhere it's
+   * used.
+   */
+  .fc {
+    --fc-border-color: var(--border-hairline);
+    --fc-page-bg-color: transparent;
+    --fc-neutral-bg-color: var(--surface-raised);
+    --fc-neutral-text-color: var(--text-muted);
+    --fc-today-bg-color: var(--brand-soft);
+    --fc-now-indicator-color: var(--brand);
+    --fc-event-border-color: transparent;
+    --fc-event-text-color: var(--brand-fg);
+    --fc-list-event-hover-bg-color: color-mix(in oklab, var(--surface-raised) 100%, transparent);
+    --fc-small-font-size: 0.75rem;
+    font-family: inherit;
+    color: var(--text);
+  }
+  .fc .fc-button {
+    @apply rounded-lg border border-border bg-transparent px-2.5 py-1 text-sm text-text-muted shadow-none hover:bg-white/[0.04] hover:text-foreground;
+  }
+  .fc .fc-button-primary:not(:disabled).fc-button-active,
+  .fc .fc-button-primary:not(:disabled):active {
+    @apply bg-brand-soft text-foreground;
+    box-shadow: none;
+  }
+  .fc .fc-button:focus-visible {
+    @apply ring-3 ring-brand/40;
+  }
+  .fc .fc-daygrid-day.fc-day-today,
+  .fc .fc-timegrid-col.fc-day-today {
+    background: var(--fc-today-bg-color);
+  }
+  .fc .fc-col-header-cell,
+  .fc .fc-daygrid-day-number,
+  .fc .fc-list-day-cushion {
+    color: var(--text-muted);
+  }
+  .fc .fc-event {
+    @apply cursor-pointer rounded-md border-none px-1 py-0.5 text-xs font-medium shadow-none;
+  }
+  .fc .fc-event.fc-event-done {
+    opacity: 0.5;
+    text-decoration: line-through;
+  }
+  .fc-theme-standard td,
+  .fc-theme-standard th {
+    border-color: var(--fc-border-color);
+  }
+  .fc .fc-scrollgrid {
+    border-color: var(--fc-border-color);
+  }
 }

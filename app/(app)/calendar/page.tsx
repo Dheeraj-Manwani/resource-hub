@@ -1,20 +1,22 @@
-import { CalendarDaysIcon } from "lucide-react"
 import type { Metadata } from "next"
+import { Suspense } from "react"
 
-import { EmptyState } from "@/components/empty-state"
 import { PageHeader } from "@/components/page-header"
+import { CalendarView } from "@/components/calendar/calendar-view"
+import { getSettings } from "@/lib/server/dal/settings"
+import { requireUser } from "@/lib/server/dal/session"
 
 export const metadata: Metadata = { title: "Calendar" }
 
-export default function CalendarPage() {
+export default async function CalendarPage() {
+  const user = await requireUser()
+  const settings = await getSettings(user.id)
   return (
     <>
       <PageHeader title="Calendar" />
-      <EmptyState
-        icon={CalendarDaysIcon}
-        title="The calendar arrives in Phase 5"
-        description="Month, week, day and agenda views with drag-to-schedule, recurrence and reminders."
-      />
+      <Suspense>
+        <CalendarView initialSettings={settings} />
+      </Suspense>
     </>
   )
 }

@@ -22,6 +22,13 @@
       "when": 1791002138774,
       "tag": "0002_magical_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791015657547,
+      "tag": "0003_swift_norrin_radd",
+      "breakpoints": true
     }
   ]
 }

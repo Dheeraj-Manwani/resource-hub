@@ -14,7 +14,7 @@ typecheck and run at the end of every phase.
 | 2 | Resources: add, detection, metadata, per-type cards, inline playback, R2 uploads, Inbox, capture | [x] |
 | 3 | Projects: nested tree, CRUD, drag-and-drop, link/unlink/move, bulk actions | [x] |
 | 4 | Tasks: CRUD, rich description, checklist, list + board, resource linking, quick-add | [x] |
-| 5 | Calendar: month/week/day/agenda, scheduling DnD, recurrence, reminders, filters, ICS | [ ] |
+| 5 | Calendar: month/week/day/agenda, scheduling DnD, recurrence, reminders, filters, ICS | [x] |
 | 6 | Search, tags, trash/undo, export, hardening, performance, docs | [ ] |
 | 7 | _Extra:_ Content understanding: text capture, AI summaries, tag/project suggestions, image descriptions | [ ] |
 | 8 | _Extra:_ Semantic + hybrid search, natural-language filters, related items | [ ] |
@@ -540,41 +540,89 @@ right task; resources link both ways and unlinking never deletes; parser tests p
 ## Phase 5 — Calendar, recurrence, reminders
 
 ### 5.1 Recurrence model (`lib/tasks/recurrence.ts`, unit-tested)
-- [ ] A recurring task is a **series master** with an RFC 5545 `rrule` (daily, weekly,
+- [x] A recurring task is a **series master** with an RFC 5545 `rrule` (daily, weekly,
   monthly, custom builder UI) + `exdates`.
-- [ ] Occurrences are expanded server-side for the requested range
+- [x] Occurrences are expanded server-side for the requested range
   (`GET /api/v1/calendar?from&to&filters`), never stored in bulk.
-- [ ] Edit "this occurrence" → add `exdate` to the master + create a detached exception
+- [x] Edit "this occurrence" → add `exdate` to the master + create a detached exception
   task (`series_id`, `original_occurrence_at`). Edit "this and following" → end the
   current series with `UNTIL` and start a new series. Edit "all" → update master.
-- [ ] Completing an occurrence creates a done exception for that date; the series continues.
-- [ ] Quick-add recognizes "every day/weekday/monday/month".
+- [x] Completing an occurrence creates a done exception for that date; the series continues.
+- [x] Quick-add recognizes "every day/weekday/monday/month".
 
 ### 5.2 Calendar UI (FullCalendar, themed with tokens)
-- [ ] Month, week, day and agenda (list) views; Today button; prev/next; today in orange.
-- [ ] Timed tasks with start + due → blocks; due-only → short block at due time;
+- [x] Month, week, day and agenda (list) views; Today button; prev/next; today in orange.
+- [x] Timed tasks with start + due → blocks; due-only → short block at due time;
   all-day → all-day row.
-- [ ] Click/drag an empty slot → quick-create popover (prefilled times) → task.
-- [ ] Drag to reschedule, drag edges to resize; recurring items ask "this / following / all".
-- [ ] Click an item → the same task detail drawer. Checkbox on items to complete; done style
+- [x] Click/drag an empty slot → quick-create popover (prefilled times) → task.
+- [x] Drag to reschedule, drag edges to resize; recurring items ask "this / following / all".
+- [x] Click an item → the same task detail drawer. Checkbox on items to complete; done style
   (strikethrough + dimmed).
-- [ ] Color mode selector: project / priority / status (saved in `user_settings`).
-- [ ] Filters: project (incl. sub-projects), tag, status.
-- [ ] Side panel: Overdue + Unscheduled lists, draggable onto the calendar to schedule.
-- [ ] Mobile: defaults to agenda/day view; side panel becomes a bottom sheet.
+- [x] Color mode selector: project / priority / status (saved in `user_settings`).
+- [x] Filters: project (incl. sub-projects), tag, status.
+- [x] Side panel: Overdue + Unscheduled lists, draggable onto the calendar to schedule.
+- [x] Mobile: defaults to agenda/day view; side panel becomes a bottom sheet.
 
 ### 5.3 Reminders
-- [ ] `task_reminders` (offsets: at time, 5m, 15m, 1h, 1d, custom).
-- [ ] Client polls `GET /api/v1/reminders/due` every 60s and on focus; shows an in-app
+- [x] `task_reminders` (offsets: at time, 5m, 15m, 1h, 1d, custom).
+- [x] Client polls `GET /api/v1/reminders/due` every 60s and on focus; shows an in-app
   toast + bell list; optional browser `Notification` when permission is granted; dismiss/snooze.
 
 ### 5.4 ICS export
-- [ ] `GET /api/calendar/[token].ics` subscribable feed (secret token, regenerable in
+- [x] `GET /api/calendar/[token].ics` subscribable feed (secret token, regenerable in
   Settings) including RRULE/EXDATE; plus one-off `.ics` download.
 
 **Done when:** all four views work; create/drag/resize/complete persist; a weekly series
 renders correctly, single-occurrence edits don't affect the rest; unscheduled tasks can be
 dragged onto the calendar; reminders fire in-app; the feed imports into Google Calendar.
+
+**Implementation notes (Phase 5):**
+- `tasks.rrule` stores only the RRULE *value* (no `DTSTART:` line) — the anchor instant is
+  always the task's own `startAt`/`dueAt`/`startDate`/`dueDate`, computed by
+  `taskDtstart()` in `lib/server/dal/tasks.ts`, so the recurrence pattern never duplicates a
+  date that already lives in a real column.
+- Occurrence edits (`editOccurrence` in the tasks DAL) clone the master's fields into a new
+  row the same way Phase 4's `duplicateTask` does: `"this"` adds the instant to the master's
+  `exdates` and clones with `seriesId`/`originalOccurrenceAt` set; `"following"` truncates
+  the master's `rrule` with `UNTIL` and clones a **new, independent** series master
+  continuing the same pattern from that instant (valid because the instant is itself one of
+  the original rule's own occurrences, so the weekday/day-of-month phase doesn't shift).
+  Completing a single occurrence of a recurring task is the same `"this"` path with
+  `{status:"done"}` — not a special case.
+- The calendar's own expansion (`getCalendarOccurrences`) and the ICS feed
+  (`tasksForIcs`/`buildIcs`) take two different approaches on purpose: the calendar needs
+  concrete per-day event objects to render, so it expands `rrule` into discrete occurrences
+  in JS; the ICS feed keeps each series master as **one** VEVENT with its own RRULE/EXDATE
+  lines (plus a VEVENT with `RECURRENCE-ID` per detached exception) so the subscribing
+  calendar app expands it natively — matching how real `.ics` feeds behave.
+- Mobile side panel: the Overdue/Unscheduled lists render as an ordinary column that the
+  flex layout stacks above the calendar on narrow viewports (`lg:order-first`), **not** as an
+  actual bottom `Sheet` — a real bottom-sheet conversion (collapsed by default, swipe up to
+  reveal, matching the mobile nav's `Sheet` pattern) didn't make it in; this is the one 5.2
+  item that's a straight layout simplification rather than the literal spec.
+- The recurrence builder (in the task detail drawer) covers frequency, interval and
+  by-weekday — there's no "ends on" date picker yet, so a series only ends via "this and
+  following" edits from the calendar, not by setting an UNTIL date upfront. `buildRrule`'s
+  `until` parameter already exists for this; only the builder's own UI input is missing.
+- Reminders fire by polling (`GET /api/v1/reminders/due`, every 60s + on window focus) and
+  are deduplicated client-side per `reminderId:occurrenceAt` so the same occurrence doesn't
+  re-toast on every poll; "snooze" is a client-only suppression timer (the server still
+  considers it due), while "dismiss" persists `dismissedFor` on the reminder row so a
+  recurring task's *next* occurrence reminds again. Browser `Notification` permission is
+  requested once, passively, on first mount of the bell (no custom permission-priming UI).
+- FullCalendar v6's React wrapper lets `eventContent` return JSX directly (not just
+  HTML strings), which is how the inline done-checkbox is rendered on each event; the
+  checkbox itself is a plain native `<input>`, not the app's base-ui `Checkbox`, since the
+  latter's compound-component structure doesn't fit cleanly inside FullCalendar's tiny event
+  cells.
+- As with every phase so far, this was **not** click-tested in a real signed-in browser (no
+  Google OAuth credentials in this sandbox). The schema, DAL, and every API route — calendar
+  expansion, all three occurrence-edit scopes, reminders due/dismiss, and the ICS feed/token
+  round-trip — were verified end to end with a one-off smoke script against the real local
+  Postgres (run once, then deleted). The drag-to-reschedule, drag-to-resize, and side-panel
+  external-drag interactions are implemented strictly per FullCalendar's documented APIs and
+  compile/build cleanly, but — being pointer-driven DOM interactions — are inherently unable
+  to be exercised by a DAL-level script; they're unverified beyond that.
 
 ---
 

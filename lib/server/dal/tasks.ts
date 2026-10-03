@@ -8,12 +8,14 @@ import {
   projects,
   resources as resourcesTable,
   taskChecklistItems,
+  taskReminders,
   taskResources,
   tasks,
   taskTags,
   tags,
 } from "@/lib/db/schema"
 import { nextSortKey, sortKeyBetween } from "@/lib/projects/sort-key"
+import { withUntil } from "@/lib/tasks/recurrence"
 import type {
   ChecklistItemDto,
   TaskDto,
@@ -122,14 +124,31 @@ async function projectsForTaskRows(taskRows: TaskRow[]) {
   return new Map(rows.map((r) => [r.id, r]))
 }
 
+async function remindersForTaskIds(taskIds: string[]) {
+  const map = new Map<string, TaskDto["reminders"]>()
+  if (!taskIds.length) return map
+  const rows = await db
+    .select()
+    .from(taskReminders)
+    .where(inArray(taskReminders.taskId, taskIds))
+    .orderBy(asc(taskReminders.offsetMinutes))
+  for (const row of rows) {
+    const list = map.get(row.taskId) ?? []
+    list.push({ id: row.id, taskId: row.taskId, offsetMinutes: row.offsetMinutes })
+    map.set(row.taskId, list)
+  }
+  return map
+}
+
 async function toDtos(rows: TaskRow[]): Promise<TaskDto[]> {
   if (!rows.length) return []
   const ids = rows.map((r) => r.id)
-  const [checklistMap, tagMap, resourceMap, projectMap] = await Promise.all([
+  const [checklistMap, tagMap, resourceMap, projectMap, reminderMap] = await Promise.all([
     checklistForTasks(ids),
     tagsForTasks(ids),
     resourcesForTasks(ids),
     projectsForTaskRows(rows),
+    remindersForTaskIds(ids),
   ])
   return rows.map((row) => ({
     id: row.id,
@@ -145,12 +164,16 @@ async function toDtos(rows: TaskRow[]): Promise<TaskDto[]> {
     startDate: row.startDate,
     dueDate: row.dueDate,
     allDay: row.allDay,
+    rrule: row.rrule,
+    seriesId: row.seriesId,
+    originalOccurrenceAt: row.originalOccurrenceAt?.toISOString() ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
     archivedAt: row.archivedAt?.toISOString() ?? null,
     sortKey: row.sortKey,
     checklist: checklistMap.get(row.id) ?? [],
     tags: tagMap.get(row.id) ?? [],
     resources: resourceMap.get(row.id) ?? [],
+    reminders: reminderMap.get(row.id) ?? [],
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }))
@@ -343,6 +366,7 @@ export async function createTask(
       startDate: input.startDate ?? null,
       dueDate: input.dueDate ?? null,
       allDay: input.allDay ?? false,
+      rrule: input.rrule ?? null,
       sortKey: nextSortKey(last?.sortKey ?? null),
     })
     if (input.tags?.length) {
@@ -387,6 +411,7 @@ export async function updateTask(
   if (patch.startDate !== undefined) set.startDate = patch.startDate
   if (patch.dueDate !== undefined) set.dueDate = patch.dueDate
   if (patch.allDay !== undefined) set.allDay = patch.allDay
+  if (patch.rrule !== undefined) set.rrule = patch.rrule
   if (patch.archived !== undefined) set.archivedAt = patch.archived ? new Date() : null
   if (patch.status !== undefined) {
     set.status = patch.status
@@ -503,6 +528,143 @@ export async function duplicateTask(userId: string, id: string): Promise<TaskDto
     }
   })
   return getTask(userId, newId)
+}
+
+// ------------------------------------------------------------------ occurrence edits
+
+export type EditOccurrenceResult =
+  | { ok: true; dto: TaskDto; detachedId?: string }
+  | { ok: false; reason: "not_found" | "not_recurring" }
+
+/** Clones a series master's fields into a new standalone row (used to
+ * detach a single occurrence, or to start a new series for "following"). */
+async function cloneTaskRow(
+  tx: Parameters<Parameters<(typeof db)["transaction"]>[0]>[0],
+  master: TaskRow,
+  overrides: Partial<TaskRow>,
+  newId: string
+) {
+  const [last] = await tx
+    .select({ sortKey: tasks.sortKey })
+    .from(tasks)
+    .where(and(eq(tasks.userId, master.userId), eq(tasks.status, master.status)))
+    .orderBy(sql`${tasks.sortKey} desc`)
+    .limit(1)
+  await tx.insert(tasks).values({
+    id: newId,
+    userId: master.userId,
+    projectId: master.projectId,
+    title: master.title,
+    descriptionJson: master.descriptionJson,
+    descriptionText: master.descriptionText,
+    status: master.status,
+    priority: master.priority,
+    startAt: master.startAt,
+    dueAt: master.dueAt,
+    startDate: master.startDate,
+    dueDate: master.dueDate,
+    allDay: master.allDay,
+    rrule: null,
+    seriesId: null,
+    originalOccurrenceAt: null,
+    sortKey: nextSortKey(last?.sortKey ?? null),
+    ...overrides,
+  })
+  const tagRows = await tx.select({ tagId: taskTags.tagId }).from(taskTags).where(eq(taskTags.taskId, master.id))
+  if (tagRows.length) {
+    await tx
+      .insert(taskTags)
+      .values(tagRows.map((t) => ({ taskId: newId, tagId: t.tagId })))
+      .onConflictDoNothing()
+  }
+}
+
+/** The recurring series' anchor instant — derives from whichever date field
+ * the task actually has set, since `rrule` stores only the pattern. Shared
+ * with the calendar's occurrence expansion. */
+export function taskDtstart(row: Pick<TaskRow, "startAt" | "dueAt" | "startDate" | "dueDate">): Date {
+  if (row.startAt) return row.startAt
+  if (row.dueAt) return row.dueAt
+  if (row.startDate) return new Date(`${row.startDate}T00:00:00.000Z`)
+  return new Date(`${row.dueDate}T00:00:00.000Z`)
+}
+
+/** Shifts a master's own start/due fields onto a specific occurrence
+ * instant, preserving any start→due duration and the all-day/timed shape. */
+function occurrenceOverrides(master: TaskRow, occurrenceAt: Date): Partial<TaskRow> {
+  if (master.allDay) {
+    const dateOnly = `${occurrenceAt.getUTCFullYear()}-${String(occurrenceAt.getUTCMonth() + 1).padStart(2, "0")}-${String(occurrenceAt.getUTCDate()).padStart(2, "0")}`
+    return { startDate: master.startDate ? dateOnly : null, dueDate: dateOnly, startAt: null, dueAt: null }
+  }
+  const durationMs = master.startAt && master.dueAt ? master.dueAt.getTime() - master.startAt.getTime() : 0
+  return {
+    startAt: master.startAt ? occurrenceAt : null,
+    dueAt: new Date(occurrenceAt.getTime() + durationMs),
+    startDate: null,
+    dueDate: null,
+  }
+}
+
+/**
+ * Edits one occurrence of a recurring task per `scope`:
+ * - `"all"` (or a non-recurring task): a normal update on the master.
+ * - `"this"`: adds `occurrenceAt` to the master's `exdates` and creates a
+ *   detached exception row (`seriesId` = master id) carrying the patch —
+ *   completing a single occurrence is this same path with `{status:"done"}`.
+ * - `"following"`: truncates the master's `rrule` with `UNTIL` just before
+ *   `occurrenceAt`, then starts a **new** series master from `occurrenceAt`
+ *   (same rrule pattern — valid since `occurrenceAt` is itself one of the
+ *   original rule's instants) carrying the patch.
+ */
+export async function editOccurrence(
+  userId: string,
+  taskId: string,
+  occurrenceAt: Date,
+  scope: "this" | "following" | "all",
+  patch: UpdateTaskInput
+): Promise<EditOccurrenceResult> {
+  const master = await getTaskRow(userId, taskId)
+  if (!master) return { ok: false, reason: "not_found" }
+
+  if (scope === "all" || !master.rrule) {
+    const dto = await updateTask(userId, taskId, patch)
+    return dto ? { ok: true, dto } : { ok: false, reason: "not_found" }
+  }
+
+  if (scope === "this") {
+    const newId = uuidv7()
+    await db.transaction(async (tx) => {
+      await tx
+        .update(tasks)
+        .set({ exdates: [...(master.exdates ?? []), occurrenceAt], updatedAt: new Date() })
+        .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
+      await cloneTaskRow(
+        tx,
+        master,
+        { ...occurrenceOverrides(master, occurrenceAt), seriesId: taskId, originalOccurrenceAt: occurrenceAt },
+        newId
+      )
+    })
+    const dto = await updateTask(userId, newId, patch)
+    return dto ? { ok: true, dto, detachedId: newId } : { ok: false, reason: "not_found" }
+  }
+
+  // scope === "following"
+  const dtstart = taskDtstart(master)
+  const newId = uuidv7()
+  await db.transaction(async (tx) => {
+    await tx
+      .update(tasks)
+      .set({ rrule: withUntil(master.rrule!, dtstart, new Date(occurrenceAt.getTime() - 1000)), updatedAt: new Date() })
+      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
+    await cloneTaskRow(tx, master, { ...occurrenceOverrides(master, occurrenceAt), rrule: master.rrule }, newId)
+  })
+  const dto = await updateTask(userId, newId, patch)
+  return dto ? { ok: true, dto, detachedId: newId } : { ok: false, reason: "not_found" }
+}
+
+export function completeOccurrence(userId: string, taskId: string, occurrenceAt: Date) {
+  return editOccurrence(userId, taskId, occurrenceAt, "this", { status: "done" })
 }
 
 export async function softDeleteTask(userId: string, id: string) {

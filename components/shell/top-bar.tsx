@@ -3,6 +3,7 @@
 import { ListPlusIcon, MenuIcon, PlusIcon, SearchIcon } from "lucide-react"
 import Link from "next/link"
 
+import { RemindersBell } from "@/components/calendar/reminders-bell"
 import { LogoMark } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 
@@ -48,6 +49,7 @@ export function TopBar() {
           Add resource
         </Button>
       </div>
+      <RemindersBell />
       <UserMenu />
     </header>
   )

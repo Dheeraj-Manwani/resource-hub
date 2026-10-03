@@ -3,8 +3,10 @@ import "server-only"
 import { detectUrl } from "@/lib/resources/detect"
 import { linkResources } from "@/lib/server/dal/project-links"
 import { createProject } from "@/lib/server/dal/projects"
+import { addReminder } from "@/lib/server/dal/reminders"
 import { insertResources, type NewResource } from "@/lib/server/dal/resources"
 import { addChecklistItem, createTask, linkTaskResources } from "@/lib/server/dal/tasks"
+import { buildRrule } from "@/lib/tasks/recurrence"
 
 function fromUrl(
   url: string,
@@ -266,7 +268,23 @@ async function seedDemoTasks(
     await addChecklistItem(userId, flexboxTask.id, "Try the interactive examples")
     await addChecklistItem(userId, flexboxTask.id, "Summarize key takeaways")
     if (flexboxId) await linkTaskResources(userId, flexboxTask.id, [flexboxId])
+    await addReminder(userId, flexboxTask.id, 60)
   }
+
+  // Recurring: every weekday at 9am, to show off the calendar's series
+  // expansion, the sidebar's smart filters, and the ICS feed's RRULE.
+  const standAt = new Date()
+  standAt.setDate(standAt.getDate() + ((1 + 7 - standAt.getDay()) % 7 || 7))
+  standAt.setHours(9, 0, 0, 0)
+  await createTask(userId, {
+    title: "Team stand-up",
+    priority: "medium",
+    status: "todo",
+    startAt: standAt.toISOString(),
+    dueAt: new Date(standAt.getTime() + 15 * 60_000).toISOString(),
+    rrule: buildRrule({ freq: "weekly", byweekday: [1, 2, 3, 4, 5] }),
+    tags: ["demo"],
+  })
 
   const moodboardTask = await createTask(userId, {
     title: "Review moodboard inspiration",

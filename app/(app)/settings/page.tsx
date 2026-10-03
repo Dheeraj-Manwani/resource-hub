@@ -1,9 +1,11 @@
 import type { Metadata } from "next"
 
 import { PageHeader } from "@/components/page-header"
+import { CalendarSettings } from "@/components/settings/calendar-settings"
 import { CaptureSettings } from "@/components/settings/capture-settings"
 import { TokenSettings } from "@/components/settings/token-settings"
 import { serverEnv } from "@/lib/env"
+import { getSettings } from "@/lib/server/dal/settings"
 import { requireUser } from "@/lib/server/dal/session"
 
 export const metadata: Metadata = { title: "Settings" }
@@ -33,6 +35,7 @@ function Section({
 export default async function SettingsPage() {
   const user = await requireUser()
   const appUrl = serverEnv().BETTER_AUTH_URL.replace(/\/$/, "")
+  const settings = await getSettings(user.id)
   return (
     <div className="max-w-4xl">
       <PageHeader title="Settings" />
@@ -43,6 +46,12 @@ export default async function SettingsPage() {
           <dt className="text-subtle">Email</dt>
           <dd>{user.email}</dd>
         </dl>
+      </Section>
+      <Section
+        title="Calendar"
+        description="Timezone, week start, and a subscribable feed of your tasks."
+      >
+        <CalendarSettings appUrl={appUrl} initialSettings={settings} />
       </Section>
       <Section
         title="Capture"

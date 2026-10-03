@@ -16,7 +16,10 @@ importers:
         version: 3.1145.0
       '@base-ui/react':
         specifier: ^1.8.0
-        version: 1.8.0(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 1.8.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@date-fns/tz':
+        specifier: ^1.5.0
+        version: 1.5.0
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -26,6 +29,24 @@ importers:
       '@dnd-kit/utilities':
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.8)
+      '@fullcalendar/core':
+        specifier: ^6.1.21
+        version: 6.1.21
+      '@fullcalendar/daygrid':
+        specifier: ^6.1.21
+        version: 6.1.21(@fullcalendar/core@6.1.21)
+      '@fullcalendar/interaction':
+        specifier: ^6.1.21
+        version: 6.1.21(@fullcalendar/core@6.1.21)
+      '@fullcalendar/list':
+        specifier: ^6.1.21
+        version: 6.1.21(@fullcalendar/core@6.1.21)
+      '@fullcalendar/react':
+        specifier: ^6.1.21
+        version: 6.1.21(@fullcalendar/core@6.1.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@fullcalendar/timegrid':
+        specifier: ^6.1.21
+        version: 6.1.21(@fullcalendar/core@6.1.21)
       '@tanstack/react-query':
         specifier: ^5.104.0
         version: 5.104.0(react@19.2.8)
@@ -59,6 +80,9 @@ importers:
       cn:
         specifier: ^0.4.0
         version: 0.4.0
+      date-fns:
+        specifier: ^4.4.0
+        version: 4.4.0
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(kysely@0.29.6)(postgres@3.4.9)
@@ -89,6 +113,9 @@ importers:
       react-dom:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
+      rrule:
+        specifier: ^2.8.1
+        version: 2.8.1
       sanitize-html:
         specifier: ^2.18.0
         version: 2.18.0
@@ -489,6 +516,9 @@ packages:
 
   '@better-fetch/fetch@1.3.2':
     resolution: {integrity: sha512-Gs7n99b5tqUC6cQAPbV0uED3IraHB6xQbHLQ/C3l7ZFafHScOx9pQ+DYmP5blbLFShVWLqxNUlI9wi4xU/X+ow==}
+
+  '@date-fns/tz@1.5.0':
+    resolution: {integrity: sha512-lwYN/vDPeNRULcepoE/LO2Pgx+7/RV+S9ARfbc9lr2DtGkOD7pAiruHvbR1RX3Qyf6ja47EWJDMsNK5vK08DJg==}
 
   '@dnd-kit/accessibility@3.1.1':
     resolution: {integrity: sha512-2P+YgaXF+gRsIihwwY1gCsQSYnu9Zyj2py8kY5fFvUM1qm2WA2u639R6YNVfU4GWr+ZM5mqEsfHZZLoRONbemw==}
@@ -1044,6 +1074,36 @@ packages:
 
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
+  '@fullcalendar/core@6.1.21':
+    resolution: {integrity: sha512-t3u/+sqh3Iq7TWtUnVLcGDUE6OWZh0UD3c04bI/l7lSLAgAKr3kngBmhHiQD1QXpwC8ZN5iNqG7a7gOVixhSKQ==}
+
+  '@fullcalendar/daygrid@6.1.21':
+    resolution: {integrity: sha512-QYb1y40RGYLlOxKpYWg8O+7njEnKnFG8Tt7qjnubJGR35s1phQg67E+81y2TyAbbm59p2JFOCXGDk9t6KDujIA==}
+    peerDependencies:
+      '@fullcalendar/core': ~6.1.21
+
+  '@fullcalendar/interaction@6.1.21':
+    resolution: {integrity: sha512-WPYpqtljDWmU0Xm2cOtFrLlocgxv7cgkOppj34Q6OUUat8a6Cnd6kYo2JR+irP223PE5lBYHFNp1qh7SIpJc0w==}
+    peerDependencies:
+      '@fullcalendar/core': ~6.1.21
+
+  '@fullcalendar/list@6.1.21':
+    resolution: {integrity: sha512-2rpIhs5pJmV7jyk4oX4bckNqurt6iHcsweE3FDYDdNpmRukPrARnyQYcaVFNVw2bnBFeR/jQW/St2MlauxF3GQ==}
+    peerDependencies:
+      '@fullcalendar/core': ~6.1.21
+
+  '@fullcalendar/react@6.1.21':
+    resolution: {integrity: sha512-TLpmGUd5k/PMdCh8XbeFC9PW9wuGvMms1oCxWgXyjK3EFPXAAd0PLfcvwKdyxoAS5eK1E4RJFkjMHvsYHpimcg==}
+    peerDependencies:
+      '@fullcalendar/core': ~6.1.21
+      react: ^16.7.0 || ^17 || ^18 || ^19
+      react-dom: ^16.7.0 || ^17 || ^18 || ^19
+
+  '@fullcalendar/timegrid@6.1.21':
+    resolution: {integrity: sha512-2DnShx/jallGmb8QCkr6pAOu/zuPhJrP7+uTrAtSnbqsX7GF3lTxqSeNGkTQwsgF5g/ia8udhQ+JNYaE+TN1cQ==}
+    peerDependencies:
+      '@fullcalendar/core': ~6.1.21
 
   '@hono/node-server@2.1.3':
     resolution: {integrity: sha512-TA//nWMqPhbfdfneACk6t5a9eqbS9lABEPyKn0/xZTah3H3U2XaVg85rJFl0/Fyit0I552YDHgXGVSf3GwqbUw==}
@@ -2391,6 +2451,9 @@ packages:
   data-view-byte-offset@1.0.1:
     resolution: {integrity: sha512-BS8PfmtDGnrgYdOonGZQdLZslWIeCGFP9tpan0hi1Co2Zr2NKADsvGYA8XxuG/4UWgJ6Cjtv+YJnB6MM69QGlQ==}
     engines: {node: '>= 0.4'}
+
+  date-fns@4.4.0:
+    resolution: {integrity: sha512-+1UMbeh68lH1SegH83CGWwpb6OHHbpSgr3+s5Eww5M4CAgswBpoWS0AjTOfEJ33HiYKz1hdj/KTFprzXHmq/6w==}
 
   dayjs@1.11.23:
     resolution: {integrity: sha512-QDTCU0M0MxR3hQfnlDJfwekQiaanm1ubOD231u73WBckQ/fsamwRLiE2GBz6D3a/xF1NgfiDLJjXBa1hYOYTtQ==}
@@ -3940,6 +4003,9 @@ packages:
     resolution: {integrity: sha512-C+y9x90UElAddDZmV4qOx9W53B61PO7cIqWz2dQsWlwswuq4mr8NEwytdGKboYbQlGZ3awrkTeNvcZiZNHnQ8A==}
     engines: {node: '>=20'}
 
+  preact@10.12.1:
+    resolution: {integrity: sha512-l8386ixSsBdbreOAkqtrwqHwdvR35ID8c3rKPa8lCWuO86dBi32QWHV4vfsZK1utLLFMvw+Z5Ad4XLkZzchscg==}
+
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
@@ -4142,6 +4208,9 @@ packages:
   router@2.2.0:
     resolution: {integrity: sha512-nLTrUKm2UyiL7rlhapu/Zl45FwNgkZGaCpZbIHajDYgwlJCOzLSk+cIPAnsEqV955GjILJnKbdQC1nVPz+gAYQ==}
     engines: {node: '>= 18'}
+
+  rrule@2.8.1:
+    resolution: {integrity: sha512-hM3dHSBMeaJ0Ktp7W38BJZ7O1zOgaFEsn41PDk+yHoEtfLV+PoJt9E9xAlZiWgf/iqEqionN0ebHFZIDAp+iGw==}
 
   run-applescript@7.1.0:
     resolution: {integrity: sha512-DPe5pVFaAsinSaV6QjQ6gdiedWDcRCbUuiQfQa2wmWV7+xC9bGulGI8+TdRmoFkAPaBXk8CrAbnlY2ISniJ47Q==}
@@ -5084,7 +5153,7 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@base-ui/react@1.8.0(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@base-ui/react@1.8.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@babel/runtime': 7.29.7
       '@base-ui/utils': 0.4.0(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -5094,7 +5163,9 @@ snapshots:
       react-dom: 19.2.8(react@19.2.8)
       use-sync-external-store: 1.7.0(react@19.2.8)
     optionalDependencies:
+      '@date-fns/tz': 1.5.0
       '@types/react': 19.3.0
+      date-fns: 4.4.0
 
   '@base-ui/utils@0.4.0(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
@@ -5163,6 +5234,8 @@ snapshots:
       '@noble/hashes': 2.4.0
 
   '@better-fetch/fetch@1.3.2': {}
+
+  '@date-fns/tz@1.5.0': {}
 
   '@dnd-kit/accessibility@3.1.1(react@19.2.8)':
     dependencies:
@@ -5532,6 +5605,33 @@ snapshots:
       react-dom: 19.2.8(react@19.2.8)
 
   '@floating-ui/utils@0.2.12': {}
+
+  '@fullcalendar/core@6.1.21':
+    dependencies:
+      preact: 10.12.1
+
+  '@fullcalendar/daygrid@6.1.21(@fullcalendar/core@6.1.21)':
+    dependencies:
+      '@fullcalendar/core': 6.1.21
+
+  '@fullcalendar/interaction@6.1.21(@fullcalendar/core@6.1.21)':
+    dependencies:
+      '@fullcalendar/core': 6.1.21
+
+  '@fullcalendar/list@6.1.21(@fullcalendar/core@6.1.21)':
+    dependencies:
+      '@fullcalendar/core': 6.1.21
+
+  '@fullcalendar/react@6.1.21(@fullcalendar/core@6.1.21)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@fullcalendar/core': 6.1.21
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+
+  '@fullcalendar/timegrid@6.1.21(@fullcalendar/core@6.1.21)':
+    dependencies:
+      '@fullcalendar/core': 6.1.21
+      '@fullcalendar/daygrid': 6.1.21(@fullcalendar/core@6.1.21)
 
   '@hono/node-server@2.1.3(hono@4.13.12)':
     dependencies:
@@ -6728,6 +6828,8 @@ snapshots:
       call-bound: 1.0.4
       es-errors: 1.3.0
       is-data-view: 1.0.2
+
+  date-fns@4.4.0: {}
 
   dayjs@1.11.23: {}
 
@@ -8308,6 +8410,8 @@ snapshots:
 
   powershell-utils@0.2.1: {}
 
+  preact@10.12.1: {}
+
   prelude-ls@1.2.1: {}
 
   prettier-plugin-tailwindcss@0.8.1(prettier@3.9.9):
@@ -8523,6 +8627,10 @@ snapshots:
       path-to-regexp: 8.4.2
     transitivePeerDependencies:
       - supports-color
+
+  rrule@2.8.1:
+    dependencies:
+      tslib: 2.8.1
 
   run-applescript@7.1.0: {}
 

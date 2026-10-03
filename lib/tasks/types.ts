@@ -43,6 +43,8 @@ export type TaskResourceDto = {
   thumbnailUrl: string | null
 }
 
+export type ReminderDto = { id: string; taskId: string; offsetMinutes: number }
+
 export type TaskDto = {
   id: string
   projectId: string | null
@@ -57,12 +59,19 @@ export type TaskDto = {
   startDate: string | null
   dueDate: string | null
   allDay: boolean
+  /** RRULE value (no `DTSTART:` line) when this is a series master; null otherwise. */
+  rrule: string | null
+  /** Set on a detached occurrence: the series master's task id. */
+  seriesId: string | null
+  /** Set on a detached occurrence: the original instant it replaces. */
+  originalOccurrenceAt: string | null
   completedAt: string | null
   archivedAt: string | null
   sortKey: string
   checklist: ChecklistItemDto[]
   tags: TaskTagDto[]
   resources: TaskResourceDto[]
+  reminders: ReminderDto[]
   createdAt: string
   updatedAt: string
 }

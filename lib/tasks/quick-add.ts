@@ -1,5 +1,6 @@
 import * as chrono from "chrono-node"
 
+import { parseRecurrencePhrase, toDateOnly } from "./recurrence"
 import { type TaskPriority } from "./types"
 
 const PRIORITY_ALIASES: Record<string, TaskPriority> = {
@@ -18,6 +19,7 @@ export type QuickAddToken =
   | { type: "tag"; raw: string; name: string }
   | { type: "project"; raw: string; query: string }
   | { type: "date"; raw: string }
+  | { type: "recurrence"; raw: string; rrule: string }
 
 export type QuickAddResult = {
   /** Remaining text once every recognized token is stripped out. */
@@ -31,15 +33,13 @@ export type QuickAddResult = {
   /** `YYYY-MM-DD`, set instead of `dueAt` when no time of day was given. */
   dueDate: string | null
   allDay: boolean
+  /** RRULE value ("every day/weekday/<weekday>/month", "every other week"). */
+  rrule: string | null
   /** In input order, for rendering preview chips. */
   tokens: QuickAddToken[]
 }
 
 type Span = { start: number; end: number; token: QuickAddToken }
-
-function toDateOnly(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-}
 
 const TAG_RE = /(^|\s)\+([a-zA-Z0-9][\w-]{0,49})/g
 const PRIORITY_RE = /(^|\s)!(low|medium|high|urgent|[1-4])\b/gi
@@ -49,8 +49,9 @@ const PROJECT_RE = /(^|\s)#([a-zA-Z0-9][\w/-]{0,99})/
  * Parses free-typed task text into a title plus structured tokens:
  * `#project` (fuzzy; `#parent/child` for nested — resolved by the caller
  * against real projects), `!priority` (`!low|medium|high|urgent` or
- * `!1`-`!4`), `+tag`, and one natural-language date/time span via
- * `chrono-node`. Recurrence phrases ("every weekday") are Phase 5.
+ * `!1`-`!4`), `+tag`, one recurrence phrase ("every day/weekday/<weekday>/
+ * month", "every other week"), and one natural-language date/time span via
+ * `chrono-node` (the recurring series' first occurrence time, if given).
  */
 export function parseQuickAdd(
   input: string,
@@ -88,6 +89,17 @@ export function parseQuickAdd(
       start,
       end: start + query.length + 1,
       token: { type: "project", raw: `#${query}`, query },
+    })
+  }
+
+  // Extracted before chrono runs: "every monday"/"every weekday" would
+  // otherwise be partly misread as a one-off date ("monday", "weekday 9am").
+  const recurrence = parseRecurrencePhrase(input)
+  if (recurrence) {
+    spans.push({
+      start: recurrence.index,
+      end: recurrence.index + recurrence.raw.length,
+      token: { type: "recurrence", raw: recurrence.raw, rrule: recurrence.rrule },
     })
   }
 
@@ -135,6 +147,10 @@ export function parseQuickAdd(
     (spans.find((s) => s.token.type === "project")?.token as
       | { query: string }
       | undefined)?.query ?? null
+  const rrule =
+    (spans.find((s) => s.token.type === "recurrence")?.token as
+      | { rrule: string }
+      | undefined)?.rrule ?? null
 
   return {
     title,
@@ -145,6 +161,7 @@ export function parseQuickAdd(
     dueAt,
     dueDate: match && allDay ? toDateOnly(match.start.date()) : null,
     allDay,
+    rrule,
     tokens: spans.map((s) => s.token),
   }
 }

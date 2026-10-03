@@ -39,6 +39,8 @@ import type { TaskDto } from "@/lib/tasks/types"
 
 import { DueDateField } from "./due-date-field"
 import { PrioritySelect } from "./task-priority"
+import { RecurrenceField } from "./recurrence-field"
+import { RemindersField } from "./reminders-field"
 import { StatusSelect } from "./task-status"
 import { TaskChecklist } from "./task-checklist"
 import { TaskResourcePickerDialog } from "./task-resource-picker-dialog"
@@ -231,6 +233,16 @@ function DetailContent({ task }: { task: TaskDto }) {
             value={{ dueAt: task.dueAt, dueDate: task.dueDate, allDay: task.allDay }}
             onChange={(v) => save(v)}
           />
+        </Field>
+
+        {task.seriesId ? null : (
+          <Field label="Repeat">
+            <RecurrenceField rrule={task.rrule} onChange={(rrule) => save({ rrule })} />
+          </Field>
+        )}
+
+        <Field label="Reminders">
+          <RemindersField taskId={task.id} reminders={task.reminders} />
         </Field>
 
         <Field label="Description">

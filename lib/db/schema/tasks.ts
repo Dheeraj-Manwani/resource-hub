@@ -3,6 +3,7 @@ import {
   boolean,
   date,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -130,5 +131,22 @@ export const taskTags = pgTable(
     primaryKey({ columns: [t.taskId, t.tagId] }),
     index("task_tags_tag_idx").on(t.tagId),
   ]
+)
+
+export const taskReminders = pgTable(
+  "task_reminders",
+  {
+    id: uuid().primaryKey(),
+    taskId: uuid()
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    /** Minutes before the occurrence's due time (0 = at time). */
+    offsetMinutes: integer().notNull(),
+    /** The specific occurrence (its due instant) this reminder was last
+     * dismissed for; a recurring task's next occurrence fires again. */
+    dismissedFor: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("task_reminders_task_idx").on(t.taskId)]
 )
 

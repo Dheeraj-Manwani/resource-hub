@@ -15,6 +15,17 @@ export function useSettings(initialData?: SettingsDto) {
   })
 }
 
+export function useRegenerateIcsToken() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api<{ icsToken: string }>("/api/v1/settings/ics-token", { method: "POST" }),
+    onSuccess: ({ icsToken }) => {
+      qc.setQueryData<SettingsDto>(["settings"], (prev) => (prev ? { ...prev, icsToken } : prev))
+    },
+    onError: (error) => toast.error(error.message),
+  })
+}
+
 export function useUpdateSettings() {
   const qc = useQueryClient()
   return useMutation({

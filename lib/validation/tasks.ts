@@ -19,6 +19,8 @@ export const createTaskSchema = z.object({
   startDate: z.iso.date().nullable().optional(),
   dueDate: z.iso.date().nullable().optional(),
   allDay: z.boolean().optional(),
+  /** RRULE value (no `DTSTART:` line) — makes this task a series master. */
+  rrule: z.string().max(500).nullable().optional(),
   tags: tagNames.optional(),
   resourceIds: z.array(z.uuid()).max(100).optional(),
 })
@@ -37,6 +39,8 @@ export const updateTaskSchema = z
     startDate: z.iso.date().nullable().optional(),
     dueDate: z.iso.date().nullable().optional(),
     allDay: z.boolean().optional(),
+    /** Set/replace (non-null) or stop (null) this task being a series master. */
+    rrule: z.string().max(500).nullable().optional(),
     archived: z.boolean().optional(),
     tags: tagNames.optional(),
   })

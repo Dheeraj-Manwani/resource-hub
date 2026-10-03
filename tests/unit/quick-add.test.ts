@@ -65,4 +65,17 @@ describe("parseQuickAdd", () => {
     expect(r.title).toBe("call it !important")
     expect(r.priority).toBeNull()
   })
+
+  it("recognizes a recurrence phrase without it being swallowed by chrono", () => {
+    const r = parseQuickAdd("standup every weekday 9am", REF)
+    expect(r.title).toBe("standup")
+    expect(r.rrule).not.toBeNull()
+    expect(r.allDay).toBe(false)
+    expect(r.dueAt).not.toBeNull()
+  })
+
+  it("has a null rrule when there's no recurrence phrase", () => {
+    const r = parseQuickAdd("finish landing page friday 5pm #projectname !high", REF)
+    expect(r.rrule).toBeNull()
+  })
 })
