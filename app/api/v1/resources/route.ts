@@ -1,4 +1,5 @@
-import { json, parseBody, parseQuery, route } from "@/lib/server/api"
+import { badRequest, json, parseBody, parseQuery, route } from "@/lib/server/api"
+import { getDescendantIds } from "@/lib/server/dal/projects"
 import { listResources } from "@/lib/server/dal/resources"
 import { requireApiUser } from "@/lib/server/dal/session"
 import { scheduleDueJobs } from "@/lib/server/metadata-runner"
@@ -12,7 +13,17 @@ import {
 export const GET = route(async (request) => {
   const user = await requireApiUser()
   const query = parseQuery(request, listResourcesQuerySchema)
-  const page = await listResources(user.id, query)
+  let projectIds: string[] | undefined
+  if (query.projectId) {
+    if (query.includeDescendants) {
+      const ids = await getDescendantIds(user.id, query.projectId)
+      if (!ids) throw badRequest("Project not found")
+      projectIds = ids
+    } else {
+      projectIds = [query.projectId]
+    }
+  }
+  const page = await listResources(user.id, query, { projectIds })
   if (page.items.some((r) => r.metadataStatus === "pending"))
     scheduleDueJobs(user.id)
   return json(page)

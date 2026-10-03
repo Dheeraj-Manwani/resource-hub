@@ -4,17 +4,22 @@ import {
   CheckCircle2Icon,
   CircleIcon,
   ExternalLinkIcon,
+  FolderIcon,
   ImageUpIcon,
   Loader2Icon,
+  PlusIcon,
   RefreshCwIcon,
   StarIcon,
   Trash2Icon,
   TriangleAlertIcon,
+  XIcon,
 } from "lucide-react"
+import Link from "next/link"
 import { useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { EmptyState } from "@/components/empty-state"
+import { ProjectSinglePicker } from "@/components/projects/project-picker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -33,6 +38,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useLinkResources, useUnlinkResources } from "@/hooks/queries/projects"
 import {
   upsertResourceInCache,
   useDeleteResource,
@@ -195,6 +201,63 @@ function CustomThumbnailButton({ resource }: { resource: ResourceDto }) {
         Upload thumbnail
       </Button>
     </>
+  )
+}
+
+function ProjectsField({ resource }: { resource: ResourceDto }) {
+  const link = useLinkResources()
+  const unlink = useUnlinkResources()
+  const linkedIds = new Set(resource.projects.map((p) => p.id))
+
+  return (
+    <Field label="Projects">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {resource.projects.map((p) => (
+          <span
+            key={p.id}
+            className="inline-flex h-6 items-center gap-1 rounded-full bg-white/[0.06] pr-1 pl-2 text-xs"
+          >
+            <Link
+              href={`/projects/${p.id}`}
+              className="flex items-center gap-1 hover:underline"
+            >
+              <FolderIcon
+                className="size-3"
+                style={{ color: p.color ?? undefined }}
+              />
+              {p.name}
+            </Link>
+            <button
+              type="button"
+              aria-label={`Remove from ${p.name}`}
+              onClick={() =>
+                unlink.mutate({ projectId: p.id, resourceIds: [resource.id] })
+              }
+              className="rounded-full p-0.5 text-text-muted hover:bg-white/10 hover:text-foreground"
+            >
+              <XIcon className="size-3" />
+            </button>
+          </span>
+        ))}
+        <ProjectSinglePicker
+          value={null}
+          excludeIds={linkedIds}
+          onChange={(id) => {
+            if (id) link.mutate({ projectId: id, resourceIds: [resource.id] })
+          }}
+          render={
+            <button
+              type="button"
+              aria-label="Add to project"
+              className="flex h-6 items-center gap-1 rounded-full border border-dashed border-border-strong px-2 text-xs text-subtle hover:border-brand/50 hover:text-brand"
+            />
+          }
+        >
+          <PlusIcon className="size-3" />
+          Add
+        </ProjectSinglePicker>
+      </div>
+    </Field>
   )
 }
 
@@ -384,6 +447,8 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
             onChange={(tags) => save({ tags })}
           />
         </Field>
+
+        <ProjectsField resource={resource} />
 
         {resource.url ? (
           <Field label="Type">

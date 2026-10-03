@@ -22,7 +22,11 @@ export function textToDoc(text: string) {
 
 export function noteResource(
   text: string,
-  { title, tags }: { title?: string; tags?: string[] } = {}
+  {
+    title,
+    tags,
+    projectIds,
+  }: { title?: string; tags?: string[]; projectIds?: string[] } = {}
 ): NewResource {
   return {
     type: "note",
@@ -32,6 +36,7 @@ export function noteResource(
     metadata: {},
     metadataStatus: "ok",
     tags,
+    projectIds,
   }
 }
 
@@ -42,11 +47,13 @@ export function urlResource(
     title,
     notes,
     tags,
+    projectIds,
   }: {
     type?: ResourceType
     title?: string
     notes?: string
     tags?: string[]
+    projectIds?: string[]
   } = {}
 ): NewResource {
   const finalType =
@@ -62,6 +69,7 @@ export function urlResource(
     metadata: detected.metadata,
     metadataStatus: "pending",
     tags,
+    projectIds,
   }
 }
 
@@ -75,6 +83,7 @@ export async function createFromInput(
     title?: string
     notes?: string
     tags?: string[]
+    projectIds?: string[]
   }
 ) {
   let item: NewResource
@@ -90,6 +99,7 @@ export async function createFromInput(
       item = noteResource(input.text!.trim(), {
         title: input.title,
         tags: input.tags,
+        projectIds: input.projectIds,
       })
     } else {
       item = urlResource(parsed.items[0]!, {
@@ -106,7 +116,8 @@ export async function createFromInput(
 export async function createManyFromUrls(
   userId: string,
   urls: string[],
-  tags?: string[]
+  tags?: string[],
+  projectIds?: string[]
 ) {
   const items: NewResource[] = []
   const invalid: string[] = []
@@ -119,7 +130,7 @@ export async function createManyFromUrls(
     }
     if (seen.has(detected.urlNormalized)) continue
     seen.add(detected.urlNormalized)
-    items.push(urlResource(detected, { tags }))
+    items.push(urlResource(detected, { tags, projectIds }))
   }
   const created = await insertResources(userId, items)
   scheduleMetadata(created.map((r) => r.id))

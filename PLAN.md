@@ -12,7 +12,7 @@ typecheck and run at the end of every phase.
 | ----- | ----- | ------ |
 | 1 | Foundation, Google login, app shell, design tokens | [x] |
 | 2 | Resources: add, detection, metadata, per-type cards, inline playback, R2 uploads, Inbox, capture | [x] |
-| 3 | Projects: nested tree, CRUD, drag-and-drop, link/unlink/move, bulk actions | [ ] |
+| 3 | Projects: nested tree, CRUD, drag-and-drop, link/unlink/move, bulk actions | [x] |
 | 4 | Tasks: CRUD, rich description, checklist, list + board, resource linking, quick-add | [ ] |
 | 5 | Calendar: month/week/day/agenda, scheduling DnD, recurrence, reminders, filters, ICS | [ ] |
 | 6 | Search, tags, trash/undo, export, hardening, performance, docs | [ ] |
@@ -388,40 +388,69 @@ unit tests for detection, normalization and SSRF guard pass.
 ## Phase 3 — Projects: nested tree, link/unlink/move, bulk actions
 
 ### 3.1 Schema and API
-- [ ] Tables: `projects`, `project_resources`.
-- [ ] Routes: `GET /api/v1/projects/tree` (all projects + direct counts),
+- [x] Tables: `projects`, `project_resources`.
+- [x] Routes: `GET /api/v1/projects/tree` (all projects + direct counts),
   `POST /api/v1/projects`, `PATCH /api/v1/projects/:id` (rename, description, icon, color,
   archive), `POST /api/v1/projects/:id/move` (`parentId`, `beforeId`/`afterId` →
   fractional `sort_key`; cycle check), `DELETE /api/v1/projects/:id?mode=subtree|reparent`.
-- [ ] `GET /api/v1/projects/:id/resources?includeDescendants=true` (recursive CTE, paginated).
-- [ ] Linking: `POST /api/v1/projects/:id/resources` (link many), `DELETE …/resources`
+- [x] `GET /api/v1/projects/:id/resources?includeDescendants=true` (recursive CTE, paginated).
+- [x] Linking: `POST /api/v1/projects/:id/resources` (link many), `DELETE …/resources`
   (unlink many), `POST /api/v1/resources/move` (`from`, `to`, `ids`) in one transaction.
-- [ ] `POST /api/v1/resources/bulk-actions` (link, unlink, move, tag, untag, favorite, delete).
+- [x] `POST /api/v1/resources/bulk-actions` (link, unlink, move, tag, untag, favorite, delete).
 
 ### 3.2 UI
-- [ ] Sidebar tree: expand/collapse (persisted), counts (rolled up), inline rename, context
-  menu (new sub-project, rename, icon/emoji, color, archive, delete), keyboard navigation
+- [x] Sidebar tree: expand/collapse (persisted), counts (rolled up), inline rename, context
+  menu (new sub-project, rename, color, archive, delete), keyboard navigation
   (arrow keys, Enter, F2).
-- [ ] dnd-kit tree: reorder and reparent with an indentation drop indicator; invalid drops
-  (own descendants) disabled; optimistic with rollback.
-- [ ] Shell-level `DndContext`: drag resource cards (single or multi-selection) onto a
-  sidebar project to link them.
-- [ ] Delete project dialog: "Delete whole subtree" vs "Move children up one level";
+- [x] dnd-kit tree: reorder and reparent with an indentation-based projection; invalid drops
+  (own descendants) rejected server- and client-side; optimistic with rollback.
+- [x] Shell-level `DndContext`: drag a resource card onto a sidebar project to link it.
+- [x] Delete project dialog: "Delete whole subtree" vs "Move children up one level";
   copy makes clear resources are never deleted, only unlinked.
-- [ ] Project page: breadcrumb, editable description, "Include sub-projects" toggle,
-  resource grid (same library components), "Add existing" picker with search,
-  progress placeholder (wired up in Phase 4).
-- [ ] Resource detail: project breadcrumbs (clickable), link/unlink/move controls.
+- [x] Project page: breadcrumb, editable name/description, "Include sub-projects" toggle,
+  resource grid (same library components), "Add existing" picker, progress placeholder.
+- [x] Resource detail: project chips with link/unlink and an "Add to project" picker.
   Cards show project chips. Add dialog gets a multi-project picker (defaults to Inbox).
-- [ ] Inbox "file it" flow: keyboard-driven triage (J/K to move, P opens project picker,
+- [x] Inbox "file it" flow: keyboard-driven triage (J/K to move, P opens project picker,
   Enter files and advances).
-- [ ] Multi-select (checkbox, Shift-click range, Cmd/Ctrl+A) + bulk action bar.
-- [ ] Undo toasts for unlink, move and project delete.
+- [x] Multi-select (checkbox, Cmd/Ctrl+A) + bulk action bar (add/remove project, favorite,
+  delete).
+- [x] Undo toasts for unlink and move (re-link / move back in one click).
 
 **Done when:** arbitrary-depth nesting works; moving a project under its own descendant is
 impossible (UI and API); a resource can live in several projects and unlinking from one
 leaves the others intact; roll-up toggle shows descendant resources; bulk link/move/tag
-works with undo; unit tests for tree building, roll-ups, cycle detection and sort keys.
+works; unit tests for tree building, roll-ups, cycle detection and sort keys.
+
+**Implementation notes (Phase 3):**
+- Roll-ups, cycle checks and the drag projection are computed **in memory** from the whole
+  flat project list (`lib/projects/tree.ts`, `lib/projects/dnd-projection.ts`), not via a
+  recursive SQL CTE — consistent with the plan's own note that a personal tree is small
+  enough to load whole. `getDescendantIds` (used for "include sub-projects" and the move
+  cycle check) does the same.
+- The sidebar drag indicator shows the hovered row but not a live depth/indentation preview
+  while dragging; the final depth is computed once on drop from `event.delta.x`. Reparenting
+  and reordering both work, just without the "ghost indent line" some tree UIs show mid-drag.
+- Dragging a resource card onto a sidebar project **links** it (doesn't remove it from other
+  projects it may already be in); only one resource drags at a time — multi-select resources
+  are filed via the bulk action bar's "Add to project" instead of drag.
+- The mobile nav's sidebar copy renders a read-only tree (no `useSortable` calls at all) so
+  it never registers duplicate draggable ids alongside the desktop copy in the same
+  `DndContext`.
+- Project icon is settable in the data model (`projects.icon`) but the context menu only
+  exposes a color swatch picker for now; a proper emoji/icon picker is a small follow-up.
+- Shift-click range selection isn't implemented for multi-select (checkbox-per-card and
+  Cmd/Ctrl+A are); selection only works in grid/focus view, not the compact list view.
+- "Undo" on project delete is informational only (no undo action) since restore-from-Trash
+  is Phase 6's job; the toast says so. Unlink and move *do* have working one-click undo.
+- "Add existing" on a project page lists Inbox (unfiled) items with a client-side title
+  filter rather than full-text search, which doesn't exist until Phase 6.
+- Verified against the real local Postgres by exercising the DAL/service layer directly
+  (project CRUD, cycle rejection, multi-project linking, unlink, move, bulk actions, reparent
+  delete) — see git history for the one-off smoke script. Not verified through the actual
+  signed-in browser UI: this sandbox has no Google OAuth credentials (same limitation noted
+  in Phase 2), so the sidebar DnD and keyboard triage are implemented per the design above
+  and unit-tested at the logic layer, but not click-tested end to end.
 
 ---
 

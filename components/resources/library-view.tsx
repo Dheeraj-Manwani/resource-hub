@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  CheckSquareIcon,
   GalleryVerticalIcon,
   LayoutGridIcon,
   ListIcon,
@@ -14,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { EmptyState } from "@/components/empty-state"
 import { PageHeader } from "@/components/page-header"
+import { BulkActionBar } from "@/components/resources/bulk-action-bar"
 import { useShell } from "@/components/shell/shell-context"
 import { CardGridSkeleton, ListSkeleton } from "@/components/skeletons"
 import { Button } from "@/components/ui/button"
@@ -87,6 +89,8 @@ function FilterBar({
   setSort,
   view,
   setView,
+  selectMode,
+  onToggleSelectMode,
 }: {
   type: ResourceType | undefined
   setType: (t: ResourceType | undefined) => void
@@ -100,6 +104,8 @@ function FilterBar({
   setSort: (s: SortKey) => void
   view: View
   setView: (v: View) => void
+  selectMode: boolean
+  onToggleSelectMode: () => void
 }) {
   const { data: tags = [] } = useTagSearch("")
   return (
@@ -202,6 +208,18 @@ function FilterBar({
       </Button>
 
       <div className="ml-auto flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          aria-pressed={selectMode}
+          onClick={onToggleSelectMode}
+          className={cn(
+            selectMode && "border-brand/50 bg-brand-soft text-foreground"
+          )}
+        >
+          <CheckSquareIcon />
+          Select
+        </Button>
         <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
           <SelectTrigger size="sm" aria-label="Sort">
             <SelectValue>
@@ -249,13 +267,18 @@ export function LibraryView({
   baseFilters,
   emptyTitle,
   emptyDescription,
+  headerActions,
+  hideHeader,
 }: {
-  title: string
-  description?: string
+  title: React.ReactNode
+  description?: React.ReactNode
   initialSettings: SettingsDto
   baseFilters?: ResourceFilters
   emptyTitle: string
   emptyDescription: string
+  headerActions?: React.ReactNode
+  /** Skip the built-in title/description header (a custom one is rendered above). */
+  hideHeader?: boolean
 }) {
   const { openAddResource } = useShell()
   const { openResource } = useDetailDrawer()
@@ -272,6 +295,8 @@ export function LibraryView({
     "all"
   )
   const [sort, setSort] = useState<SortKey>("newest")
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const filters: ResourceFilters = useMemo(
     () => ({
@@ -309,16 +334,44 @@ export function LibraryView({
     (id: string) => openImages(items, id),
     [items, openImages]
   )
+  const toggleSelected = useCallback(
+    (id: string) =>
+      setSelected((prev) => {
+        const next = new Set(prev)
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+        return next
+      }),
+    []
+  )
   const renderCard = useCallback(
     (r: (typeof items)[number]) => (
       <ResourceCard
         resource={r}
         onOpen={openResource}
         onOpenImage={openImage}
+        selectable={selectMode}
+        selected={selected.has(r.id)}
+        onToggleSelect={toggleSelected}
       />
     ),
-    [openResource, openImage]
+    [openResource, openImage, selectMode, selected, toggleSelected]
   )
+
+  // Cmd/Ctrl+A selects every currently-loaded item while in select mode.
+  useEffect(() => {
+    if (!selectMode) return
+    function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+        e.preventDefault()
+        setSelected(new Set(items.map((r) => r.id)))
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [selectMode, items])
 
   let body: React.ReactNode
   if (query.isPending) {
@@ -391,7 +444,9 @@ export function LibraryView({
 
   return (
     <>
-      <PageHeader title={title} description={description} />
+      {hideHeader ? null : (
+        <PageHeader title={title} description={description} actions={headerActions} />
+      )}
       <FilterBar
         type={type}
         setType={setType}
@@ -405,6 +460,11 @@ export function LibraryView({
         setSort={setSort}
         view={view}
         setView={(v) => updateSettings.mutate({ libraryView: v })}
+        selectMode={selectMode}
+        onToggleSelectMode={() => {
+          setSelectMode((v) => !v)
+          setSelected(new Set())
+        }}
       />
       {body}
       <div ref={sentinelRef} aria-hidden className="h-px" />
@@ -412,6 +472,13 @@ export function LibraryView({
         <div className="flex justify-center py-6 text-subtle">
           <Loader2Icon className="size-5 animate-spin" />
         </div>
+      ) : null}
+      {selectMode ? (
+        <BulkActionBar
+          selectedIds={[...selected]}
+          currentProjectId={baseFilters?.projectId}
+          onClear={() => setSelected(new Set())}
+        />
       ) : null}
     </>
   )

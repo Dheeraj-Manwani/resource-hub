@@ -1,11 +1,12 @@
 "use client"
 
-import { Loader2Icon, RefreshCwIcon, TriangleAlertIcon } from "lucide-react"
+import { FolderIcon, Loader2Icon, RefreshCwIcon, TriangleAlertIcon } from "lucide-react"
+import Link from "next/link"
 import { useState } from "react"
 
 import { useRefreshMetadata } from "@/hooks/queries/resources"
 import { formatDate } from "@/lib/format"
-import type { ResourceDto, TagDto } from "@/lib/resources/dto"
+import type { ProjectChipDto, ResourceDto, TagDto } from "@/lib/resources/dto"
 import { displayTitle, hostname } from "@/lib/resources/dto"
 import { cn } from "@/lib/utils"
 
@@ -94,6 +95,38 @@ export function TagChips({
       {tags.length > max ? (
         <span className="px-1 text-[11px] text-subtle">
           +{tags.length - max}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+export function ProjectChips({
+  projects,
+  max = 3,
+  className,
+}: {
+  projects: ProjectChipDto[]
+  max?: number
+  className?: string
+}) {
+  if (!projects.length) return null
+  return (
+    <div className={cn("flex flex-wrap gap-1", className)}>
+      {projects.slice(0, max).map((p) => (
+        <Link
+          key={p.id}
+          href={`/projects/${p.id}`}
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-text-muted hover:bg-white/[0.1] hover:text-foreground"
+        >
+          <FolderIcon className="size-2.5" style={{ color: p.color ?? undefined }} />
+          {p.name}
+        </Link>
+      ))}
+      {projects.length > max ? (
+        <span className="px-1 text-[11px] text-subtle">
+          +{projects.length - max}
         </span>
       ) : null}
     </div>

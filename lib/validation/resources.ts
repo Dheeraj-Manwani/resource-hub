@@ -8,6 +8,8 @@ export const tagNamesSchema = z
   .array(z.string().trim().min(1).max(50))
   .max(20, "At most 20 tags")
 
+const projectIdsSchema = z.array(z.uuid()).max(20).optional()
+
 export const createResourceSchema = z
   .object({
     url: z.string().trim().max(4_000).optional(),
@@ -16,6 +18,7 @@ export const createResourceSchema = z
     title: z.string().trim().max(500).optional(),
     notes: z.string().max(20_000).optional(),
     tags: tagNamesSchema.optional(),
+    projectIds: projectIdsSchema,
   })
   .refine((v) => v.url || v.text, { message: "Provide a URL or some text" })
 
@@ -27,6 +30,7 @@ export const bulkCreateSchema = z.object({
     .min(1)
     .max(100, "At most 100 links at once"),
   tags: tagNamesSchema.optional(),
+  projectIds: projectIdsSchema,
 })
 
 export const metadataOverrideSchema = z
@@ -65,8 +69,11 @@ export const listResourcesQuerySchema = z.object({
   tag: z.uuid().optional(),
   favorite: boolParam.optional(),
   reviewed: boolParam.optional(),
-  /** Resources not filed into any project (all resources until Phase 3). */
+  /** Resources not filed into any project. */
   unsorted: boolParam.optional(),
+  /** Scope to one project (and, if set, its descendants). */
+  projectId: z.uuid().optional(),
+  includeDescendants: boolParam.optional(),
   sort: z.enum(["created", "updated", "title"]).default("created"),
   order: z.enum(["asc", "desc"]).default("desc"),
 })
@@ -120,6 +127,7 @@ export const createUploadSchema = z.object({
 export const completeUploadSchema = z.object({
   title: z.string().trim().max(500).optional(),
   tags: tagNamesSchema.optional(),
+  projectIds: projectIdsSchema,
 })
 
 export const captureSchema = z

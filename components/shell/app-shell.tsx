@@ -4,6 +4,7 @@ import { Suspense } from "react"
 
 import { AddResourceDialog } from "@/components/resources/add-resource-dialog"
 import { LightboxProvider } from "@/components/resources/lightbox/lightbox-provider"
+import { ProjectDndProvider } from "@/components/projects/project-dnd"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import type { AppUser } from "@/lib/server/dal/session"
 
@@ -38,23 +39,25 @@ export function AppShell({
   return (
     <ShellProvider user={user}>
       <LightboxProvider>
-        <div className="flex min-h-svh">
-          <aside className="sticky top-0 hidden h-svh w-60 shrink-0 border-r border-sidebar-border bg-sidebar md:block">
-            <SidebarContent />
-          </aside>
-          <div className="flex min-w-0 flex-1 flex-col">
-            <TopBar />
-            <main className="flex-1 px-4 pt-6 pb-28 md:px-8 md:pb-12">
-              {children}
-            </main>
+        <ProjectDndProvider>
+          <div className="flex min-h-svh">
+            <aside className="sticky top-0 hidden h-svh w-60 shrink-0 border-r border-sidebar-border bg-sidebar md:block">
+              <SidebarContent draggable />
+            </aside>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <TopBar />
+              <main className="flex-1 px-4 pt-6 pb-28 md:px-8 md:pb-12">
+                {children}
+              </main>
+            </div>
           </div>
-        </div>
-        <MobileNav />
-        <MobileFab />
-        <Suspense>
-          <AddResourceDialog />
-          <DetailDrawer />
-        </Suspense>
+          <MobileNav />
+          <MobileFab />
+          <Suspense>
+            <AddResourceDialog />
+            <DetailDrawer />
+          </Suspense>
+        </ProjectDndProvider>
       </LightboxProvider>
     </ShellProvider>
   )

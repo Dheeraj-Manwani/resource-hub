@@ -168,6 +168,7 @@ export async function completeUpload(
       metadataStatus: "ok",
       thumbnailFileId,
       tags: input.tags,
+      projectIds: input.projectIds,
       fileIds: [file.id, ...(thumbnailFileId ? [thumbnailFileId] : [])],
     },
   ])

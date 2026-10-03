@@ -76,11 +76,13 @@ export async function uploadFile(
     purpose = "resource",
     resourceId,
     tags,
+    projectIds,
     onProgress,
   }: {
     purpose?: "resource" | "thumbnail"
     resourceId?: string
     tags?: string[]
+    projectIds?: string[]
     onProgress?: (p: number) => void
   } = {}
 ) {
@@ -92,7 +94,7 @@ export async function uploadFile(
   await putWithProgress(start.uploadUrl, file, mime, (p) => onProgress?.(p))
   return api<ResourceDto>(`/api/v1/uploads/${start.fileId}/complete`, {
     method: "POST",
-    body: { tags },
+    body: { tags, projectIds },
   })
 }
 
@@ -107,7 +109,7 @@ export function useUploads() {
     )
 
   const start = useCallback(
-    async (files: File[], tags?: string[]) => {
+    async (files: File[], tags?: string[], projectIds?: string[]) => {
       const queued = files.map((file) => ({
         file,
         item: {
@@ -124,6 +126,7 @@ export function useUploads() {
           try {
             const resource = await uploadFile(file, {
               tags,
+              projectIds,
               onProgress: (progress) =>
                 update(item.key, {
                   progress,

@@ -2,6 +2,7 @@
 
 import {
   CheckCircle2Icon,
+  FolderIcon,
   Loader2Icon,
   PaperclipIcon,
   TriangleAlertIcon,
@@ -11,6 +12,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
+import { ProjectMultiPicker } from "@/components/projects/project-picker"
 import { useShell } from "@/components/shell/shell-context"
 import { Button } from "@/components/ui/button"
 import {
@@ -97,6 +99,7 @@ function DialogBody({
 }) {
   const [text, setText] = useState(initialText ?? "")
   const [tags, setTags] = useState<string[]>([])
+  const [projectIds, setProjectIds] = useState<string[]>([])
   const [typeOverride, setTypeOverride] = useState<ResourceType | null>(null)
   const [duplicate, setDuplicate] = useState<Duplicate | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -138,7 +141,7 @@ function DialogBody({
 
   function addFiles(files: FileList | File[] | null) {
     const list = Array.from(files ?? [])
-    if (list.length) void uploads.start(list, tags)
+    if (list.length) void uploads.start(list, tags, projectIds)
   }
 
   async function submit(force = false) {
@@ -146,7 +149,7 @@ function DialogBody({
     if (duplicate && !force) return
     try {
       if (parsed.kind === "note") {
-        await create.mutateAsync({ text: parsed.text, type: "note", tags })
+        await create.mutateAsync({ text: parsed.text, type: "note", tags, projectIds })
         toast.success("Note saved")
       } else if (parsed.items.length === 1) {
         const item = parsed.items[0]!
@@ -155,12 +158,14 @@ function DialogBody({
           type: typeOverride ?? undefined,
           title: parsed.titleHint,
           tags,
+          projectIds,
         })
         toast.success("Saved", { description: prettyUrl(item.url) })
       } else {
         const result = await bulk.mutateAsync({
           urls: parsed.items.map((i) => i.url),
           tags,
+          projectIds,
         })
         toast.success(`Saved ${result.created.length} links`, {
           description: result.invalid.length
@@ -333,6 +338,24 @@ function DialogBody({
           </Button>
         </div>
       ) : null}
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <ProjectMultiPicker
+          value={projectIds}
+          onChange={setProjectIds}
+          render={
+            <button
+              type="button"
+              className="flex h-7 items-center gap-1.5 rounded-lg border border-input px-2.5 text-xs text-text-muted hover:border-border-strong"
+            />
+          }
+        >
+          <FolderIcon className="size-3.5" />
+          {projectIds.length
+            ? `${projectIds.length} project${projectIds.length === 1 ? "" : "s"}`
+            : "Inbox"}
+        </ProjectMultiPicker>
+      </div>
 
       <TagInput value={tags} onChange={setTags} />
 

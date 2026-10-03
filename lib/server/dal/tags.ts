@@ -101,6 +101,31 @@ export async function addResourceTags(
     .onConflictDoNothing()
 }
 
+export async function removeResourceTagsByName(
+  tx: Tx,
+  userId: string,
+  resourceIds: string[],
+  names: string[]
+) {
+  if (!resourceIds.length || !names.length) return
+  const normalized = [...new Set(names.map(normalizeTagName).filter(Boolean))]
+  if (!normalized.length) return
+  const rows = await tx
+    .select({ id: tags.id })
+    .from(tags)
+    .where(and(eq(tags.userId, userId), inArray(tags.nameNormalized, normalized)))
+  const tagIds = rows.map((r) => r.id)
+  if (!tagIds.length) return
+  await tx
+    .delete(resourceTags)
+    .where(
+      and(
+        inArray(resourceTags.resourceId, resourceIds),
+        inArray(resourceTags.tagId, tagIds)
+      )
+    )
+}
+
 export async function tagsForResources(
   resourceIds: string[]
 ): Promise<Map<string, TagDto[]>> {

@@ -21,6 +21,8 @@ export type ResourceFilters = {
   favorite?: boolean
   reviewed?: boolean
   unsorted?: boolean
+  projectId?: string
+  includeDescendants?: boolean
   sort?: "created" | "updated" | "title"
   order?: "asc" | "desc"
 }
@@ -52,6 +54,7 @@ export function useResourceList(filters: ResourceFilters) {
               ? undefined
               : String(filters.reviewed),
           unsorted: filters.unsorted ? "true" : undefined,
+          includeDescendants: filters.includeDescendants ? "true" : undefined,
           cursor: pageParam ?? undefined,
         })}`,
         { signal }
@@ -139,6 +142,7 @@ export type CreateResourceBody = {
   type?: ResourceType
   title?: string
   tags?: string[]
+  projectIds?: string[]
 }
 
 export function useCreateResource() {
@@ -153,7 +157,11 @@ export function useCreateResource() {
 export function useBulkCreateResources() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { urls: string[]; tags?: string[] }) =>
+    mutationFn: (body: {
+      urls: string[]
+      tags?: string[]
+      projectIds?: string[]
+    }) =>
       api<{ created: ResourceDto[]; invalid: string[] }>(
         "/api/v1/resources/bulk",
         { method: "POST", body }

@@ -1,6 +1,8 @@
 import "server-only"
 
 import { detectUrl } from "@/lib/resources/detect"
+import { linkResources } from "@/lib/server/dal/project-links"
+import { createProject } from "@/lib/server/dal/projects"
 import { insertResources, type NewResource } from "@/lib/server/dal/resources"
 
 function fromUrl(
@@ -200,6 +202,34 @@ export function demoResources(): NewResource[] {
   ]
 }
 
+/**
+ * Loads one resource of every type plus two demo projects, with a few
+ * resources filed into each — the rest stay unfiled, to show off the Inbox.
+ */
 export async function seedDemoData(userId: string) {
-  return insertResources(userId, demoResources().reverse())
+  const created = await insertResources(userId, demoResources().reverse())
+  const byTitle = new Map(created.map((r) => [r.title, r.id]))
+
+  const reading = await createProject(userId, {
+    name: "Reading list",
+    color: "#0EA5E9",
+  })
+  const moodboard = await createProject(userId, {
+    name: "Moodboard",
+    color: "#EC4899",
+  })
+  if (reading) {
+    const ids = ["vercel/next.js", "An Interactive Guide to Flexbox"]
+      .map((t) => byTitle.get(t))
+      .filter((id): id is string => !!id)
+    await linkResources(userId, reading.id, ids)
+  }
+  if (moodboard) {
+    const ids = ["Mountain lake at dawn", "Instagram post"]
+      .map((t) => byTitle.get(t))
+      .filter((id): id is string => !!id)
+    await linkResources(userId, moodboard.id, ids)
+  }
+
+  return created
 }

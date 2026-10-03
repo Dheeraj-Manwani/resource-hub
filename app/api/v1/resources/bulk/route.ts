@@ -8,7 +8,7 @@ import { bulkCreateSchema } from "@/lib/validation/resources"
 export const POST = route(async (request) => {
   const user = await requireApiUser()
   await rateLimit(`bulk:${user.id}`, { limit: 20, windowSeconds: 60 })
-  const { urls, tags } = await parseBody(request, bulkCreateSchema)
-  const result = await createManyFromUrls(user.id, urls, tags)
+  const { urls, tags, projectIds } = await parseBody(request, bulkCreateSchema)
+  const result = await createManyFromUrls(user.id, urls, tags, projectIds)
   return json(result, { status: 201 })
 })

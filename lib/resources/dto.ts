@@ -7,6 +7,13 @@ import type {
 
 export type TagDto = { id: string; name: string; color: string | null }
 
+export type ProjectChipDto = {
+  id: string
+  name: string
+  icon: string | null
+  color: string | null
+}
+
 export type FileDto = {
   id: string
   name: string
@@ -39,6 +46,7 @@ export type ResourceDto = {
   thumbnailUrl: string | null
   file: FileDto | null
   tags: TagDto[]
+  projects: ProjectChipDto[]
   createdAt: string
   updatedAt: string
 }

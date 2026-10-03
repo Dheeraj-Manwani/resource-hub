@@ -1,21 +1,22 @@
 "use client"
 
-import { FolderTreeIcon, PlusIcon, SettingsIcon } from "lucide-react"
+import { SettingsIcon } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
+import { ProjectsSidebarSection } from "@/components/projects/sidebar-tree"
 import { Logo } from "@/components/logo"
-import { Button } from "@/components/ui/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 import { NAV_ITEMS } from "./nav-config"
 
-export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarContent({
+  onNavigate,
+  draggable = false,
+}: {
+  onNavigate?: () => void
+  draggable?: boolean
+}) {
   const pathname = usePathname()
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`)
@@ -66,32 +67,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </ul>
       </nav>
 
-      <div className="mt-6 px-2">
-        <div className="flex items-center justify-between px-3 pb-1">
-          <span className="text-[11px] font-medium tracking-wider text-subtle uppercase">
-            Projects
-          </span>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label="New project"
-                  disabled
-                />
-              }
-            >
-              <PlusIcon />
-            </TooltipTrigger>
-            <TooltipContent>Projects arrive in Phase 3</TooltipContent>
-          </Tooltip>
-        </div>
-        <div className="mx-1 mt-1 flex items-start gap-2 rounded-lg border border-dashed border-border px-3 py-3 text-xs text-subtle">
-          <FolderTreeIcon className="mt-0.5 size-3.5 shrink-0" />
-          Nested projects will live here.
-        </div>
-      </div>
+      <ProjectsSidebarSection draggable={draggable} />
 
       <div className="mt-auto border-t border-sidebar-border p-2">
         <Link

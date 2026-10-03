@@ -8,13 +8,15 @@ import {
   exists,
   inArray,
   isNull,
+  not,
   sql,
   type SQL,
 } from "drizzle-orm"
 import { uuidv7 } from "uuidv7"
 
 import { db } from "@/lib/db"
-import { files, resources, resourceTags } from "@/lib/db/schema"
+import { files, projects, projectResources, resources, resourceTags } from "@/lib/db/schema"
+import { nextSortKey } from "@/lib/projects/sort-key"
 import type {
   FileDto,
   ResourceDto,
@@ -32,6 +34,7 @@ import type {
   UpdateResourceInput,
 } from "@/lib/validation/resources"
 
+import { projectsForResources } from "./project-links"
 import { ensureTags, setResourceTags, tagsForResources } from "./tags"
 
 type ResourceRow = typeof resources.$inferSelect
@@ -54,7 +57,8 @@ function fileDto(file: FileRow): FileDto {
 function toDto(
   row: ResourceRow,
   tags: TagDto[],
-  file: FileRow | undefined
+  file: FileRow | undefined,
+  projectChips: ResourceDto["projects"]
 ): ResourceDto {
   const metadata: ResourceMetadata = {
     ...row.metadata,
@@ -81,6 +85,7 @@ function toDto(
       : (row.metadataOverride?.image ?? row.metadata.image ?? null),
     file: file ? fileDto(file) : null,
     tags,
+    projects: projectChips,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
@@ -89,7 +94,7 @@ function toDto(
 async function toDtos(rows: ResourceRow[]): Promise<ResourceDto[]> {
   if (!rows.length) return []
   const ids = rows.map((r) => r.id)
-  const [tagMap, originals] = await Promise.all([
+  const [tagMap, originals, projectMap] = await Promise.all([
     tagsForResources(ids),
     db
       .select()
@@ -101,10 +106,16 @@ async function toDtos(rows: ResourceRow[]): Promise<ResourceDto[]> {
           eq(files.status, "ready")
         )
       ),
+    projectsForResources(ids),
   ])
   const fileMap = new Map(originals.map((f) => [f.resourceId!, f]))
   return rows.map((row) =>
-    toDto(row, tagMap.get(row.id) ?? [], fileMap.get(row.id))
+    toDto(
+      row,
+      tagMap.get(row.id) ?? [],
+      fileMap.get(row.id),
+      projectMap.get(row.id) ?? []
+    )
   )
 }
 
@@ -132,10 +143,13 @@ function decodeCursor(cursor: string): [string, string] | null {
   return null
 }
 
-/** Keyset-paginated list; the cursor carries the exact sort value as text. */
+/** Keyset-paginated list; the cursor carries the exact sort value as text.
+ * `projectIds`, when given, scopes to resources linked to any of those
+ * projects (the route resolves descendants into this list beforehand). */
 export async function listResources(
   userId: string,
-  query: ListResourcesQuery
+  query: ListResourcesQuery,
+  scope?: { projectIds?: string[] }
 ): Promise<ResourcePage> {
   const sortExpr: SQL =
     query.sort === "title"
@@ -169,7 +183,41 @@ export async function listResources(
       )
     )
   }
-  // `unsorted` (no project) is meaningful from Phase 3; every resource qualifies until then.
+  if (scope?.projectIds?.length) {
+    conditions.push(
+      exists(
+        db
+          .select({ one: sql`1` })
+          .from(projectResources)
+          .innerJoin(projects, eq(projects.id, projectResources.projectId))
+          .where(
+            and(
+              eq(projectResources.resourceId, resources.id),
+              inArray(projectResources.projectId, scope.projectIds),
+              isNull(projects.deletedAt)
+            )
+          )
+      )
+    )
+  }
+  if (query.unsorted) {
+    conditions.push(
+      not(
+        exists(
+          db
+            .select({ one: sql`1` })
+            .from(projectResources)
+            .innerJoin(projects, eq(projects.id, projectResources.projectId))
+            .where(
+              and(
+                eq(projectResources.resourceId, resources.id),
+                isNull(projects.deletedAt)
+              )
+            )
+        )
+      )
+    )
+  }
 
   const cursor = query.cursor ? decodeCursor(query.cursor) : null
   if (cursor) {
@@ -293,6 +341,8 @@ export type NewResource = {
   tags?: string[]
   /** Link these pending/ready file rows to the new resource. */
   fileIds?: string[]
+  /** File into these projects immediately (defaults to unfiled/Inbox). */
+  projectIds?: string[]
 }
 
 export async function insertResources(
@@ -303,6 +353,19 @@ export async function insertResources(
   const ids = await db.transaction(async (tx) => {
     const created: string[] = []
     const tagCache = new Map<string, string[]>()
+    const projectCursors = new Map<string, string | null>()
+    async function cursorFor(projectId: string) {
+      if (projectCursors.has(projectId)) return projectCursors.get(projectId)!
+      const [last] = await tx
+        .select({ sortKey: projectResources.sortKey })
+        .from(projectResources)
+        .where(eq(projectResources.projectId, projectId))
+        .orderBy(sql`${projectResources.sortKey} desc`)
+        .limit(1)
+      const cursor = last?.sortKey ?? null
+      projectCursors.set(projectId, cursor)
+      return cursor
+    }
     for (const input of inputs) {
       const id = uuidv7()
       const now = new Date()
@@ -342,6 +405,16 @@ export async function insertResources(
           tagCache.set(key, tagIds)
         }
         await setResourceTags(tx, id, tagIds)
+      }
+      if (input.projectIds?.length) {
+        for (const projectId of input.projectIds) {
+          const cursor = nextSortKey(await cursorFor(projectId))
+          projectCursors.set(projectId, cursor)
+          await tx
+            .insert(projectResources)
+            .values({ projectId, resourceId: id, sortKey: cursor })
+            .onConflictDoNothing()
+        }
       }
       created.push(id)
     }
@@ -429,6 +502,57 @@ export async function markMetadataPending(userId: string, id: string) {
     )
     .returning({ id: resources.id })
   return result.length > 0
+}
+
+/** Of the given ids, those actually owned (and not trashed) by this user. */
+export async function filterOwnedResourceIds(
+  userId: string,
+  ids: string[]
+): Promise<string[]> {
+  if (!ids.length) return []
+  const rows = await db
+    .select({ id: resources.id })
+    .from(resources)
+    .where(
+      and(
+        eq(resources.userId, userId),
+        inArray(resources.id, ids),
+        isNull(resources.deletedAt)
+      )
+    )
+  return rows.map((r) => r.id)
+}
+
+export async function setFavoriteMany(
+  userId: string,
+  ids: string[],
+  value: boolean
+) {
+  if (!ids.length) return
+  await db
+    .update(resources)
+    .set({ isFavorite: value, updatedAt: new Date() })
+    .where(
+      and(
+        eq(resources.userId, userId),
+        inArray(resources.id, ids),
+        isNull(resources.deletedAt)
+      )
+    )
+}
+
+export async function softDeleteResources(userId: string, ids: string[]) {
+  if (!ids.length) return
+  await db
+    .update(resources)
+    .set({ deletedAt: new Date() })
+    .where(
+      and(
+        eq(resources.userId, userId),
+        inArray(resources.id, ids),
+        isNull(resources.deletedAt)
+      )
+    )
 }
 
 export async function countResources(userId: string) {

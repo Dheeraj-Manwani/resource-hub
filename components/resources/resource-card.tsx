@@ -1,15 +1,18 @@
 "use client"
 
+import { useDraggable } from "@dnd-kit/core"
 import { ExternalLinkIcon, PanelRightOpenIcon, StarIcon } from "lucide-react"
 import { memo } from "react"
 
+import { resourceDragId } from "@/components/projects/project-dnd"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useUpdateResource } from "@/hooks/queries/resources"
 import type { ResourceDto } from "@/lib/resources/dto"
 import { displayTitle } from "@/lib/resources/dto"
 import { cn } from "@/lib/utils"
 
-import { MetadataStatusNote, TagChips } from "./cards/card-parts"
+import { MetadataStatusNote, ProjectChips, TagChips } from "./cards/card-parts"
 import { GithubCardBody } from "./cards/github-card"
 import {
   FileCardBody,
@@ -27,6 +30,9 @@ type CardProps = {
   resource: ResourceDto
   onOpen: (id: string) => void
   onOpenImage?: (id: string) => void
+  selectable?: boolean
+  selected?: boolean
+  onToggleSelect?: (id: string) => void
 }
 
 function CardBody({ resource, onOpenImage }: Omit<CardProps, "onOpen">) {
@@ -59,38 +65,66 @@ export const ResourceCard = memo(function ResourceCard({
   resource,
   onOpen,
   onOpenImage,
+  selectable,
+  selected,
+  onToggleSelect,
 }: CardProps) {
   const update = useUpdateResource()
   const title = displayTitle(resource)
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id: resourceDragId(resource.id),
+    data: { type: "resource", resourceId: resource.id, resource },
+    disabled: selectable,
+  })
+  const dragProps = { ...(!selectable ? { ...listeners, ...attributes } : {}), tabIndex: 0 }
 
   return (
     <article
-      tabIndex={0}
+      ref={setNodeRef}
       aria-label={title}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest(INTERACTIVE)) return
-        onOpen(resource.id)
+        if (selectable) onToggleSelect?.(resource.id)
+        else onOpen(resource.id)
       }}
       onKeyDown={(e) => {
-        if (e.key === "Enter" && e.target === e.currentTarget)
-          onOpen(resource.id)
+        if (e.key !== "Enter" || e.target !== e.currentTarget) return
+        if (selectable) onToggleSelect?.(resource.id)
+        else onOpen(resource.id)
       }}
-      className="group/card relative cursor-pointer overflow-hidden rounded-xl border border-border bg-card shadow-card transition-[border-color,box-shadow,transform] duration-200 ease-out-soft hover:border-brand/40 hover:shadow-[0_0_0_1px_rgb(255_106_0/0.15),0_8px_28px_rgb(0_0_0/0.45)] focus-visible:shadow-glow focus-visible:outline-none"
+      {...dragProps}
+      className={cn(
+        "group/card relative cursor-pointer overflow-hidden rounded-xl border border-border bg-card shadow-card transition-[border-color,box-shadow,transform] duration-200 ease-out-soft hover:border-brand/40 hover:shadow-[0_0_0_1px_rgb(255_106_0/0.15),0_8px_28px_rgb(0_0_0/0.45)] focus-visible:shadow-glow focus-visible:outline-none",
+        isDragging && "opacity-40",
+        selected && "border-brand shadow-glow"
+      )}
     >
       <CardBody resource={resource} onOpenImage={onOpenImage} />
 
-      {resource.tags.length || resource.metadataStatus !== "ok" ? (
+      {resource.tags.length ||
+      resource.projects.length ||
+      resource.metadataStatus !== "ok" ? (
         <div className="space-y-2 px-3 pb-3">
           <MetadataStatusNote resource={resource} />
+          <ProjectChips projects={resource.projects} />
           <TagChips tags={resource.tags} />
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute top-2 left-2">
-        <TypeBadge
-          type={resource.type}
-          className="opacity-0 transition-opacity group-focus-within/card:opacity-100 group-hover/card:opacity-100"
-        />
+      <div className="absolute top-2 left-2">
+        {selectable ? (
+          <Checkbox
+            checked={!!selected}
+            onCheckedChange={() => onToggleSelect?.(resource.id)}
+            aria-label={selected ? "Deselect" : "Select"}
+            className="border-white/40 bg-black/70 backdrop-blur data-checked:border-brand data-checked:bg-brand"
+          />
+        ) : (
+          <TypeBadge
+            type={resource.type}
+            className="pointer-events-none opacity-0 transition-opacity group-focus-within/card:opacity-100 group-hover/card:opacity-100"
+          />
+        )}
       </div>
       <div
         className={cn(
