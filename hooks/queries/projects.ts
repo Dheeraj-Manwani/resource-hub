@@ -127,12 +127,25 @@ export function useDeleteProject() {
       mode: "subtree" | "reparent"
     }) =>
       api<null>(`/api/v1/projects/${id}?mode=${mode}`, { method: "DELETE" }),
-    onSuccess: () => {
+    onSuccess: (_data, { id, mode }) => {
       invalidateTree(qc)
       invalidateResourceLists(qc)
-      toast.success("Project deleted", {
-        description: "Restoring from Trash arrives in Phase 6.",
-      })
+      if (mode === "reparent") {
+        toast.success("Project deleted", {
+          action: {
+            label: "Undo",
+            onClick: () => {
+              api(`/api/v1/trash/project/${id}/restore`, { method: "POST" })
+                .then(() => invalidateTree(qc))
+                .catch(() => toast.error("Couldn't undo"))
+            },
+          },
+        })
+      } else {
+        toast.success("Project and its sub-projects deleted", {
+          description: "Restore each one from Trash if you change your mind.",
+        })
+      }
     },
     onError: (error) => toast.error(`Couldn't delete: ${error.message}`),
   })

@@ -82,6 +82,7 @@ export const tasks = pgTable(
     index("tasks_user_due_idx").on(t.userId, t.dueAt),
     index("tasks_project_idx").on(t.projectId),
     index("tasks_search_idx").using("gin", t.search),
+    index("tasks_title_trgm_idx").using("gin", sql`${t.title} gin_trgm_ops`),
   ]
 )
 

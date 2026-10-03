@@ -209,7 +209,16 @@ export function useDeleteTask() {
     },
     onSuccess: (_data, id) => {
       qc.removeQueries({ queryKey: taskKeys.detail(id) })
-      toast.success("Task deleted")
+      toast.success("Task deleted", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            api(`/api/v1/trash/task/${id}/restore`, { method: "POST" })
+              .then(() => qc.invalidateQueries({ queryKey: taskKeys.lists() }))
+              .catch(() => toast.error("Couldn't undo"))
+          },
+        },
+      })
     },
   })
 }

@@ -13,8 +13,9 @@ function isTypingTarget(el: EventTarget | null) {
 }
 
 /** Global `Q` (quick-add) and `?` (shortcut sheet) shortcuts, mounted once
- * in the app shell. `/`, `Cmd/Ctrl+K` and `X` are scoped to the Tasks page
- * itself (search focus and per-row toggle respectively). */
+ * in the app shell. `Cmd/Ctrl+K` opens the global command palette
+ * (`components/search/command-palette.tsx`); `/` and `X` are scoped to the
+ * Tasks page itself (search focus and per-row toggle respectively). */
 export function TaskShortcuts() {
   const { openAddTask } = useShell()
   const [sheetOpen, setSheetOpen] = useState(false)

@@ -3,9 +3,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 const SHORTCUTS: { keys: string[]; label: string }[] = [
+  { keys: ["⌘", "K"], label: "Open the command palette (search everything)" },
   { keys: ["Q"], label: "Quick-add a task" },
-  { keys: ["/"], label: "Focus the task search" },
-  { keys: ["⌘", "K"], label: "Focus the task search" },
+  { keys: ["/"], label: "Focus the task search (on the Tasks page)" },
   { keys: ["X"], label: "Toggle done on the focused task" },
   { keys: ["?"], label: "Show this shortcut sheet" },
 ]

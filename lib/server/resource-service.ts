@@ -5,6 +5,7 @@ import type { ResourceType } from "@/lib/resources/types"
 import { badRequest } from "@/lib/server/api"
 import { insertResources, type NewResource } from "@/lib/server/dal/resources"
 import { scheduleMetadata } from "@/lib/server/metadata-runner"
+import { assertResourceCreationQuota } from "@/lib/server/quotas"
 
 /** Plain text → minimal Tiptap document (one paragraph per line). */
 export function textToDoc(text: string) {
@@ -86,6 +87,7 @@ export async function createFromInput(
     projectIds?: string[]
   }
 ) {
+  await assertResourceCreationQuota(userId, 1)
   let item: NewResource
   if (input.url) {
     const detected = detectUrl(input.url)
@@ -132,6 +134,7 @@ export async function createManyFromUrls(
     seen.add(detected.urlNormalized)
     items.push(urlResource(detected, { tags, projectIds }))
   }
+  if (items.length) await assertResourceCreationQuota(userId, items.length)
   const created = await insertResources(userId, items)
   scheduleMetadata(created.map((r) => r.id))
   return { created, invalid }

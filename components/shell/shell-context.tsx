@@ -20,6 +20,8 @@ type ShellContextValue = {
   closeAddTask: () => void
   mobileNavOpen: boolean
   setMobileNavOpen: (open: boolean) => void
+  commandPaletteOpen: boolean
+  setCommandPaletteOpen: (open: boolean) => void
 }
 
 const ShellContext = createContext<ShellContextValue | null>(null)
@@ -41,6 +43,7 @@ export function ShellProvider({
     open: false,
   })
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const openAddResource = useCallback(
     (initialText?: string) => setAddResource({ open: true, initialText }),
     []
@@ -66,6 +69,8 @@ export function ShellProvider({
       closeAddTask,
       mobileNavOpen,
       setMobileNavOpen,
+      commandPaletteOpen,
+      setCommandPaletteOpen,
     }),
     [
       user,
@@ -76,6 +81,7 @@ export function ShellProvider({
       openAddTask,
       closeAddTask,
       mobileNavOpen,
+      commandPaletteOpen,
     ]
   )
   return <ShellContext.Provider value={value}>{children}</ShellContext.Provider>

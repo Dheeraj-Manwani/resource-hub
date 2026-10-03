@@ -14,6 +14,7 @@ import {
 } from "@/lib/server/dal/files"
 import { makeThumbnail } from "@/lib/server/images"
 import { isStorageConfigured } from "@/lib/server/r2"
+import { assertMetadataFetchQuota, assertStorageQuota } from "@/lib/server/quotas"
 import { safeFetch } from "@/lib/server/ssrf"
 
 const JOB_KIND = "metadata"
@@ -104,6 +105,7 @@ export async function processResourceMetadata(
   }
 
   try {
+    await assertMetadataFetchQuota(row.userId)
     const result = await fetchMetadata({
       type: row.type,
       url: row.url,
@@ -120,6 +122,7 @@ export async function processResourceMetadata(
       (metadata.imageSnapshotOf !== image || !thumbnailFileId)
     ) {
       try {
+        await assertStorageQuota(row.userId, 8 * 1024 * 1024)
         const snap = await snapshotImage(row.userId, row.id, image)
         if (snap) {
           await discardOldThumbnails(row.id, snap.fileId)

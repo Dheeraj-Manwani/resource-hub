@@ -102,7 +102,7 @@ export function TasksView() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.key === "/" && !isTypingTarget(e.target)) || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k")) {
+      if (e.key === "/" && !isTypingTarget(e.target)) {
         e.preventDefault()
         searchRef.current?.focus()
       }

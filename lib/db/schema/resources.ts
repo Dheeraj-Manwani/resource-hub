@@ -108,6 +108,10 @@ export const resources = pgTable(
     ),
     index("resources_user_url_idx").on(t.userId, t.urlNormalized),
     index("resources_search_idx").using("gin", t.search),
+    index("resources_title_trgm_idx").using(
+      "gin",
+      sql`${t.title} gin_trgm_ops`
+    ),
   ]
 )
 
@@ -149,7 +153,10 @@ export const tags = pgTable(
     color: text(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("tags_user_name_idx").on(t.userId, t.nameNormalized)]
+  (t) => [
+    uniqueIndex("tags_user_name_idx").on(t.userId, t.nameNormalized),
+    index("tags_name_trgm_idx").using("gin", sql`${t.name} gin_trgm_ops`),
+  ]
 )
 
 export const resourceTags = pgTable(

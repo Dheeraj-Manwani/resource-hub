@@ -21,6 +21,7 @@ const serverSchema = z.object({
   R2_BUCKET: optional,
   UPLOAD_MAX_IMAGE_MB: z.coerce.number().positive().default(20),
   UPLOAD_MAX_FILE_MB: z.coerce.number().positive().default(50),
+  USER_STORAGE_QUOTA_MB: z.coerce.number().positive().default(1024),
   CRON_SECRET: optional,
   GITHUB_TOKEN: optional,
   YOUTUBE_API_KEY: optional,

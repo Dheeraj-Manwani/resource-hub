@@ -4,6 +4,7 @@ import {
   LibraryBigIcon,
   ListTodoIcon,
   SearchIcon,
+  TagIcon,
   Trash2Icon,
   type LucideIcon,
 } from "lucide-react"
@@ -16,5 +17,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/tasks", label: "Tasks", icon: ListTodoIcon },
   { href: "/calendar", label: "Calendar", icon: CalendarDaysIcon },
   { href: "/search", label: "Search", icon: SearchIcon },
+  { href: "/tags", label: "Tags", icon: TagIcon },
   { href: "/trash", label: "Trash", icon: Trash2Icon },
 ]

@@ -4,6 +4,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3"
@@ -141,6 +142,30 @@ export async function putObject(
 export async function deleteObject(key: string) {
   const { client, env } = getR2()
   await client.send(new DeleteObjectCommand({ Bucket: env.bucket, Key: key }))
+}
+
+/** Lists every object under `KEY_PREFIX`, paging through the whole bucket.
+ * Used only by the cron orphan sweep. */
+export async function listAllObjects(): Promise<
+  { key: string; lastModified: Date | undefined }[]
+> {
+  const { client, env } = getR2()
+  const out: { key: string; lastModified: Date | undefined }[] = []
+  let continuationToken: string | undefined
+  do {
+    const page = await client.send(
+      new ListObjectsV2Command({
+        Bucket: env.bucket,
+        Prefix: KEY_PREFIX,
+        ContinuationToken: continuationToken,
+      })
+    )
+    for (const obj of page.Contents ?? []) {
+      if (obj.Key) out.push({ key: obj.Key, lastModified: obj.LastModified })
+    }
+    continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined
+  } while (continuationToken)
+  return out
 }
 
 export function uploadLimits() {

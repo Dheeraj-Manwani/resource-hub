@@ -1,4 +1,6 @@
+import { sql, type SQL } from "drizzle-orm"
 import {
+  customType,
   index,
   pgTable,
   primaryKey,
@@ -10,6 +12,10 @@ import {
 
 import { user } from "./auth"
 import { resources } from "./resources"
+
+const tsvector = customType<{ data: string }>({
+  dataType: () => "tsvector",
+})
 
 const timestamps = {
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -36,11 +42,17 @@ export const projects = pgTable(
     sortKey: text().notNull(),
     archivedAt: timestamp({ withTimezone: true }),
     deletedAt: timestamp({ withTimezone: true }),
+    search: tsvector().generatedAlwaysAs(
+      (): SQL =>
+        sql`setweight(to_tsvector('simple', coalesce(${projects.name}, '')), 'A') || setweight(to_tsvector('simple', coalesce(${projects.description}, '')), 'C')`
+    ),
     ...timestamps,
   },
   (t) => [
     index("projects_user_parent_idx").on(t.userId, t.parentId, t.sortKey),
     index("projects_user_deleted_idx").on(t.userId, t.deletedAt),
+    index("projects_search_idx").using("gin", t.search),
+    index("projects_name_trgm_idx").using("gin", sql`${t.name} gin_trgm_ops`),
   ]
 )
 

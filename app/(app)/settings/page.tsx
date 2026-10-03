@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { PageHeader } from "@/components/page-header"
 import { CalendarSettings } from "@/components/settings/calendar-settings"
 import { CaptureSettings } from "@/components/settings/capture-settings"
+import { StorageSettings } from "@/components/settings/storage-settings"
 import { TokenSettings } from "@/components/settings/token-settings"
 import { serverEnv } from "@/lib/env"
 import { getSettings } from "@/lib/server/dal/settings"
@@ -64,6 +65,12 @@ export default async function SettingsPage() {
         description="For the iOS Shortcut and scripts. Tokens can only capture into your Inbox; revoke any you no longer use."
       >
         <TokenSettings appUrl={appUrl} />
+      </Section>
+      <Section
+        title="Storage and data"
+        description="Sign-up is open to any Google account, so storage has a per-account cap."
+      >
+        <StorageSettings />
       </Section>
     </div>
   )

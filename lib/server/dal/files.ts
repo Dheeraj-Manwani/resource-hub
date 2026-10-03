@@ -1,11 +1,11 @@
 import "server-only"
 
-import { and, eq, inArray, ne } from "drizzle-orm"
+import { and, eq, inArray, lt, ne } from "drizzle-orm"
 import { uuidv7 } from "uuidv7"
 
 import { db } from "@/lib/db"
 import { files, resources } from "@/lib/db/schema"
-import { deleteObject, objectKey, putObject } from "@/lib/server/r2"
+import { deleteObject, listAllObjects, objectKey, putObject } from "@/lib/server/r2"
 
 export type FileRole = "original" | "thumbnail" | "preview"
 
@@ -128,4 +128,50 @@ export async function setResourceThumbnail(
     .update(resources)
     .set({ thumbnailFileId: fileId })
     .where(eq(resources.id, resourceId))
+}
+
+/** Cron: an upload that never completed (`pending` past `maxAgeHours`) is
+ * abandoned — its presigned PUT expired long ago. */
+export async function purgeStalePendingUploads(maxAgeHours: number): Promise<number> {
+  const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000)
+  const stale = await db
+    .select({ id: files.id, r2Key: files.r2Key })
+    .from(files)
+    .where(and(eq(files.status, "pending"), lt(files.createdAt, cutoff)))
+  for (const file of stale) {
+    try {
+      await deleteObject(file.r2Key)
+    } catch (error) {
+      console.warn("[files] could not delete stale pending object", file.r2Key, error)
+    }
+  }
+  if (stale.length) {
+    await db.delete(files).where(inArray(files.id, stale.map((f) => f.id)))
+  }
+  return stale.length
+}
+
+/** Cron: deletes R2 objects under our prefix that have no matching `files`
+ * row (abandoned multipart leftovers, objects from a row that failed to
+ * insert), skipping anything newer than `maxAgeHours` so an in-flight
+ * upload is never swept. */
+export async function sweepOrphanObjects(maxAgeHours: number): Promise<number> {
+  const cutoff = Date.now() - maxAgeHours * 60 * 60 * 1000
+  const [objects, known] = await Promise.all([
+    listAllObjects(),
+    db.select({ r2Key: files.r2Key }).from(files),
+  ])
+  const knownKeys = new Set(known.map((f) => f.r2Key))
+  const orphans = objects.filter(
+    (o) =>
+      !knownKeys.has(o.key) && (!o.lastModified || o.lastModified.getTime() < cutoff)
+  )
+  for (const orphan of orphans) {
+    try {
+      await deleteObject(orphan.key)
+    } catch (error) {
+      console.warn("[files] could not delete orphan object", orphan.key, error)
+    }
+  }
+  return orphans.length
 }

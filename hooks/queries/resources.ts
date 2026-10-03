@@ -259,7 +259,16 @@ export function useDeleteResource() {
     },
     onSuccess: (_data, id) => {
       qc.removeQueries({ queryKey: resourceKeys.detail(id) })
-      toast.success("Moved to trash")
+      toast.success("Moved to trash", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            api(`/api/v1/trash/resource/${id}/restore`, { method: "POST" })
+              .then(() => qc.invalidateQueries({ queryKey: resourceKeys.lists() }))
+              .catch(() => toast.error("Couldn't undo"))
+          },
+        },
+      })
     },
   })
 }

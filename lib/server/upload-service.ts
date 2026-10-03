@@ -21,6 +21,8 @@ import {
   insertResources,
 } from "@/lib/server/dal/resources"
 import { makeThumbnail } from "@/lib/server/images"
+import { extractPdfText } from "@/lib/server/pdf"
+import { assertResourceCreationQuota, assertStorageQuota } from "@/lib/server/quotas"
 import {
   deleteObject,
   getObjectBytes,
@@ -49,6 +51,7 @@ export async function startUpload(
       `File is too large (max ${Math.round(max / 1024 / 1024)} MB)`
     )
   }
+  await assertStorageQuota(userId, input.size)
   if (input.purpose === "thumbnail") {
     if (!isImage(input.mime)) throw badRequest("Thumbnails must be images")
     if (!input.resourceId || !(await getResourceRow(userId, input.resourceId)))
@@ -130,10 +133,12 @@ export async function completeUpload(
     return getResource(userId, row.id)
   }
 
+  await assertResourceCreationQuota(userId, 1)
   const type = typeFromMime(file.mime)
   let thumbnailFileId: string | null = null
   let width: number | null = null
   let height: number | null = null
+  let extractedText: string | null = null
   if (type === "image") {
     try {
       const thumb = await makeThumbnail(await getObjectBytes(file.r2Key))
@@ -155,6 +160,8 @@ export async function completeUpload(
         (error as Error).message
       )
     }
+  } else if (file.mime === "application/pdf") {
+    extractedText = await extractPdfText(await getObjectBytes(file.r2Key))
   }
   await markFileReady(file.id, { width, height })
 
@@ -167,6 +174,7 @@ export async function completeUpload(
       },
       metadataStatus: "ok",
       thumbnailFileId,
+      extractedText,
       tags: input.tags,
       projectIds: input.projectIds,
       fileIds: [file.id, ...(thumbnailFileId ? [thumbnailFileId] : [])],
