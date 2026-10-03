@@ -13,6 +13,8 @@ export type SettingsDto = {
   calendarColorMode: "project" | "priority" | "status"
   /** Secret path segment for the subscribable `.ics` feed; null until first generated. */
   icsToken: string | null
+  /** Whether the "How to use" onboarding modal has been shown or skipped. */
+  hasSeenOnboarding: boolean
 }
 
 export async function getSettings(userId: string): Promise<SettingsDto> {
@@ -28,6 +30,7 @@ export async function getSettings(userId: string): Promise<SettingsDto> {
       libraryView: row.libraryView,
       calendarColorMode: row.calendarColorMode,
       icsToken: row.icsToken,
+      hasSeenOnboarding: row.hasSeenOnboarding,
     }
   }
   await db.insert(userSettings).values({ userId }).onConflictDoNothing()
@@ -37,6 +40,7 @@ export async function getSettings(userId: string): Promise<SettingsDto> {
     libraryView: "grid",
     calendarColorMode: "project",
     icsToken: null,
+    hasSeenOnboarding: false,
   }
 }
 

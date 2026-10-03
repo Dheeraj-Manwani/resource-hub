@@ -21,6 +21,7 @@ const patchSchema = z
     weekStart: z.union([z.literal(0), z.literal(1)]),
     libraryView: z.enum(["grid", "list", "focus"]),
     calendarColorMode: z.enum(["project", "priority", "status"]),
+    hasSeenOnboarding: z.boolean(),
   })
   .partial()
   .strict()

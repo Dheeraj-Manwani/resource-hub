@@ -249,13 +249,12 @@ export function TasksView() {
           ) : null}
           <Button
             size="sm"
-            variant="outline"
+            variant={selectMode ? "default" : "outline"}
             aria-pressed={selectMode}
             onClick={() => {
               setSelectMode((v) => !v)
               setSelected(new Set())
             }}
-            className={selectMode ? "border-brand bg-brand text-brand-fg hover:bg-brand-hover" : undefined}
           >
             <CheckSquareIcon />
             Select

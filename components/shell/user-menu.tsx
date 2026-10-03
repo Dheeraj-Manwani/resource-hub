@@ -1,6 +1,6 @@
 "use client"
 
-import { LogOutIcon, SettingsIcon } from "lucide-react"
+import { CircleHelpIcon, LogOutIcon, SettingsIcon } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -27,7 +27,7 @@ function initials(name: string) {
 }
 
 export function UserMenu() {
-  const { user } = useShell()
+  const { user, openOnboarding } = useShell()
   const router = useRouter()
 
   async function logout() {
@@ -70,6 +70,10 @@ export function UserMenu() {
         <DropdownMenuItem onClick={() => router.push("/settings")}>
           <SettingsIcon />
           Settings
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={openOnboarding}>
+          <CircleHelpIcon />
+          How to use
         </DropdownMenuItem>
         <DropdownMenuItem onClick={logout}>
           <LogOutIcon />

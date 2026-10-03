@@ -22,6 +22,9 @@ type ShellContextValue = {
   setMobileNavOpen: (open: boolean) => void
   commandPaletteOpen: boolean
   setCommandPaletteOpen: (open: boolean) => void
+  onboardingOpen: boolean
+  openOnboarding: () => void
+  closeOnboarding: () => void
 }
 
 const ShellContext = createContext<ShellContextValue | null>(null)
@@ -44,6 +47,7 @@ export function ShellProvider({
   })
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
   const openAddResource = useCallback(
     (initialText?: string) => setAddResource({ open: true, initialText }),
     []
@@ -57,6 +61,8 @@ export function ShellProvider({
     []
   )
   const closeAddTask = useCallback(() => setAddTask({ open: false }), [])
+  const openOnboarding = useCallback(() => setOnboardingOpen(true), [])
+  const closeOnboarding = useCallback(() => setOnboardingOpen(false), [])
 
   const value = useMemo(
     () => ({
@@ -71,6 +77,9 @@ export function ShellProvider({
       setMobileNavOpen,
       commandPaletteOpen,
       setCommandPaletteOpen,
+      onboardingOpen,
+      openOnboarding,
+      closeOnboarding,
     }),
     [
       user,
@@ -82,6 +91,9 @@ export function ShellProvider({
       closeAddTask,
       mobileNavOpen,
       commandPaletteOpen,
+      onboardingOpen,
+      openOnboarding,
+      closeOnboarding,
     ]
   )
   return <ShellContext.Provider value={value}>{children}</ShellContext.Provider>

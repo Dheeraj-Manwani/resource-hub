@@ -201,10 +201,9 @@ function FilterBar({
 
       <Button
         size="sm"
-        variant="outline"
+        variant={favorite ? "default" : "outline"}
         aria-pressed={favorite}
         onClick={() => setFavorite(!favorite)}
-        className={cn(favorite && "border-brand bg-brand text-brand-fg hover:bg-brand-hover")}
       >
         <StarIcon className={cn(favorite && "fill-brand-fg")} />
         Favorites
@@ -212,10 +211,9 @@ function FilterBar({
 
       <Button
         size="sm"
-        variant="outline"
+        variant={hasTasks ? "default" : "outline"}
         aria-pressed={hasTasks}
         onClick={() => setHasTasks(!hasTasks)}
-        className={cn(hasTasks && "border-brand bg-brand text-brand-fg hover:bg-brand-hover")}
       >
         <ListChecksIcon />
         Has tasks
@@ -224,12 +222,9 @@ function FilterBar({
       <div className="ml-auto flex items-center gap-2">
         <Button
           size="sm"
-          variant="outline"
+          variant={selectMode ? "default" : "outline"}
           aria-pressed={selectMode}
           onClick={onToggleSelectMode}
-          className={cn(
-            selectMode && "border-brand bg-brand text-brand-fg hover:bg-brand-hover"
-          )}
         >
           <CheckSquareIcon />
           Select

@@ -155,7 +155,7 @@ function ProjectMenu({
       >
         <MoreHorizontalIcon className="size-3.5" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent>
+      <DropdownMenuContent className="w-60">
         <DropdownMenuItem onClick={onNewChild}>
           <FolderPlusIcon />
           New sub-project
@@ -176,7 +176,10 @@ function ProjectMenu({
           {project.archivedAt ? "Unarchive" : "Archive"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <div className="flex items-center gap-1 px-1.5 py-1">
+        <p className="px-1.5 pt-0.5 pb-1 text-xs font-medium text-muted-foreground">
+          Color
+        </p>
+        <div className="flex flex-wrap items-center gap-1.5 px-1.5 pb-1.5">
           {PROJECT_COLORS.map((c) => (
             <button
               key={c}
@@ -187,8 +190,8 @@ function ProjectMenu({
               }
               style={{ backgroundColor: c }}
               className={cn(
-                "size-4 rounded-full ring-1 ring-black/20 transition-transform hover:scale-110",
-                project.color === c && "ring-2 ring-white"
+                "size-4 shrink-0 rounded-full ring-1 ring-black/20 transition-transform hover:scale-110",
+                project.color === c && "ring-2 ring-white ring-offset-1 ring-offset-popover"
               )}
             />
           ))}

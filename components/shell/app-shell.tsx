@@ -2,6 +2,7 @@
 
 import { Suspense } from "react"
 
+import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
 import { AddResourceDialog } from "@/components/resources/add-resource-dialog"
 import { LightboxProvider } from "@/components/resources/lightbox/lightbox-provider"
 import { ProjectDndProvider } from "@/components/projects/project-dnd"
@@ -55,6 +56,7 @@ export function AppShell({
           </div>
           <MobileNav />
           <MobileFab />
+          <OnboardingModal />
           <Suspense>
             <AddResourceDialog />
             <DetailDrawer />

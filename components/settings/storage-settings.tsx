@@ -37,6 +37,7 @@ export function StorageSettings() {
       <div>
         <Button
           variant="outline"
+          nativeButton={false}
           render={<a href="/api/v1/export" download />}
         >
           <DownloadIcon />

@@ -1,4 +1,4 @@
-import { pgEnum, pgTable, smallint, text, timestamp } from "drizzle-orm/pg-core"
+import { boolean, pgEnum, pgTable, smallint, text, timestamp } from "drizzle-orm/pg-core"
 
 import { user } from "./auth"
 
@@ -20,6 +20,9 @@ export const userSettings = pgTable("user_settings", {
   calendarColorMode: calendarColorModeEnum().notNull().default("project"),
   libraryView: libraryViewEnum().notNull().default("grid"),
   icsToken: text().unique(),
+  /** Set once the "How to use" onboarding modal has been shown or skipped,
+   * so it auto-opens for a new user exactly once. */
+  hasSeenOnboarding: boolean().notNull().default(false),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp({ withTimezone: true })
     .notNull()
