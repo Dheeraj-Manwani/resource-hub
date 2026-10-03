@@ -41,6 +41,7 @@ export function SidebarContent({
                   href={href}
                   onClick={onNavigate}
                   aria-current={active ? "page" : undefined}
+                  data-tour={`tour-nav-${href.slice(1)}`}
                   className={cn(
                     "group relative flex h-9 items-center gap-3 rounded-lg px-3 text-sm text-text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground",
                     active &&

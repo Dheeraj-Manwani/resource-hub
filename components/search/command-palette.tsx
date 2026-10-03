@@ -5,10 +5,12 @@ import { Command } from "cmdk"
 import {
   CalendarDaysIcon,
   FolderIcon,
+  FolderPlusIcon,
   LayoutDashboardIcon,
   LibraryBigIcon,
   ListPlusIcon,
   ListTodoIcon,
+  NotebookPenIcon,
   PlusIcon,
   SearchIcon,
   SettingsIcon,
@@ -38,8 +40,14 @@ const NAV_ACTIONS = [
  * quick actions, mounted once in the app shell. Owns `Cmd/Ctrl+K` app-wide
  * (the Tasks page's own search input uses `/` only, see `tasks-view.tsx`). */
 export function CommandPalette() {
-  const { commandPaletteOpen: open, setCommandPaletteOpen: setOpen, openAddResource, openAddTask } =
-    useShell()
+  const {
+    commandPaletteOpen: open,
+    setCommandPaletteOpen: setOpen,
+    openAddResource,
+    openAddTask,
+    openAddProject,
+    openAddQuickNote,
+  } = useShell()
   const [query, setQuery] = useState("")
   const [debounced, setDebounced] = useState("")
   const router = useRouter()
@@ -118,6 +126,14 @@ export function CommandPalette() {
               <PaletteItem onSelect={() => go(() => openAddTask())}>
                 <ListPlusIcon className="size-4 text-brand" />
                 Add task
+              </PaletteItem>
+              <PaletteItem onSelect={() => go(() => openAddProject())}>
+                <FolderPlusIcon className="size-4 text-brand" />
+                New project
+              </PaletteItem>
+              <PaletteItem onSelect={() => go(() => openAddQuickNote())}>
+                <NotebookPenIcon className="size-4 text-brand" />
+                New quick note
               </PaletteItem>
             </Command.Group>
             <Command.Group heading="Go to" className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1">

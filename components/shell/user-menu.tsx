@@ -1,6 +1,6 @@
 "use client"
 
-import { CircleHelpIcon, LogOutIcon, SettingsIcon } from "lucide-react"
+import { CircleHelpIcon, HeartIcon, LogOutIcon, SettingsIcon } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -27,7 +27,7 @@ function initials(name: string) {
 }
 
 export function UserMenu() {
-  const { user, openOnboarding } = useShell()
+  const { user, openTour } = useShell()
   const router = useRouter()
 
   async function logout() {
@@ -71,10 +71,23 @@ export function UserMenu() {
           <SettingsIcon />
           Settings
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={openOnboarding}>
+        <DropdownMenuItem onClick={openTour}>
           <CircleHelpIcon />
-          How to use
+          Take a tour
         </DropdownMenuItem>
+        <DropdownMenuItem
+          render={
+            <a
+              href="https://buymeacoffee.com/madfortech"
+              target="_blank"
+              rel="noopener noreferrer"
+            />
+          }
+        >
+          <HeartIcon />
+          Support Resource Hub
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={logout}>
           <LogOutIcon />
           Log out

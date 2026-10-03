@@ -18,13 +18,19 @@ type ShellContextValue = {
   addTask: { open: boolean; initialText?: string }
   openAddTask: (initialText?: string) => void
   closeAddTask: () => void
+  addProject: { open: boolean; parentId?: string | null }
+  openAddProject: (parentId?: string | null) => void
+  closeAddProject: () => void
+  addQuickNote: boolean
+  openAddQuickNote: () => void
+  closeAddQuickNote: () => void
   mobileNavOpen: boolean
   setMobileNavOpen: (open: boolean) => void
   commandPaletteOpen: boolean
   setCommandPaletteOpen: (open: boolean) => void
-  onboardingOpen: boolean
-  openOnboarding: () => void
-  closeOnboarding: () => void
+  tourOpen: boolean
+  openTour: () => void
+  closeTour: () => void
 }
 
 const ShellContext = createContext<ShellContextValue | null>(null)
@@ -45,9 +51,14 @@ export function ShellProvider({
   const [addTask, setAddTask] = useState<{ open: boolean; initialText?: string }>({
     open: false,
   })
+  const [addProject, setAddProject] = useState<{
+    open: boolean
+    parentId?: string | null
+  }>({ open: false })
+  const [addQuickNote, setAddQuickNote] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
-  const [onboardingOpen, setOnboardingOpen] = useState(false)
+  const [tourOpen, setTourOpen] = useState(false)
   const openAddResource = useCallback(
     (initialText?: string) => setAddResource({ open: true, initialText }),
     []
@@ -61,8 +72,18 @@ export function ShellProvider({
     []
   )
   const closeAddTask = useCallback(() => setAddTask({ open: false }), [])
-  const openOnboarding = useCallback(() => setOnboardingOpen(true), [])
-  const closeOnboarding = useCallback(() => setOnboardingOpen(false), [])
+  const openAddProject = useCallback(
+    (parentId?: string | null) => setAddProject({ open: true, parentId }),
+    []
+  )
+  const closeAddProject = useCallback(
+    () => setAddProject({ open: false }),
+    []
+  )
+  const openAddQuickNote = useCallback(() => setAddQuickNote(true), [])
+  const closeAddQuickNote = useCallback(() => setAddQuickNote(false), [])
+  const openTour = useCallback(() => setTourOpen(true), [])
+  const closeTour = useCallback(() => setTourOpen(false), [])
 
   const value = useMemo(
     () => ({
@@ -73,13 +94,19 @@ export function ShellProvider({
       addTask,
       openAddTask,
       closeAddTask,
+      addProject,
+      openAddProject,
+      closeAddProject,
+      addQuickNote,
+      openAddQuickNote,
+      closeAddQuickNote,
       mobileNavOpen,
       setMobileNavOpen,
       commandPaletteOpen,
       setCommandPaletteOpen,
-      onboardingOpen,
-      openOnboarding,
-      closeOnboarding,
+      tourOpen,
+      openTour,
+      closeTour,
     }),
     [
       user,
@@ -89,11 +116,17 @@ export function ShellProvider({
       addTask,
       openAddTask,
       closeAddTask,
+      addProject,
+      openAddProject,
+      closeAddProject,
+      addQuickNote,
+      openAddQuickNote,
+      closeAddQuickNote,
       mobileNavOpen,
       commandPaletteOpen,
-      onboardingOpen,
-      openOnboarding,
-      closeOnboarding,
+      tourOpen,
+      openTour,
+      closeTour,
     ]
   )
   return <ShellContext.Provider value={value}>{children}</ShellContext.Provider>

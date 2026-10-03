@@ -1,17 +1,40 @@
 "use client"
 
-import { ListPlusIcon, MenuIcon, PlusIcon, SearchIcon } from "lucide-react"
+import {
+  ChevronDownIcon,
+  FolderPlusIcon,
+  LinkIcon,
+  ListPlusIcon,
+  MenuIcon,
+  NotebookPenIcon,
+  PlusIcon,
+  SearchIcon,
+} from "lucide-react"
 import Link from "next/link"
 
 import { RemindersBell } from "@/components/calendar/reminders-bell"
 import { LogoMark } from "@/components/logo"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 import { useShell } from "./shell-context"
 import { UserMenu } from "./user-menu"
 
 export function TopBar() {
-  const { openAddResource, openAddTask, setMobileNavOpen, setCommandPaletteOpen } = useShell()
+  const {
+    openAddResource,
+    openAddTask,
+    openAddProject,
+    openAddQuickNote,
+    setMobileNavOpen,
+    setCommandPaletteOpen,
+  } = useShell()
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-3 backdrop-blur-md md:px-6">
@@ -40,18 +63,40 @@ export function TopBar() {
         </kbd>
       </button>
 
-      <div className="hidden items-center gap-2 md:flex">
-        <Button variant="outline" onClick={() => openAddTask()}>
-          <ListPlusIcon />
-          Add task
-        </Button>
-        <Button
-          onClick={() => openAddResource()}
-          className="hover:bg-brand-hover hover:shadow-glow"
-        >
-          <PlusIcon />
-          Add resource
-        </Button>
+      <div className="hidden items-center md:flex">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                data-tour="tour-add-menu"
+                className="hover:bg-brand-hover hover:shadow-glow"
+              />
+            }
+          >
+            <PlusIcon />
+            Add
+            <ChevronDownIcon className="size-3.5 opacity-70" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => openAddResource()}>
+              <LinkIcon />
+              Add resource
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openAddTask()}>
+              <ListPlusIcon />
+              Add task
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => openAddProject()}>
+              <FolderPlusIcon />
+              New project
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => openAddQuickNote()}>
+              <NotebookPenIcon />
+              New quick note
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <RemindersBell />
       <UserMenu />

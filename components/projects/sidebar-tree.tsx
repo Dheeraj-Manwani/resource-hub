@@ -417,7 +417,7 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
   }
 
   return (
-    <div className="mt-6 px-2">
+    <div data-tour="tour-projects" className="mt-6 px-2">
       <div className="flex items-center justify-between px-3 pb-1">
         <span className="text-[11px] font-medium tracking-wider text-subtle uppercase">
           Projects
