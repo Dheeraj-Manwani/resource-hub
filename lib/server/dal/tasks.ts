@@ -313,6 +313,21 @@ export async function smartFilterCounts(userId: string): Promise<SmartFilterCoun
   }
 }
 
+/** For the Overview page: how many tasks are still open, and how many were
+ * finished today (distinct from `smartFilterCounts`'s all-time `completed`). */
+export async function taskDashboardCounts(
+  userId: string
+): Promise<{ active: number; completedToday: number }> {
+  const [row] = await db
+    .select({
+      active: sql<number>`count(*) filter (where ${tasks.status} != 'done')::int`,
+      completedToday: sql<number>`count(*) filter (where ${tasks.status} = 'done' and ${tasks.completedAt}::date = current_date)::int`,
+    })
+    .from(tasks)
+    .where(and(eq(tasks.userId, userId), isNull(tasks.deletedAt), isNull(tasks.archivedAt)))
+  return { active: row?.active ?? 0, completedToday: row?.completedToday ?? 0 }
+}
+
 export async function getTaskRow(userId: string, id: string) {
   const [row] = await db
     .select()

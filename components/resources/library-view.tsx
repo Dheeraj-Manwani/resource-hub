@@ -204,11 +204,9 @@ function FilterBar({
         variant="outline"
         aria-pressed={favorite}
         onClick={() => setFavorite(!favorite)}
-        className={cn(
-          favorite && "border-brand/50 bg-brand-soft text-foreground"
-        )}
+        className={cn(favorite && "border-brand bg-brand text-brand-fg hover:bg-brand-hover")}
       >
-        <StarIcon className={cn(favorite && "fill-brand text-brand")} />
+        <StarIcon className={cn(favorite && "fill-brand-fg")} />
         Favorites
       </Button>
 
@@ -217,7 +215,7 @@ function FilterBar({
         variant="outline"
         aria-pressed={hasTasks}
         onClick={() => setHasTasks(!hasTasks)}
-        className={cn(hasTasks && "border-brand/50 bg-brand-soft text-foreground")}
+        className={cn(hasTasks && "border-brand bg-brand text-brand-fg hover:bg-brand-hover")}
       >
         <ListChecksIcon />
         Has tasks
@@ -230,7 +228,7 @@ function FilterBar({
           aria-pressed={selectMode}
           onClick={onToggleSelectMode}
           className={cn(
-            selectMode && "border-brand/50 bg-brand-soft text-foreground"
+            selectMode && "border-brand bg-brand text-brand-fg hover:bg-brand-hover"
           )}
         >
           <CheckSquareIcon />

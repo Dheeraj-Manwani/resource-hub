@@ -13,8 +13,8 @@ export default function NotFound() {
         description="That page doesn't exist or was moved."
         className="w-full max-w-md"
       >
-        <Button nativeButton={false} render={<Link href="/library" />}>
-          Back to library
+        <Button nativeButton={false} render={<Link href="/overview" />}>
+          Back to overview
         </Button>
       </EmptyState>
     </main>

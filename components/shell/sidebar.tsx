@@ -26,7 +26,7 @@ export function SidebarContent({
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center px-4">
-        <Link href="/library" onClick={onNavigate} className="rounded-md">
+        <Link href="/overview" onClick={onNavigate} className="rounded-md">
           <Logo />
         </Link>
       </div>

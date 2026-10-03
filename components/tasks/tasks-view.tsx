@@ -255,7 +255,7 @@ export function TasksView() {
               setSelectMode((v) => !v)
               setSelected(new Set())
             }}
-            className={selectMode ? "border-brand/50 bg-brand-soft text-foreground" : undefined}
+            className={selectMode ? "border-brand bg-brand text-brand-fg hover:bg-brand-hover" : undefined}
           >
             <CheckSquareIcon />
             Select

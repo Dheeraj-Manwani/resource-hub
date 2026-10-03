@@ -1,6 +1,7 @@
 import {
   CalendarDaysIcon,
   InboxIcon,
+  LayoutDashboardIcon,
   LibraryBigIcon,
   ListTodoIcon,
   SearchIcon,
@@ -12,6 +13,7 @@ import {
 export type NavItem = { href: string; label: string; icon: LucideIcon }
 
 export const NAV_ITEMS: NavItem[] = [
+  { href: "/overview", label: "Overview", icon: LayoutDashboardIcon },
   { href: "/library", label: "Library", icon: LibraryBigIcon },
   { href: "/inbox", label: "Inbox", icon: InboxIcon },
   { href: "/tasks", label: "Tasks", icon: ListTodoIcon },

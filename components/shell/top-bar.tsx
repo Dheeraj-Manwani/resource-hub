@@ -24,7 +24,7 @@ export function TopBar() {
       >
         <MenuIcon />
       </Button>
-      <Link href="/library" className="md:hidden" aria-label="Library">
+      <Link href="/overview" className="md:hidden" aria-label="Overview">
         <LogoMark className="size-6" />
       </Link>
 

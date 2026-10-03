@@ -6,6 +6,7 @@ import {
   CalendarDaysIcon,
   FolderIcon,
   InboxIcon,
+  LayoutDashboardIcon,
   LibraryBigIcon,
   ListPlusIcon,
   ListTodoIcon,
@@ -25,6 +26,7 @@ import { api, toQueryString } from "@/lib/api-client"
 import type { SearchResults } from "@/lib/server/dal/search"
 
 const NAV_ACTIONS = [
+  { label: "Overview", href: "/overview", icon: LayoutDashboardIcon },
   { label: "Library", href: "/library", icon: LibraryBigIcon },
   { label: "Inbox", href: "/inbox", icon: InboxIcon },
   { label: "Tasks", href: "/tasks", icon: ListTodoIcon },

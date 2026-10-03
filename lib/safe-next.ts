@@ -7,7 +7,7 @@ export function safeNext(next: string | string[] | undefined | null): string {
     value.startsWith("//") ||
     value.startsWith("/\\")
   ) {
-    return "/library"
+    return "/overview"
   }
   return value
 }

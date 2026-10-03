@@ -583,3 +583,36 @@ export async function countResources(userId: string) {
     .where(and(eq(resources.userId, userId), isNull(resources.deletedAt)))
   return row?.count ?? 0
 }
+
+/** Totals for the Overview page: everything, favorited, and unfiled (inbox). */
+export async function resourceOverviewCounts(
+  userId: string
+): Promise<{ total: number; favorites: number; inbox: number }> {
+  const unfiled = not(
+    exists(
+      db
+        .select({ one: sql`1` })
+        .from(projectResources)
+        .innerJoin(projects, eq(projects.id, projectResources.projectId))
+        .where(
+          and(
+            eq(projectResources.resourceId, resources.id),
+            isNull(projects.deletedAt)
+          )
+        )
+    )
+  )
+  const [row] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      favorites: sql<number>`count(*) filter (where ${resources.isFavorite})::int`,
+      inbox: sql<number>`count(*) filter (where ${unfiled})::int`,
+    })
+    .from(resources)
+    .where(and(eq(resources.userId, userId), isNull(resources.deletedAt)))
+  return {
+    total: row?.total ?? 0,
+    favorites: row?.favorites ?? 0,
+    inbox: row?.inbox ?? 0,
+  }
+}
