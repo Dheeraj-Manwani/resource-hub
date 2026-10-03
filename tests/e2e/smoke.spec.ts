@@ -13,9 +13,9 @@ test("landing page offers Google sign-in", async ({ page }) => {
   ).toBeVisible()
 })
 
-test("refused accounts see an explanation", async ({ page }) => {
-  await page.goto("/?error=not_allowed")
-  await expect(page.getByRole("alert")).toContainText("isn't allowed")
+test("a failed sign-in shows an explanation", async ({ page }) => {
+  await page.goto("/?error=access_denied")
+  await expect(page.getByRole("alert")).toContainText("cancelled")
 })
 
 test("app pages redirect signed-out visitors to the landing page", async ({

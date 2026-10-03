@@ -1,6 +1,6 @@
 # Resource Hub
 
-A private, single-user hub for everything you save online. Links are rendered
+A personal hub for everything you save online. Links are rendered
 richly and play inline (YouTube, Instagram, X, GitHub, Pinterest, any URL),
 alongside notes and uploaded files. Projects, tasks and a calendar come in
 later phases (see [`PLAN.md`](./PLAN.md)).
@@ -26,8 +26,8 @@ pnpm dev                      # http://localhost:3000
 1. In Google Cloud Console, create an **OAuth client ID** (type: Web application).
 2. Add the authorized redirect URI `http://localhost:3000/api/auth/callback/google`
    (and your production URL's equivalent).
-3. Put the client ID and secret in `.env`. List the emails allowed to sign in
-   in `ALLOWED_EMAILS`. Everyone else is refused, even with a valid Google account.
+3. Put the client ID and secret in `.env`. Any Google account can sign in;
+   each account gets its own private library.
 
 ### Cloudflare R2 (uploads and thumbnail snapshots)
 
@@ -51,7 +51,8 @@ and cards use the remote snapshot images directly.
 ]
 ```
 
-Objects are stored as `u/<userId>/<fileId>/<name>`.
+Objects are stored as `resource/u/<userId>/<fileId>/<name>`, so everything the
+app writes stays under the `resource/` prefix of the bucket.
 
 ## Environment variables
 
@@ -61,7 +62,6 @@ Objects are stored as `u/<userId>/<fileId>/<name>`.
 | `BETTER_AUTH_SECRET`                                                     | yes            | Session signing secret (`openssl rand -base64 32`) |
 | `BETTER_AUTH_URL`                                                        | yes            | App base URL, e.g. `http://localhost:3000`         |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`                              | yes            | Google OAuth client                                |
-| `ALLOWED_EMAILS`                                                         | yes            | Comma-separated emails allowed to sign in          |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | for uploads    | Cloudflare R2                                      |
 | `UPLOAD_MAX_IMAGE_MB` / `UPLOAD_MAX_FILE_MB`                             | no             | Upload limits (defaults 20 / 50)                   |
 | `CRON_SECRET`                                                            | prod (Phase 6) | Protects `/api/cron/*`                             |

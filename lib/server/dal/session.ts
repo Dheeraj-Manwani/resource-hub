@@ -26,7 +26,6 @@ export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
   const requestHeaders = await headers()
   const session = await getAuth().api.getSession({ headers: requestHeaders })
   if (!session) return null
-  // Defense in depth: an email removed from the allowlist loses access.
   return {
     id: session.user.id,
     name: session.user.name,

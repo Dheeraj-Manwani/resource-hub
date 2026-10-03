@@ -1,9 +1,10 @@
 # Resource Hub — Phased Implementation Plan
 
-A private, single-user "resource hub + project manager": a visual library of everything
-saved online (rendered and playable inline), nested projects, and a full task + calendar
-system. This document is the build plan. We implement it **one phase at a time**, and the
-app must build, lint, typecheck and run at the end of every phase.
+A personal "resource hub + project manager": a visual library of everything saved online
+(rendered and playable inline), nested projects, and a full task + calendar system. Anyone
+can sign in with Google; each account gets its own private library. This document is the
+build plan. We implement it **one phase at a time**, and the app must build, lint,
+typecheck and run at the end of every phase.
 
 > Status legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
@@ -15,6 +16,13 @@ app must build, lint, typecheck and run at the end of every phase.
 | 4 | Tasks: CRUD, rich description, checklist, list + board, resource linking, quick-add | [ ] |
 | 5 | Calendar: month/week/day/agenda, scheduling DnD, recurrence, reminders, filters, ICS | [ ] |
 | 6 | Search, tags, trash/undo, export, hardening, performance, docs | [ ] |
+| 7 | _Extra:_ Content understanding: text capture, AI summaries, tag/project suggestions, image descriptions | [ ] |
+| 8 | _Extra:_ Semantic + hybrid search, natural-language filters, related items | [ ] |
+| 9 | _Extra:_ AI assistant: ask your library, inbox autopilot, tasks from resources, weekly review | [ ] |
+| 10 | _Extra:_ Reader view, highlights, video notes, page archive, link health | [ ] |
+| 11 | _Extra:_ Capture everywhere: browser extension, importers, feeds, rules | [ ] |
+| 12 | _Extra:_ Rediscover, smart collections, web push, offline, insights | [ ] |
+| 13 | _Extra:_ Share links, collaboration, MCP server, integrations | [ ] |
 
 ---
 
@@ -47,16 +55,16 @@ Next 16 specifics we must respect (from `node_modules/next/dist/docs/`):
 | Database | **PostgreSQL** (Neon in prod, Docker locally) | Recursive CTEs for trees, full-text search, `jsonb` snapshots, `pg_trgm` |
 | ORM | **Drizzle ORM** + `drizzle-kit` migrations, `postgres` (postgres-js) driver | Typed SQL, easy raw CTEs, works with Neon and local PG |
 | Auth | **Better Auth** with Google provider only + Drizzle adapter | First-class Next 16 support, DB sessions, simple to restrict to Google |
-| Access control | `ALLOWED_EMAILS` allowlist env var | It's a personal app: nobody else should be able to create an account |
+| Access control | Open sign-up (any Google account); isolation by `user_id` in the DAL | No gatekeeping: the original `ALLOWED_EMAILS` allowlist was removed. Per-user quotas (6.5) are the abuse guard instead |
 | Client data layer | **TanStack Query** over REST route handlers (`/api/v1/*`) | Optimistic updates + rollback, infinite queries, same API used by capture/shortcuts |
 | Validation | **Zod** schemas shared by client and server | One source of truth for input rules |
-| Storage | **Cloudflare R2** via `@aws-sdk/client-s3` + `s3-request-presigner` | S3-compatible presigned PUT/GET |
+| Storage | **Cloudflare R2** via `@aws-sdk/client-s3` + `s3-request-presigner`; every key under `resource/` | S3-compatible presigned PUT/GET; the prefix keeps this app's objects in one place in the bucket |
 | Images | `sharp` (server) for thumbnails and dimensions | Already allowed in `pnpm-workspace.yaml` |
 | Drag and drop | **dnd-kit** (tree, board, cards → sidebar) | One `DndContext` in the shell lets cards drop onto sidebar projects |
 | Calendar | **FullCalendar v6** MIT plugins (daygrid, timegrid, list, interaction, rrule) | Month/week/day/agenda, drag, resize, external drop; themed with our tokens |
 | Rich text | **Tiptap** (StarterKit, TaskList, Link, Placeholder) | Checklists + links in descriptions and notes; stored as JSON + plain text |
 | Dates | `date-fns` v4 + `@date-fns/tz`, `chrono-node` (NL parsing), `rrule` | Recurrence + quick-add parsing |
-| Search | Postgres FTS (`tsvector` generated columns + GIN) + `pg_trgm` | No extra service; good enough for one user |
+| Search | Postgres FTS (`tsvector` generated columns + GIN) + `pg_trgm` | No extra service. Semantic search is layered on top in Phase 8, not a replacement |
 | UI extras | `sonner` (toasts/undo), `cmdk` (command palette/search), `yet-another-react-lightbox`, `@tanstack/react-virtual`, `react-hotkeys-hook` | |
 | Sanitizing | `sanitize-html` on the server for any fetched/stored HTML; React escaping elsewhere | XSS prevention |
 | Tests | **Vitest** (unit: parsers, detection, tree, recurrence), **Playwright** (smoke e2e) | |
@@ -185,7 +193,7 @@ with working navigation on desktop and phone.
 ### 1.2 Database and auth
 - [x] Drizzle setup (`lib/db`), Better Auth schema, `user_settings`.
 - [x] `lib/auth.ts`: Better Auth with **only** the Google social provider (no email/password).
-  Reject sign-up for emails not in `ALLOWED_EMAILS`.
+  Any Google account can sign up (the original allowlist was removed, see notes).
 - [x] `app/api/auth/[...all]/route.ts` handler; `lib/auth-client.ts`.
 - [x] `lib/server/dal/session.ts`: `requireUser()` (reads the session via `await headers()`,
   returns 401 for API routes / redirects for pages). Every route handler calls it.
@@ -233,7 +241,7 @@ with working navigation on desktop and phone.
   `loading.tsx`, toaster, `QueryClientProvider`.
 - [x] Placeholder pages for each nav item with helpful empty states.
 
-**Done when:** Google sign-in works for an allowlisted email and is refused for others;
+**Done when:** Google sign-in works for any Google account;
 signing out returns to the landing page; `/api/v1/*` returns 401 without a session; the
 shell works at 375px and 1440px widths; `pnpm build && pnpm lint && pnpm typecheck` pass.
 
@@ -244,8 +252,10 @@ shell works at 375px and 1440px widths; `pnpm build && pnpm lint && pnpm typeche
 - `docker-compose.yml` maps Postgres to host port **5433** (5432 was already taken locally).
 - Env is validated lazily (`serverEnv()`) and at boot from `instrumentation.ts`, so
   `next build` works without secrets but `next dev/start` fails fast.
-- Allowlist is enforced twice: Better Auth `user.validateUserInfo` (create, link and every
-  Google sign-in) and again in `getCurrentUser()`, so removing an email revokes access.
+- The `ALLOWED_EMAILS` allowlist (Better Auth `user.validateUserInfo` + a second check in
+  `getCurrentUser()`) was **removed on 2026-10-03**: sign-up is open. Data isolation is
+  unchanged (every DAL call is scoped by `userId`), but storage and AI spend are no longer
+  bounded by a known set of users, so quotas were added to 6.5.
 
 ---
 
@@ -362,6 +372,9 @@ unit tests for detection, normalization and SSRF guard pass.
   connection (closes the DNS-rebinding gap), plus literal-IP, port and credential checks.
 - Snapshot images are copied to R2 as WebP (`role = preview`); user-uploaded custom
   thumbnails (`role = thumbnail`, `metadata.thumbnailIsCustom`) survive refreshes.
+- R2 keys are `resource/u/<userId>/<fileId>/<name>` (`KEY_PREFIX` in `lib/server/r2.ts`):
+  everything the app writes lives under `<bucket>/resource/`. The full key is stored in
+  `files.r2_key`, so rows written before the prefix change keep resolving.
 - Duplicate warning is shown for single-URL adds; multi-line bulk adds dedupe within the
   batch but don't warn about links saved earlier. Capture returns the existing resource.
 - Masonry uses absolutely positioned items in one parent so a card that changes column
@@ -519,7 +532,7 @@ dragged onto the calendar; reminders fire in-app; the feed imports into Google C
   by job with retries → rows removed.
 - [ ] `/api/cron/[job]` (protected by `CRON_SECRET`, wired in `vercel.json`): retry
   metadata jobs, purge trash older than 30 days, delete `pending` uploads older than 24h,
-  sweep R2 objects with no DB row (only under the app's key prefix, only older than 24h).
+  sweep R2 objects with no DB row (only under the `resource/` prefix, only older than 24h).
 - [ ] Consistent undo toasts for delete, unlink, move, status changes.
 
 ### 6.4 Export
@@ -531,6 +544,9 @@ dragged onto the calendar; reminders fire in-app; the feed imports into Google C
   platform.twitter.com, Pinterest; `img-src` self + R2 endpoint + https), re-read
   `docs/01-app/02-guides/content-security-policy.md` and `data-security.md`.
 - [ ] Rate limits audited on every write and fetch endpoint.
+- [ ] Per-user quotas (sign-up is open): total storage bytes (`USER_STORAGE_QUOTA_MB`,
+  checked in `POST /api/v1/uploads` and before copying snapshot images), resources created
+  per day, metadata fetches per hour. Usage bar in Settings; clear error when a limit is hit.
 - [ ] Ownership tests: a second user can't read or mutate the first user's data via any route.
 - [ ] Accessibility pass: keyboard-only walkthrough, ARIA labels, focus traps in
   dialogs/drawers, contrast checks, reduced motion.
@@ -554,6 +570,325 @@ README lets a fresh clone run in under 15 minutes.
 
 ---
 
+# Extra phases (7–13)
+
+Phases 1–6 are the core product. Everything below is additive: each phase ships on its
+own, follows the same working agreement (section 7), and is only started on request. The
+one hard dependency chain is **7 → 8 → 9**: text has to exist before it can be embedded,
+and retrieval has to work before an assistant is worth having. Phases 10–13 can be pulled
+forward in any order.
+
+## Should search be semantic, and should the app use AI?
+
+Yes to both, as a layer on top of Phase 6 search, not a replacement.
+
+- **Why keyword search alone falls short here.** Most of this library is visual or
+  short-text: reels, pins, tweets, screenshots, videos. A reel saved as "instagram.com/reel/…"
+  has almost no words to match. Postgres FTS only finds what was literally typed into a
+  title, tag or note, so the more you save without organizing, the less findable it gets.
+- **Why semantic search alone also falls short.** Vector search misses exact strings (a
+  repo name, an error code, a URL fragment) that FTS nails. The answer is **hybrid**:
+  run both and fuse the rankings.
+- **The real prerequisite is content, not vectors.** Embedding a bare URL is useless. The
+  win comes from first capturing what each resource _says_ (article text, video
+  transcript, README, an AI description of an image) and summarizing it. That alone
+  improves keyword search before any vector exists, which is why Phase 7 comes first.
+- **AI should suggest, never silently reorganize.** Tags, projects and tasks proposed by
+  a model appear as one-key accept/dismiss chips and are undoable.
+
+## Decisions for the extra phases
+
+| Concern | Choice | Why |
+| --- | --- | --- |
+| LLM provider | **DeepSeek** by default, **Kimi (Moonshot)** as the alternative; both through one OpenAI-compatible client (`openai` SDK with a configurable `baseURL`) in `lib/server/ai/client.ts` | Both speak the OpenAI Chat Completions format, so switching is an env change. Model IDs come from env because they change often |
+| Text model | `deepseek-flash` for enrichment, query parsing and digests; `deepseek-v4-pro` (or `kimi-k3`) for the Phase 9 assistant | Flash is about $0.15–0.30 / $0.60–1.20 per 1M tokens in/out with a 1M context, JSON output and tool calls. The assistant benefits from the stronger model |
+| Vision model | `deepseek-flash` (image input) with `kimi-k2.6` as fallback | Needed to describe screenshots, pins and reel thumbnails. `deepseek-v4-pro` has no image input, so vision calls always go to a vision-capable model |
+| Embeddings | **Voyage AI `voyage-4-lite`**, 1024 dimensions, behind `lib/server/ai/embeddings.ts` | The one job DeepSeek and Kimi can't do: neither offers an embeddings endpoint. Voyage is $0.02 per 1M tokens with 200M tokens free. Alternative with no third provider: a small local model via `@huggingface/transformers`, but it is slow to cold-start on serverless |
+| Vector store | `pgvector` in the same Postgres, `halfvec(1024)` | No new service; Neon supports it; vector, FTS and `user_id` filters live in one SQL query |
+| Rank fusion | Reciprocal Rank Fusion (`1 / (60 + rank)` per arm) | Needs no score normalization between FTS and vector distances |
+| Structured output | `response_format: json_object` + Zod validation, one retry, then mark the job `skipped` | DeepSeek has JSON mode but no strict schema enforcement, and documents occasional empty responses |
+| Background work | Existing `jobs` table + cron. Backfills run in DeepSeek's off-peak window (half price) or Kimi's Batch API (60% of list) | Nothing new to operate |
+| Cost control | `ai_usage` table with a per-user daily token budget; every AI feature is hidden when no key is configured | Sign-up is open, so the server's key needs a ceiling per account |
+| Privacy | Settings → AI: global on/off and a per-resource "exclude from AI"; the settings page names the provider the content is sent to | Saved notes and files can be personal; DeepSeek and Moonshot process data on servers in China, which users should be told |
+| Untrusted content | Fetched page text is data, never instructions: it is passed as quoted context, and any write action proposed by a model needs a click to confirm | A saved web page can contain prompt-injection text |
+
+Rough cost with `deepseek-flash`: enriching one resource (~3k tokens in, ~400 out) is
+about **$0.001**, so 1,000 resources cost around a dollar. Embedding the same 1,000
+resources is a few million tokens, inside Voyage's free allowance. These are estimates
+from list prices on 2026-10-03; re-check before building.
+
+---
+
+## Phase 7 — Content understanding (the AI enrichment pipeline)
+
+**Goal:** every resource knows what it is about: captured text, a short summary, and
+suggested tags and project, without the user typing anything.
+
+### 7.1 Text capture (no AI yet)
+- [ ] Articles and generic links: reader-mode extraction (`@mozilla/readability` +
+  `linkedom`) from the HTML the SSRF-guarded fetcher already downloads → `extracted_text`;
+  sanitized article HTML stored in R2 for the Phase 10 reader.
+- [ ] YouTube: caption transcript with timestamps when one exists (there is no official API
+  for other people's captions, so this is best-effort and falls back to
+  description + chapters from the Data API).
+- [ ] X: post text from oEmbed. GitHub: README (capped). PDFs: `unpdf` (from 6.1). Notes: body text.
+- [ ] `content_status` (none/pending/ok/failed) on `resources`; "Re-extract" action.
+
+### 7.2 Enrichment job (`jobs.kind = 'enrich'`)
+- [ ] Images, Instagram and Pinterest (thumbnail): one vision call → description + any
+  visible text. This is the "OCR for screenshots" item from the old backlog.
+- [ ] One JSON call per resource →
+  `{ summary, keyPoints[], suggestedTags[], suggestedProjectId, kind, language, estMinutes }`
+  (`kind`: tutorial, tool, article, inspiration, reference, discussion, …).
+- [ ] The system prompt + the user's tag list + project tree form a stable prefix (provider
+  prefix caching makes repeats cheap), so suggestions reuse existing tags instead of
+  inventing near-duplicates.
+- [ ] Stored in `resource_ai` with an `input_hash`; re-run only when the input changes.
+- [ ] `ai_usage` metering and the per-user daily budget; over budget → job waits for tomorrow.
+- [ ] "Enrich my library" backfill, scheduled into the off-peak window.
+
+### 7.3 UI
+- [ ] Summary + key points in the detail drawer and on card hover; estimated read/watch time.
+- [ ] Suggestion chips (tags, project): accept with one key, dismiss, "accept all". Optional
+  "auto-apply suggested tags" (off by default); AI-applied tags are marked and bulk-revertible.
+- [ ] Inbox triage (Phase 3 J/K flow) pre-selects the suggested project: Enter accepts.
+- [ ] Settings → AI: on/off, auto-apply, usage this month, provider disclosure.
+- [ ] `extracted_text` and `summary` feed the Phase 6 `tsvector` (weight C).
+
+**Done when:** a saved article, video, repo, tweet and screenshot each get a summary and
+sensible tag suggestions within a minute; keyword search finds a video by something said in
+it; AI can be switched off per user and per resource; budget exhaustion degrades quietly.
+
+---
+
+## Phase 8 — Semantic and hybrid search
+
+**Goal:** find things by meaning ("that video about making dark dashboards feel premium")
+while exact matches still win.
+
+### 8.1 Indexing
+- [ ] Enable `vector` (local Docker image → `pgvector/pgvector:pg16`; Neon: `CREATE EXTENSION`).
+- [ ] `search_chunks`: `id`, `user_id`, `entity_type` (resource/task/project/highlight),
+  `entity_id`, `ordinal`, `content`, `start_seconds`, `embedding halfvec(1024)`,
+  `embedding_model`, `content_hash`.
+- [ ] Chunking: short items (tweet, pin, note, task) are one chunk of title + summary +
+  tags + text. Long items (articles, transcripts, PDFs, READMEs) split at ~600 tokens with
+  overlap, each chunk prefixed with the title and one-line summary so it makes sense alone.
+  Transcript chunks keep their start time.
+- [ ] `embed` job on create/update when `content_hash` changes; chunks removed on permanent delete.
+- [ ] Start with **exact** nearest-neighbour search filtered by `user_id` (one person's
+  library is small, and exact search has perfect recall). Add an HNSW index
+  (`halfvec_cosine_ops`, iterative scan for filtered queries) when a user passes ~50k chunks.
+
+### 8.2 Query
+- [ ] `GET /api/v1/search?mode=hybrid`: FTS arm + vector arm → RRF → group chunks by entity →
+  best chunk becomes the snippet. Trigram title/URL matches get a boost.
+- [ ] Query-embedding cache; automatic fallback to FTS-only if the embedding API is down or
+  the budget is spent.
+- [ ] Natural-language filters: "github repos about auth I saved last month" → the same
+  filter schema as the search page (type, date range, project, tags) + a semantic
+  remainder, shown as editable chips. Runs only on Enter in full search, never per keystroke.
+- [ ] Optional later: a reranker over the top 50; image embeddings
+  (`voyage-multimodal-3.5`) for visual similarity if caption-based search proves weak.
+
+### 8.3 UI
+- [ ] `Cmd/Ctrl+K`: instant FTS results first, then a "Related by meaning" group merges in.
+- [ ] Result snippet shows the passage that matched; YouTube results open at that timestamp.
+- [ ] "More like this" on any card; **Related** panel in the resource drawer.
+- [ ] Task drawer: "Resources that might help" with one-click link. Project page: "Unfiled
+  items that fit this project".
+- [ ] Add dialog: near-duplicate warning (same content, different URL).
+- [ ] Search eval: a golden set of queries over the seed data, recall@10 for FTS vs hybrid,
+  run in CI so ranking changes are measured rather than guessed.
+
+**Done when:** a resource is findable by a paraphrase that shares no words with its title;
+exact-name queries still rank the exact item first; hybrid beats FTS on the eval set; search
+keeps working with the embedding provider unreachable.
+
+---
+
+## Phase 9 — AI assistant
+
+**Goal:** ask questions of your own library and let it do the filing and planning chores.
+
+- [ ] `POST /api/v1/ai/chat` (streaming) with tool calls. Read tools: `search_library`
+  (Phase 8 hybrid), `get_resource`, `list_projects`, `list_tasks`, `get_calendar`. Write
+  tools: `create_task`, `update_task`, `link_resource`, `add_tags`, `move_resource`,
+  `create_project`. Every tool goes through the DAL with the session's `userId`; the model
+  never supplies a user id.
+- [ ] Write tools return a **proposed change** that the user confirms in the UI (with undo).
+  No tool fetches arbitrary URLs.
+- [ ] Assistant panel (right drawer / full page): scope selector (whole library, this
+  project + sub-projects, selected items). Answers cite resources, rendered as the same
+  compact playable cards; video citations jump to the timestamp.
+- [ ] One-click actions outside chat:
+  - **Project brief:** synthesize a project's resources and tasks into a summary + gaps.
+  - **Plan from this resource:** tutorial or video → a task with a checklist (preview → create).
+  - **Compare:** selected resources → comparison table (repos, tools, articles).
+  - **Inbox autopilot:** propose project + tags for every Inbox item, review as a list, "Accept all".
+  - Quick-add fallback: when the deterministic parser recognizes nothing, ask the model.
+- [ ] **Weekly review** (cron): what you saved, grouped by project; stale Inbox items; tasks
+  due next week; three older items worth another look. In-app page, optional email.
+- [ ] `ai_threads`, `ai_messages`; long threads are summarized to stay within budget.
+
+**Done when:** "what did I save about X?" returns a cited answer from the user's own
+resources; "turn this video into tasks" produces an editable checklist; nothing is written
+without confirmation; a second user's data is never reachable through any tool.
+
+---
+
+## Phase 10 — Reader, highlights, archive, link health
+
+**Goal:** saved things stay readable and usable even after the original changes or dies.
+
+- [ ] **Reader view** for articles (the sanitized HTML captured in 7.1): clean typography,
+  reading progress, resume position, "Listen" via the browser's built-in speech synthesis.
+- [ ] **Highlights:** select text → highlight (color + note) in the reader, PDFs, notes
+  and transcripts. `highlights` table with a text-quote anchor (exact + prefix/suffix) or
+  `start_seconds`. Highlights page; highlights are searchable and embedded; Markdown export.
+- [ ] **Video notes:** transcript panel with click-to-seek; press `N` while playing to drop
+  a timestamped note; resume where you left off.
+- [ ] **Page archive** (opt-in, counts toward the storage quota): full-page screenshot + PDF
+  via Cloudflare Browser Rendering (already on Cloudflare for R2; avoids shipping Chromium
+  in a serverless function), stored under `resource/u/<userId>/…` with `files.role = archive`.
+  Free fallback: record the Wayback Machine snapshot URL when one exists.
+- [ ] **Link health:** weekly cron re-checks URLs through the SSRF guard (rate-limited per
+  host) → `link_status` (ok/redirected/dead), `link_checked_at`. Badge on cards, "Broken
+  links" filter, "Open archived copy".
+
+**Done when:** an article reads fully in-app with highlights that survive a refresh; a dead
+link is flagged and its archived copy opens; a YouTube note jumps to its moment.
+
+---
+
+## Phase 11 — Capture everywhere: extension, imports, feeds, rules
+
+**Goal:** getting things in takes one action from anywhere, and existing collections move over.
+
+- [ ] **Browser extension** (MV3, Chrome + Firefox, `extension/` package): popup save with
+  project and tag pickers; context menu (save link, image, selection as a highlight);
+  keyboard shortcut; "already saved" badge. Auth with a personal token.
+- [ ] **Importers** (`/settings/import`), all through the bulk-create path (dedupe, jobs):
+  - Bookmarks HTML (Chrome, Firefox, Safari, Pocket, Raindrop, Karakeep, Linkwarden exports):
+    folders → nested projects, tags and original dates preserved.
+  - CSV (Raindrop, Pocket, Instapaper).
+  - GitHub stars (API). YouTube playlists and Liked videos (incremental Google scope
+    `youtube.readonly`, since sign-in is already Google).
+  - X bookmarks: paste links or upload the data archive (no free API).
+  - Dry-run preview with counts, resumable, and "undo this import" (`import_id` on resources).
+- [ ] **Feeds:** subscribe to RSS/Atom, YouTube channels, GitHub releases. Cron polls with
+  conditional GET; new entries land in the Inbox tagged with the feed, or go straight to a project.
+- [ ] **Rules:** when (type, domain, URL pattern, tag, feed, text contains) → then (add to
+  project, tag, favorite, mark reviewed, skip Inbox). Run on create; "run on existing" with
+  a dry-run count.
+- [ ] Optional mobile paths for iOS, where there is no share target: a Telegram bot and an
+  email-in address (Cloudflare Email Routing → the capture endpoint).
+
+**Done when:** the extension saves the current tab into a chosen project in two clicks; a
+browser bookmarks file imports with its folder tree intact and can be undone; a rule files
+every GitHub repo automatically; a subscribed channel's new video appears in the Inbox.
+
+---
+
+## Phase 12 — Rediscover, smart collections, push, offline, insights
+
+**Goal:** the library works for you after the save, instead of becoming a graveyard.
+
+- [ ] **Rediscover:** a daily handful chosen from unreviewed items older than 30 days,
+  favorites not opened in 90 days, items related to tasks due this week or active projects
+  (Phase 8; falls back to tag/project overlap), and "on this day". Each card: keep, file,
+  snooze, delete.
+- [ ] `last_opened_at`, `open_count` on resources; "Never opened" filter and sort.
+- [ ] **Smart collections:** save any search (filters + optional semantic query) as a
+  sidebar item with a live count.
+- [ ] **Highlight review:** spaced resurfacing of highlights (simple Leitner intervals; needs Phase 10).
+- [ ] **Web Push reminders:** service worker + VAPID (`web-push`), `push_subscriptions`;
+  cron sends due reminders so they fire with the app closed. (Phase 5 reminders only fire
+  while a tab is open.) iOS requires the installed PWA.
+- [ ] **Offline:** cache the shell and the last library page; an offline capture queue
+  (IndexedDB + Background Sync) so a share on a bad connection is never lost.
+- [ ] **Insights:** saves per week by type, Inbox age, task completion, top tags and
+  projects, storage and AI usage.
+
+**Done when:** a reminder arrives as a system notification with no tab open; a link shared
+offline appears once back online; a smart collection updates as matching items are added.
+
+---
+
+## Phase 13 — Sharing, collaboration, MCP, integrations
+
+**Goal:** the hub connects to other people and other tools.
+
+- [ ] **Share links:** public read-only page for a resource or a project (`/s/<token>`):
+  unguessable token, optional expiry, `noindex`, revocable; private notes excluded unless
+  opted in; files served through token-scoped signed URLs.
+- [ ] **Project collaboration:** invite another account as viewer or editor
+  (`project_members`). This changes DAL authorization from "owner" to "member with role"
+  and is the largest change in the plan: it gets its own ownership test suite and should be
+  decided on separately.
+- [ ] **MCP server** (`/api/mcp`, Streamable HTTP, token auth): `search_library`,
+  `get_resource`, `add_resource`, `list_projects`, `list_tasks`, `create_task`. Reuses the
+  Phase 9 tool layer, so assistants like Claude, ChatGPT or Cursor can search and add to
+  the hub.
+- [ ] **Public API + webhooks:** OpenAPI generated from the Zod schemas; webhooks on
+  resource/task created/updated.
+- [ ] **Google Calendar:** one-way push of tasks first (incremental scope), two-way sync after.
+- [ ] **Markdown / Obsidian export:** a zip of resources as Markdown with frontmatter,
+  highlights and tasks, alongside the Phase 6 JSON export.
+
+**Done when:** a shared project opens signed-out and stops working when revoked; an MCP
+client can find and add a resource; a task shows up in Google Calendar.
+
+---
+
+## Extra phases → data model additions
+
+| Table / column | Key columns | Phase |
+| --- | --- | --- |
+| `resources` (new columns) | `content_status`, `link_status`, `link_checked_at`, `last_opened_at`, `open_count`, `ai_excluded`, `import_id` | 7 / 10 / 11 / 12 |
+| `resource_ai` | `resource_id` PK, `summary`, `key_points` jsonb, `suggestions` jsonb, `kind`, `language`, `est_minutes`, `model`, `input_hash` | 7 |
+| `ai_usage` | `user_id`, `day`, `feature`, `input_tokens`, `output_tokens` | 7 |
+| `user_settings` (new columns) | `ai_enabled`, `ai_auto_apply_tags`, `archive_enabled` | 7 / 10 |
+| `search_chunks` | see 8.1 | 8 |
+| `ai_threads`, `ai_messages` | `id`, `user_id`, `scope` jsonb; `thread_id`, `role`, `content` jsonb | 9 |
+| `highlights` | `id`, `user_id`, `resource_id`, `anchor` jsonb, `text`, `note`, `color`, `review_due_at` | 10 / 12 |
+| `imports` | `id`, `user_id`, `source`, `status`, `counts` jsonb | 11 |
+| `feeds` | `id`, `user_id`, `url`, `kind`, `target_project_id`, `etag`, `last_polled_at` | 11 |
+| `rules` | `id`, `user_id`, `conditions` jsonb, `actions` jsonb, `sort_key`, `enabled` | 11 |
+| `saved_searches` | `id`, `user_id`, `name`, `query` jsonb, `sort_key` | 12 |
+| `push_subscriptions` | `id`, `user_id`, `endpoint`, `keys` jsonb | 12 |
+| `shares` | `id`, `user_id`, `entity_type`, `entity_id`, `token_hash`, `expires_at`, `revoked_at` | 13 |
+| `project_members` | PK(`project_id`, `user_id`), `role` | 13 |
+
+## Extra phases → environment variables
+
+All optional: a feature is hidden when its variables are missing.
+
+| Variable | Phase | Purpose |
+| --- | --- | --- |
+| `AI_PROVIDER` | 7 | `deepseek` (default) or `kimi` |
+| `AI_BASE_URL` / `AI_API_KEY` | 7 | OpenAI-compatible endpoint + key (`https://api.deepseek.com` or `https://api.moonshot.ai/v1`) |
+| `AI_MODEL` / `AI_VISION_MODEL` / `AI_CHAT_MODEL` | 7 / 9 | Defaults `deepseek-flash` / `deepseek-flash` / `deepseek-v4-pro` |
+| `AI_DAILY_TOKEN_BUDGET` | 7 | Per-user daily cap |
+| `EMBEDDING_API_KEY` / `EMBEDDING_MODEL` / `EMBEDDING_DIMENSIONS` | 8 | Voyage key, `voyage-4-lite`, `1024` |
+| `CF_BROWSER_RENDERING_TOKEN` | 10 | Page screenshots and PDFs |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | 12 | Web Push |
+| `RESEND_API_KEY` | 9 / 12 | Optional email for the weekly review |
+
+## Extra phases → risks
+
+| Risk | Mitigation |
+| --- | --- |
+| Model output isn't valid JSON, or comes back empty | Zod validation, one retry, then `skipped`; the card simply shows no suggestions |
+| Provider model IDs and prices change | IDs and base URL live in env; one client module; embeddings store `embedding_model` so a re-embed is a background job |
+| Prompt injection from saved pages | Content is quoted context only; write tools need user confirmation; no URL-fetching tool; tools are `userId`-scoped in the DAL |
+| AI spend with open sign-up | Per-user daily budget, off-peak backfills, enrichment only on content change (`input_hash`) |
+| Unofficial transcript and scraping endpoints break | Best-effort with fallbacks; failures never block saving |
+| Semantic search quality is unclear | The eval set in 8.3 decides, not intuition; FTS remains the baseline and the fallback |
+| Collaboration breaks the "everything is `user_id`-scoped" rule | Kept last, behind its own design review and ownership test suite |
+
+---
+
 ## 4. Environment variables
 
 | Variable | Required | Purpose |
@@ -562,16 +897,18 @@ README lets a fresh clone run in under 15 minutes.
 | `BETTER_AUTH_SECRET` | yes | Session signing secret (32+ random bytes) |
 | `BETTER_AUTH_URL` | yes | App base URL (e.g. `http://localhost:3000`) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | yes | Google OAuth client (redirect `…/api/auth/callback/google`) |
-| `ALLOWED_EMAILS` | yes | Comma-separated emails allowed to sign in |
 | `R2_ACCOUNT_ID` | yes | Cloudflare account ID (endpoint `https://<id>.r2.cloudflarestorage.com`) |
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | yes | R2 API token (object read/write on the bucket) |
 | `R2_BUCKET` | yes | Private bucket name |
 | `UPLOAD_MAX_IMAGE_MB` / `UPLOAD_MAX_FILE_MB` | no | Upload limits (defaults 20 / 50) |
+| `USER_STORAGE_QUOTA_MB` | no | Per-user storage cap (Phase 6.5, default 1024) |
 | `CRON_SECRET` | yes (prod) | Protects `/api/cron/*` |
 | `GITHUB_TOKEN` | no | Higher GitHub API rate limit |
 | `YOUTUBE_API_KEY` | no | Published date / duration for YouTube |
 | `META_OEMBED_TOKEN` | no | Instagram oEmbed (`app_id|client_token`) |
 | `SEED_USER_EMAIL` | no | Target user for `pnpm db:seed` |
+
+Variables added by the extra phases are listed in "Extra phases → Environment variables".
 
 ---
 
@@ -607,8 +944,9 @@ README lets a fresh clone run in under 15 minutes.
 | Embed scripts (X, Pinterest, Instagram) slow pages | Click-to-load facades, IntersectionObserver mounting, one script loader per platform |
 | Recurrence edge cases (DST, all-day, exceptions) | Store rrule with timezone, expand with `rrule` in user tz, focused unit tests |
 | Serverless background work is lost | `after()` for the fast path, `jobs` table + cron for retries |
-| R2 orphans from abandoned uploads | `pending` status + 24h sweep, key prefix per user (`u/<userId>/…`) |
-| Scope creep in a large spec | Each phase has explicit "done when" criteria; extras go to a backlog section |
+| R2 orphans from abandoned uploads | `pending` status + 24h sweep, key prefix per user (`resource/u/<userId>/…`) |
+| Open sign-up: strangers fill storage or burn API budget | Per-user storage and rate quotas (6.5), per-user daily AI budget (Phase 7), AI features off when no key is set |
+| Scope creep in a large spec | Each phase has explicit "done when" criteria; extras live in phases 7–13 and are only started on request |
 
 ## 7. Working agreement for implementation
 
@@ -621,5 +959,7 @@ README lets a fresh clone run in under 15 minutes.
 
 ## Backlog (not in scope unless requested)
 
-OCR for screenshots, browser extension, offline mode, multi-user sharing, AI
-summaries/auto-tagging, Google Calendar two-way sync.
+Everything that used to be listed here (OCR for screenshots, browser extension, offline
+mode, sharing, AI summaries/auto-tagging, Google Calendar sync) now has a home in the
+extra phases 7–13. Still unplanned: native mobile apps, text-to-speech with a hosted
+voice model, a graph view of related resources, team workspaces with billing.

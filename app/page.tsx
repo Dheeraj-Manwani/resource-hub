@@ -6,7 +6,6 @@ import { getCurrentUser } from "@/lib/server/dal/session"
 import { safeNext } from "@/lib/safe-next"
 
 const ERRORS: Record<string, string> = {
-  not_allowed: "That Google account isn't allowed to use this hub.",
   access_denied: "Sign-in was cancelled.",
 }
 
@@ -44,7 +43,7 @@ export default async function LandingPage(props: PageProps<"/">) {
           </p>
         ) : null}
         <p className="mt-10 text-xs text-subtle">
-          Private hub · invited accounts only
+          Your library is private to your account
         </p>
       </div>
     </main>

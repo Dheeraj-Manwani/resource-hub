@@ -44,10 +44,13 @@ export function isStorageConfigured() {
   return r2Env() !== null
 }
 
-/** Every object lives under the owner's prefix: `u/<userId>/<fileId>/<name>`. */
+/** Everything this app stores sits under `resource/` in the bucket. */
+export const KEY_PREFIX = "resource/"
+
+/** Every object lives under the owner's prefix: `resource/u/<userId>/<fileId>/<name>`. */
 export function objectKey(userId: string, fileId: string, suffix: string) {
   const safe = suffix.replace(/[^\w.-]+/g, "_").slice(-80) || "file"
-  return `u/${userId}/${fileId}/${safe}`
+  return `${KEY_PREFIX}u/${userId}/${fileId}/${safe}`
 }
 
 /** Presigned PUT with Content-Type and Content-Length signed (R2 enforces them). */
