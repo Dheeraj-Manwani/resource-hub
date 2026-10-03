@@ -54,7 +54,8 @@
 
   /* Shape and motion */
   --radius: 0.625rem;
-  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px rgb(0 0 0 / 0.35);
+  --shadow-card:
+    0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px rgb(0 0 0 / 0.35);
   --shadow-popover: 0 12px 40px rgb(0 0 0 / 0.55);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 120ms;
@@ -230,6 +231,35 @@
   .prose-dark :where(ul[data-type="taskList"] li) {
     @apply flex items-start gap-2;
   }
+  .prose-dark :where(ul[data-type="taskList"] li > label) {
+    @apply mt-0.5 flex shrink-0 cursor-pointer items-center select-none;
+  }
+  .prose-dark :where(ul[data-type="taskList"] li > div) {
+    @apply min-w-0 flex-1;
+  }
+  .prose-dark :where(ul[data-type="taskList"] input[type="checkbox"]) {
+    @apply relative size-4 shrink-0 cursor-pointer appearance-none rounded border border-input bg-transparent transition-colors checked:border-brand checked:bg-brand;
+  }
+  .prose-dark :where(ul[data-type="taskList"] input[type="checkbox"])::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+    border-style: solid;
+    border-color: var(--brand-fg);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    opacity: 0;
+  }
+  .prose-dark
+    :where(ul[data-type="taskList"] input[type="checkbox"]:checked)::after {
+    opacity: 1;
+  }
+  .prose-dark :where(ul[data-type="taskList"] li[data-checked="true"] > div) {
+    @apply text-text-muted line-through;
+  }
   .prose-dark :where(a) {
     @apply text-brand underline underline-offset-2 hover:text-brand-hover;
   }
@@ -276,7 +306,11 @@
     --fc-now-indicator-color: var(--brand);
     --fc-event-border-color: transparent;
     --fc-event-text-color: var(--brand-fg);
-    --fc-list-event-hover-bg-color: color-mix(in oklab, var(--surface-raised) 100%, transparent);
+    --fc-list-event-hover-bg-color: color-mix(
+      in oklab,
+      var(--surface-raised) 100%,
+      transparent
+    );
     --fc-small-font-size: 0.75rem;
     font-family: inherit;
     color: var(--text);

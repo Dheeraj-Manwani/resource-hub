@@ -16,7 +16,11 @@ import { TypeIcon } from "@/components/resources/type-icon"
 import { useTagSearch } from "@/hooks/queries/resources"
 import { useSearch } from "@/hooks/queries/search"
 import { useDetailDrawer } from "@/hooks/use-detail-drawer"
-import { RESOURCE_TYPES, RESOURCE_TYPE_LABELS, type ResourceType } from "@/lib/resources/types"
+import {
+  RESOURCE_TYPES,
+  RESOURCE_TYPE_LABELS,
+  type ResourceType,
+} from "@/lib/resources/types"
 import { formatDate } from "@/lib/format"
 import type { SearchHit } from "@/lib/server/dal/search"
 import { Input } from "@/components/ui/input"
@@ -59,8 +63,12 @@ export function SearchView() {
   const query = useMemo(
     () => ({
       q: q.trim() || undefined,
-      type: type === ALL ? undefined : (type as "resource" | "task" | "project" | "tag"),
-      resourceType: resourceType === ALL ? undefined : (resourceType as ResourceType),
+      type:
+        type === ALL
+          ? undefined
+          : (type as "resource" | "task" | "project" | "tag"),
+      resourceType:
+        resourceType === ALL ? undefined : (resourceType as ResourceType),
       tag: tag === ALL ? undefined : tag,
       favorite: favorite || undefined,
       linked: linked || undefined,
@@ -73,7 +81,10 @@ export function SearchView() {
 
   const { data, isFetching } = useSearch(query)
   const total = data
-    ? data.resources.length + data.tasks.length + data.projects.length + data.tags.length
+    ? data.resources.length +
+      data.tasks.length +
+      data.projects.length +
+      data.tags.length
     : 0
 
   function onSelect(hit: SearchHit) {
@@ -96,19 +107,28 @@ export function SearchView() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search everything…"
-          className="h-11 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+          className="h-11 border-0 px-3.5 shadow-none focus-visible:ring-0"
           autoFocus
         />
       </div>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <Select value={type} onValueChange={(v) => setType(v ?? ALL)}>
-          <SelectTrigger size="sm" aria-label="Filter by entity type" className="min-w-28">
+          <SelectTrigger
+            size="sm"
+            aria-label="Filter by entity type"
+            className="min-w-28"
+          >
             <SelectValue>
               {(v: string) =>
                 v === ALL
                   ? "Everything"
-                  : { resource: "Resources", task: "Tasks", project: "Projects", tag: "Tags" }[v]
+                  : {
+                      resource: "Resources",
+                      task: "Tasks",
+                      project: "Projects",
+                      tag: "Tags",
+                    }[v]
               }
             </SelectValue>
           </SelectTrigger>
@@ -122,10 +142,23 @@ export function SearchView() {
         </Select>
 
         {type === "resource" || type === ALL ? (
-          <Select value={resourceType} onValueChange={(v) => setResourceType(v ?? ALL)}>
-            <SelectTrigger size="sm" aria-label="Filter by resource type" className="min-w-32">
+          <Select
+            value={resourceType}
+            onValueChange={(v) => setResourceType(v ?? ALL)}
+          >
+            <SelectTrigger
+              size="sm"
+              aria-label="Filter by resource type"
+              className="min-w-32"
+            >
               <SelectValue>
-                {(v: string) => (v === ALL ? "All types" : RESOURCE_TYPE_LABELS[v as keyof typeof RESOURCE_TYPE_LABELS])}
+                {(v: string) =>
+                  v === ALL
+                    ? "All types"
+                    : RESOURCE_TYPE_LABELS[
+                        v as keyof typeof RESOURCE_TYPE_LABELS
+                      ]
+                }
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -141,9 +174,17 @@ export function SearchView() {
         ) : null}
 
         <Select value={tag} onValueChange={(v) => setTag(v ?? ALL)}>
-          <SelectTrigger size="sm" aria-label="Filter by tag" className="min-w-28">
+          <SelectTrigger
+            size="sm"
+            aria-label="Filter by tag"
+            className="min-w-28"
+          >
             <SelectValue>
-              {(v: string) => (v === ALL ? "All tags" : `#${tags.find((t) => t.id === v)?.name ?? "tag"}`)}
+              {(v: string) =>
+                v === ALL
+                  ? "All tags"
+                  : `#${tags.find((t) => t.id === v)?.name ?? "tag"}`
+              }
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -157,7 +198,10 @@ export function SearchView() {
         </Select>
 
         <ToggleGroup
-          value={[...(favorite ? ["favorite"] : []), ...(linked ? ["linked"] : [])]}
+          value={[
+            ...(favorite ? ["favorite"] : []),
+            ...(linked ? ["linked"] : []),
+          ]}
           onValueChange={(values: string[]) => {
             setFavorite(values.includes("favorite"))
             setLinked(values.includes("linked"))
@@ -198,7 +242,11 @@ export function SearchView() {
           description="Type a query or set a filter above. Matches on title, notes, description and extracted text are highlighted; typos are tolerated."
         />
       ) : total === 0 && !isFetching ? (
-        <EmptyState icon={SearchIcon} title="Nothing found" description="Try a different query or loosen a filter." />
+        <EmptyState
+          icon={SearchIcon}
+          title="Nothing found"
+          description="Try a different query or loosen a filter."
+        />
       ) : (
         <div className="space-y-8">
           {ENTITY_SECTIONS.map(({ key, label, icon: Icon }) => {
@@ -223,7 +271,9 @@ export function SearchView() {
                           {hit.entityType === "resource" && hit.resourceType ? (
                             <TypeIcon type={hit.resourceType} />
                           ) : null}
-                          <span className="truncate font-medium">{hit.title}</span>
+                          <span className="truncate font-medium">
+                            {hit.title}
+                          </span>
                           <span className="shrink-0 text-xs text-subtle">
                             {formatDate(hit.createdAt)}
                           </span>
