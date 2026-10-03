@@ -79,7 +79,7 @@ export function CaptureClient({
               className="mt-3"
               variant="outline"
               nativeButton={false}
-              render={<Link href={`/inbox?r=${state.resource.id}`} />}
+              render={<Link href={`/resources?filter=independent&r=${state.resource.id}`} />}
             >
               Open
             </Button>
@@ -92,7 +92,7 @@ export function CaptureClient({
               className="mt-3"
               variant="outline"
               nativeButton={false}
-              render={<Link href="/inbox" />}
+              render={<Link href="/resources?filter=independent" />}
             >
               Go to Inbox
             </Button>

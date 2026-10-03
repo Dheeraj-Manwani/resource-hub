@@ -241,10 +241,10 @@ export function OverviewView({ userName }: { userName: string }) {
         </Panel>
 
         <Panel>
-          <PanelHeader eyebrow="Library snapshot" title="Your stuff" />
+          <PanelHeader eyebrow="Resources snapshot" title="Your stuff" />
           <div className="space-y-2">
             <StatRow
-              href="/inbox"
+              href="/resources?filter=independent"
               icon={InboxIcon}
               label="Inbox"
               value={resources.inbox}
@@ -261,7 +261,7 @@ export function OverviewView({ userName }: { userName: string }) {
             />
           </div>
           <div className="mt-3">
-            <PanelLink href="/library">Visit library →</PanelLink>
+            <PanelLink href="/resources">Visit resources →</PanelLink>
           </div>
         </Panel>
       </div>
@@ -271,7 +271,7 @@ export function OverviewView({ userName }: { userName: string }) {
           <PanelHeader
             eyebrow="Just saved"
             title="Recently collected"
-            action={<PanelLink href="/library">Visit library →</PanelLink>}
+            action={<PanelLink href="/resources">Visit resources →</PanelLink>}
           />
           {resources.recent.length ? (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -309,7 +309,7 @@ export function OverviewView({ userName }: { userName: string }) {
           ) : (
             <EmptyState
               icon={LibraryBigIcon}
-              title="Your library starts here"
+              title="Your resources start here"
               description="Save a useful page, a thought, or a file for later."
             />
           )}

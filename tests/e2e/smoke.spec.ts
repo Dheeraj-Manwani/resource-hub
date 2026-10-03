@@ -21,8 +21,8 @@ test("a failed sign-in shows an explanation", async ({ page }) => {
 test("app pages redirect signed-out visitors to the landing page", async ({
   page,
 }) => {
-  await page.goto("/library")
-  await expect(page).toHaveURL(/\/\?next=%2Flibrary$/)
+  await page.goto("/resources")
+  await expect(page).toHaveURL(/\/\?next=%2Fresources$/)
 })
 
 test("API returns 401 without a session", async ({ request }) => {

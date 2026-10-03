@@ -46,6 +46,7 @@ import {
 import { cn } from "@/lib/utils"
 
 import { FocusView } from "./focus-view"
+import { InboxTriageBar } from "./inbox-triage"
 import { useLightbox } from "./lightbox/lightbox-provider"
 import { Masonry } from "./masonry"
 import { ResourceCard } from "./resource-card"
@@ -78,6 +79,9 @@ const VIEWS: { value: View; label: string; icon: LucideIcon }[] = [
 const ALL = "__all"
 
 function FilterBar({
+  independentFilter,
+  independentOnly,
+  setIndependentOnly,
   type,
   setType,
   tag,
@@ -95,6 +99,9 @@ function FilterBar({
   selectMode,
   onToggleSelectMode,
 }: {
+  independentFilter?: boolean
+  independentOnly: boolean
+  setIndependentOnly: (v: boolean) => void
   type: ResourceType | undefined
   setType: (t: ResourceType | undefined) => void
   tag: string | undefined
@@ -115,6 +122,22 @@ function FilterBar({
   const { data: tags = [] } = useTagSearch("")
   return (
     <div className="mb-5 flex flex-wrap items-center gap-2">
+      {independentFilter ? (
+        <ToggleGroup
+          value={[independentOnly ? "independent" : "all"]}
+          onValueChange={(values: string[]) => {
+            const next = values[0]
+            if (next) setIndependentOnly(next === "independent")
+          }}
+          variant="outline"
+          size="sm"
+          aria-label="Filter by linkage"
+        >
+          <ToggleGroupItem value="all">All</ToggleGroupItem>
+          <ToggleGroupItem value="independent">Independent</ToggleGroupItem>
+        </ToggleGroup>
+      ) : null}
+
       <Select
         value={type ?? ALL}
         onValueChange={(v) =>
@@ -278,6 +301,10 @@ export function LibraryView({
   emptyDescription,
   headerActions,
   hideHeader,
+  independentFilter,
+  initialIndependent,
+  emptyTitleIndependent,
+  emptyDescriptionIndependent,
 }: {
   title: React.ReactNode
   description?: React.ReactNode
@@ -288,6 +315,12 @@ export function LibraryView({
   headerActions?: React.ReactNode
   /** Skip the built-in title/description header (a custom one is rendered above). */
   hideHeader?: boolean
+  /** Show the All/Independent toggle and the inbox triage bar. */
+  independentFilter?: boolean
+  initialIndependent?: boolean
+  /** Empty-state copy shown while the Independent filter is active. */
+  emptyTitleIndependent?: string
+  emptyDescriptionIndependent?: string
 }) {
   const { openAddResource } = useShell()
   const { openResource } = useDetailDrawer()
@@ -297,6 +330,9 @@ export function LibraryView({
   const updateSettings = useUpdateSettings()
   const view = settings?.libraryView ?? initialSettings.libraryView
 
+  const [independentOnly, setIndependentOnly] = useState(
+    initialIndependent ?? false
+  )
   const [type, setType] = useState<ResourceType | undefined>()
   const [tag, setTag] = useState<string | undefined>()
   const [favorite, setFavorite] = useState(false)
@@ -311,6 +347,7 @@ export function LibraryView({
   const filters: ResourceFilters = useMemo(
     () => ({
       ...baseFilters,
+      ...(independentFilter ? { unsorted: independentOnly || undefined } : null),
       type,
       tag,
       favorite: favorite || undefined,
@@ -319,7 +356,17 @@ export function LibraryView({
       sort: SORTS[sort].sort,
       order: SORTS[sort].order,
     }),
-    [baseFilters, type, tag, favorite, hasTasks, reviewed, sort]
+    [
+      baseFilters,
+      independentFilter,
+      independentOnly,
+      type,
+      tag,
+      favorite,
+      hasTasks,
+      reviewed,
+      sort,
+    ]
   )
   const query = useResourceList(filters)
   const items = useMemo(
@@ -420,8 +467,16 @@ export function LibraryView({
     ) : (
       <EmptyState
         icon={FileExclamationPoint}
-        title={emptyTitle}
-        description={emptyDescription}
+        title={
+          independentFilter && independentOnly && emptyTitleIndependent
+            ? emptyTitleIndependent
+            : emptyTitle
+        }
+        description={
+          independentFilter && independentOnly && emptyDescriptionIndependent
+            ? emptyDescriptionIndependent
+            : emptyDescription
+        }
       >
         <Button onClick={() => openAddResource()}>
           <PlusIcon />
@@ -464,6 +519,9 @@ export function LibraryView({
         />
       )}
       <FilterBar
+        independentFilter={independentFilter}
+        independentOnly={independentOnly}
+        setIndependentOnly={setIndependentOnly}
         type={type}
         setType={setType}
         tag={tag}
@@ -498,6 +556,7 @@ export function LibraryView({
           onClear={() => setSelected(new Set())}
         />
       ) : null}
+      {independentFilter && independentOnly ? <InboxTriageBar /> : null}
     </>
   )
 }

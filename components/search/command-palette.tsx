@@ -5,7 +5,6 @@ import { Command } from "cmdk"
 import {
   CalendarDaysIcon,
   FolderIcon,
-  InboxIcon,
   LayoutDashboardIcon,
   LibraryBigIcon,
   ListPlusIcon,
@@ -27,8 +26,7 @@ import type { SearchResults } from "@/lib/server/dal/search"
 
 const NAV_ACTIONS = [
   { label: "Overview", href: "/overview", icon: LayoutDashboardIcon },
-  { label: "Library", href: "/library", icon: LibraryBigIcon },
-  { label: "Inbox", href: "/inbox", icon: InboxIcon },
+  { label: "Resources", href: "/resources", icon: LibraryBigIcon },
   { label: "Tasks", href: "/tasks", icon: ListTodoIcon },
   { label: "Calendar", href: "/calendar", icon: CalendarDaysIcon },
   { label: "Tags", href: "/tags", icon: TagIcon },

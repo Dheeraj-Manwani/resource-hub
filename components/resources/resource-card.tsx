@@ -1,7 +1,12 @@
 "use client"
 
 import { useDraggable } from "@dnd-kit/core"
-import { ExternalLinkIcon, PanelRightOpenIcon, StarIcon } from "lucide-react"
+import {
+  Edit,
+  ExternalLinkIcon,
+  PanelRightOpenIcon,
+  StarIcon,
+} from "lucide-react"
 import { memo } from "react"
 
 import { resourceDragId } from "@/components/projects/project-dnd"
@@ -12,7 +17,12 @@ import type { ResourceDto } from "@/lib/resources/dto"
 import { displayTitle } from "@/lib/resources/dto"
 import { cn } from "@/lib/utils"
 
-import { MetadataStatusNote, ProjectChips, TagChips, TaskCountChip } from "./cards/card-parts"
+import {
+  MetadataStatusNote,
+  ProjectChips,
+  TagChips,
+  TaskCountChip,
+} from "./cards/card-parts"
 import { GithubCardBody } from "./cards/github-card"
 import {
   FileCardBody,
@@ -76,7 +86,10 @@ export const ResourceCard = memo(function ResourceCard({
     data: { type: "resource", resourceId: resource.id, resource },
     disabled: selectable,
   })
-  const dragProps = { ...(!selectable ? { ...listeners, ...attributes } : {}), tabIndex: 0 }
+  const dragProps = {
+    ...(!selectable ? { ...listeners, ...attributes } : {}),
+    tabIndex: 0,
+  }
 
   return (
     <article
@@ -180,7 +193,7 @@ export const ResourceCard = memo(function ResourceCard({
           className="hidden bg-black/70 backdrop-blur group-hover/card:inline-flex hover:bg-black/90"
           onClick={() => onOpen(resource.id)}
         >
-          <PanelRightOpenIcon />
+          <Edit />
         </Button>
       </div>
     </article>

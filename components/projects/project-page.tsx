@@ -72,8 +72,8 @@ function Breadcrumbs({ projectId }: { projectId: string }) {
   if (!data) return null
   return (
     <nav aria-label="Breadcrumb" className="mb-1 flex flex-wrap items-center gap-1 text-sm text-subtle">
-      <Link href="/library" className="hover:text-text-muted hover:underline">
-        Library
+      <Link href="/resources" className="hover:text-text-muted hover:underline">
+        Resources
       </Link>
       {data.ancestors.map((p) => (
         <span key={p.id} className="flex items-center gap-1">
@@ -130,7 +130,7 @@ function ProjectMenu({ projectId }: { projectId: string }) {
         onConfirm={(mode) => {
           deleteProject.mutate(
             { id: projectId, mode },
-            { onSuccess: () => router.push("/library") }
+            { onSuccess: () => router.push("/resources") }
           )
           setDeleting(false)
         }}

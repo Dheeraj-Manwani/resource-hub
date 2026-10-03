@@ -50,6 +50,16 @@ const cspHeader = `
   .trim()
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      { source: "/library", destination: "/resources", permanent: false },
+      {
+        source: "/inbox",
+        destination: "/resources?filter=independent",
+        permanent: false,
+      },
+    ]
+  },
   async headers() {
     return [
       {
