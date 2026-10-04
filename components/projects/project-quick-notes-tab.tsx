@@ -2,12 +2,14 @@
 
 import { ListPlusIcon, NotebookPenIcon, PlusIcon } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
 
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { EmptyState } from "@/components/empty-state"
 import {
   QuickNoteDialog,
   type QuickNoteDraft,
+  type SaveOpts,
 } from "@/components/quick-notes/quick-note-dialog"
 import { QuickNoteCard } from "@/components/quick-notes/quick-note-card"
 import { Button } from "@/components/ui/button"
@@ -66,20 +68,22 @@ export function ProjectQuickNotesTab({
     })
   }
 
-  function handleSave(next: QuickNoteDraft) {
+  function handleSave(next: QuickNoteDraft, opts: SaveOpts) {
     const payload = {
       projectId: next.projectId,
       title: next.title || null,
       bodyJson: next.bodyJson,
       bodyText: next.bodyText,
     }
+    const onSuccess = (note: QuickNoteDto) => {
+      opts.onSaved(note.id)
+      toast.success("Note saved")
+      if (!opts.keepOpen) setDraft(null)
+    }
     if (next.id) {
-      updateNote.mutate(
-        { id: next.id, ...payload },
-        { onSuccess: () => setDraft(null) }
-      )
+      updateNote.mutate({ id: next.id, ...payload }, { onSuccess })
     } else {
-      createNote.mutate(payload, { onSuccess: () => setDraft(null) })
+      createNote.mutate(payload, { onSuccess })
     }
   }
 

@@ -2,6 +2,7 @@
 
 import { NotebookPenIcon, PlusIcon } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
 
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { EmptyState } from "@/components/empty-state"
@@ -17,7 +18,11 @@ import {
 import type { QuickNoteDto } from "@/lib/quick-notes/dto"
 
 import { QuickNoteCard } from "./quick-note-card"
-import { QuickNoteDialog, type QuickNoteDraft } from "./quick-note-dialog"
+import {
+  QuickNoteDialog,
+  type QuickNoteDraft,
+  type SaveOpts,
+} from "./quick-note-dialog"
 
 export function QuickNotesView() {
   const { data: notes = [], isPending } = useQuickNotes()
@@ -50,20 +55,22 @@ export function QuickNotesView() {
     })
   }
 
-  function handleSave(next: QuickNoteDraft) {
+  function handleSave(next: QuickNoteDraft, opts: SaveOpts) {
     const payload = {
       projectId: next.projectId,
       title: next.title || null,
       bodyJson: next.bodyJson,
       bodyText: next.bodyText,
     }
+    const onSuccess = (note: QuickNoteDto) => {
+      opts.onSaved(note.id)
+      toast.success("Note saved")
+      if (!opts.keepOpen) setDraft(null)
+    }
     if (next.id) {
-      updateNote.mutate(
-        { id: next.id, ...payload },
-        { onSuccess: () => setDraft(null) }
-      )
+      updateNote.mutate({ id: next.id, ...payload }, { onSuccess })
     } else {
-      createNote.mutate(payload, { onSuccess: () => setDraft(null) })
+      createNote.mutate(payload, { onSuccess })
     }
   }
 

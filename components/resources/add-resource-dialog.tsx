@@ -92,14 +92,18 @@ function UploadRow({ item }: { item: UploadItem }) {
 
 function DialogBody({
   initialText,
+  initialProjectIds,
   onClose,
 }: {
   initialText?: string
+  initialProjectIds?: string[]
   onClose: () => void
 }) {
   const [text, setText] = useState(initialText ?? "")
   const [tags, setTags] = useState<string[]>([])
-  const [projectIds, setProjectIds] = useState<string[]>([])
+  const [projectIds, setProjectIds] = useState<string[]>(
+    initialProjectIds ?? []
+  )
   const [typeOverride, setTypeOverride] = useState<ResourceType | null>(null)
   const [duplicate, setDuplicate] = useState<Duplicate | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -412,6 +416,7 @@ export function AddResourceDialog() {
         {addResource.open ? (
           <DialogBody
             initialText={addResource.initialText}
+            initialProjectIds={addResource.initialProjectIds}
             onClose={closeAddResource}
           />
         ) : null}

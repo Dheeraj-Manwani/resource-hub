@@ -47,13 +47,24 @@ type LiveDraft = {
   bodyText: string | null
 }
 
-function isDirty(draft: QuickNoteDraft, live: LiveDraft) {
-  if (live.projectId !== draft.projectId) return true
-  if (live.title !== draft.title) return true
-  if ((live.bodyText ?? "") !== (draft.bodyText ?? "")) return true
+export type SaveOpts = {
+  /** False for the Save button and "Save & Exit": the dialog closes once
+   * the save succeeds. True for Ctrl/Cmd+S: the note saves in place and
+   * editing continues. */
+  keepOpen: boolean
+  /** The caller reports the id the backend assigned (or kept) for this
+   * save, so a later save in the same session updates that note instead
+   * of creating another one. */
+  onSaved: (id: string) => void
+}
+
+function isDirty(baseline: LiveDraft, live: LiveDraft) {
+  if (live.projectId !== baseline.projectId) return true
+  if (live.title !== baseline.title) return true
+  if ((live.bodyText ?? "") !== (baseline.bodyText ?? "")) return true
   return (
     JSON.stringify(live.bodyJson ?? null) !==
-    JSON.stringify(draft.bodyJson ?? null)
+    JSON.stringify(baseline.bodyJson ?? null)
   )
 }
 
@@ -225,10 +236,26 @@ export function QuickNoteDialog({
 }: {
   draft: QuickNoteDraft | null
   onOpenChange: (open: boolean) => void
-  onSave: (next: QuickNoteDraft) => void
+  onSave: (next: QuickNoteDraft, opts: SaveOpts) => void
   saving: boolean
 }) {
   const live = useRef<LiveDraft>({
+    projectId: null,
+    title: "",
+    bodyJson: null,
+    bodyText: null,
+  })
+  // Tracks which note a save actually lands on. Starts at the opened
+  // draft's id (or null for a brand-new note) and picks up the id the
+  // backend assigns once a keep-open save (Ctrl/Cmd+S) creates that note,
+  // so a later save in the same session updates it instead of creating a
+  // second one.
+  const savedId = useRef<string | null>(draft?.id ?? null)
+  // What the dirty check compares against — the last-persisted content.
+  // Re-seeded from `draft` on open, and advanced to the just-saved snapshot
+  // after every successful save (including a keep-open Ctrl/Cmd+S), so
+  // saving never leaves the dialog looking dirty.
+  const baseline = useRef<LiveDraft>({
     projectId: null,
     title: "",
     bodyJson: null,
@@ -239,6 +266,7 @@ export function QuickNoteDialog({
   // Re-seed the "current" snapshot every time a (possibly different) note
   // is opened, so the dirty check always compares against the right note.
   useEffect(() => {
+    savedId.current = draft?.id ?? null
     live.current = draft
       ? {
           projectId: draft.projectId,
@@ -247,6 +275,7 @@ export function QuickNoteDialog({
           bodyText: draft.bodyText,
         }
       : { projectId: null, title: "", bodyJson: null, bodyText: null }
+    baseline.current = live.current
   }, [draft])
 
   // Closing/reloading the tab mid-edit would otherwise silently drop
@@ -254,7 +283,7 @@ export function QuickNoteDialog({
   useEffect(() => {
     if (!draft) return
     function handleBeforeUnload(e: BeforeUnloadEvent) {
-      if (!draft || !isDirty(draft, live.current)) return
+      if (!draft || !isDirty(baseline.current, live.current)) return
       e.preventDefault()
       e.returnValue = ""
     }
@@ -262,29 +291,46 @@ export function QuickNoteDialog({
     return () => window.removeEventListener("beforeunload", handleBeforeUnload)
   }, [draft])
 
+  // Ctrl/Cmd+S saves instead of triggering the browser's "Save page" dialog.
+  useEffect(() => {
+    if (!draft) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "s") return
+      e.preventDefault()
+      if (saving) return
+      triggerSave(true)
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [draft, saving])
+
   function updateLive(patch: Partial<LiveDraft>) {
     live.current = { ...live.current, ...patch }
   }
 
   function requestClose() {
     if (saving) return
-    if (draft && isDirty(draft, live.current)) {
+    if (draft && isDirty(baseline.current, live.current)) {
       setConfirmOpen(true)
       return
     }
     onOpenChange(false)
   }
 
-  function triggerSave() {
+  function triggerSave(keepOpen = false) {
     if (!draft) return
     setConfirmOpen(false)
-    onSave({
-      id: draft.id,
-      projectId: live.current.projectId,
-      title: live.current.title,
-      bodyJson: live.current.bodyJson,
-      bodyText: live.current.bodyText,
-    })
+    const snapshot: LiveDraft = { ...live.current }
+    onSave(
+      { id: savedId.current, ...snapshot },
+      {
+        keepOpen,
+        onSaved: (id) => {
+          savedId.current = id
+          baseline.current = snapshot
+        },
+      }
+    )
   }
 
   return (
@@ -305,7 +351,7 @@ export function QuickNoteDialog({
               draft={draft}
               onLiveChange={updateLive}
               onCancel={requestClose}
-              onSaveClick={triggerSave}
+              onSaveClick={() => triggerSave(false)}
               saving={saving}
             />
           ) : null}
@@ -315,7 +361,7 @@ export function QuickNoteDialog({
       <UnsavedChangesDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        onSaveAndExit={triggerSave}
+        onSaveAndExit={() => triggerSave(false)}
         onDiscard={() => {
           setConfirmOpen(false)
           onOpenChange(false)

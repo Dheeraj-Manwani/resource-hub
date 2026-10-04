@@ -216,7 +216,10 @@
   .prose-dark :where(h3, h4) {
     @apply text-base;
   }
-  .prose-dark :where(p, ul, ol, pre, blockquote, table) {
+  .prose-dark :where(p) {
+    @apply -my-0.5;
+  }
+  .prose-dark :where(ul, ol, pre, blockquote, table) {
     @apply my-3;
   }
   .prose-dark :where(ul) {

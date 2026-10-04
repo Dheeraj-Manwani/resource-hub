@@ -12,8 +12,8 @@ import type { AppUser } from "@/lib/server/dal/session"
 
 type ShellContextValue = {
   user: AppUser
-  addResource: { open: boolean; initialText?: string }
-  openAddResource: (initialText?: string) => void
+  addResource: { open: boolean; initialText?: string; initialProjectIds?: string[] }
+  openAddResource: (initialText?: string, initialProjectIds?: string[]) => void
   closeAddResource: () => void
   addTask: { open: boolean; initialText?: string }
   openAddTask: (initialText?: string) => void
@@ -45,6 +45,7 @@ export function ShellProvider({
   const [addResource, setAddResource] = useState<{
     open: boolean
     initialText?: string
+    initialProjectIds?: string[]
   }>({
     open: false,
   })
@@ -60,7 +61,8 @@ export function ShellProvider({
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [tourOpen, setTourOpen] = useState(false)
   const openAddResource = useCallback(
-    (initialText?: string) => setAddResource({ open: true, initialText }),
+    (initialText?: string, initialProjectIds?: string[]) =>
+      setAddResource({ open: true, initialText, initialProjectIds }),
     []
   )
   const closeAddResource = useCallback(

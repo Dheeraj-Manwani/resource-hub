@@ -481,7 +481,14 @@ export function LibraryView({
             : emptyDescription
         }
       >
-        <Button onClick={() => openAddResource()}>
+        <Button
+          onClick={() =>
+            openAddResource(
+              undefined,
+              baseFilters?.projectId ? [baseFilters.projectId] : undefined
+            )
+          }
+        >
           <PlusIcon />
           Add resource
         </Button>
