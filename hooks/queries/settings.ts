@@ -1,7 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 import { api } from "@/lib/api-client"
 import type { SettingsDto } from "@/lib/server/dal/settings"
@@ -20,6 +20,7 @@ export function useRegenerateIcsToken() {
   return useMutation({
     mutationFn: () => api<{ icsToken: string }>("/api/v1/settings/ics-token", { method: "POST" }),
     onSuccess: ({ icsToken }) => {
+      toast.success("Calendar subscription link generated")
       qc.setQueryData<SettingsDto>(["settings"], (prev) => (prev ? { ...prev, icsToken } : prev))
     },
     onError: (error) => toast.error(error.message),
@@ -40,6 +41,11 @@ export function useUpdateSettings() {
       if (context?.previous) qc.setQueryData(["settings"], context.previous)
       toast.error(error.message)
     },
-    onSuccess: (settings) => qc.setQueryData(["settings"], settings),
+    onSuccess: (settings, patch) => {
+      qc.setQueryData(["settings"], settings)
+      if (patch.timezone !== undefined || patch.weekStart !== undefined || patch.calendarColorMode !== undefined) {
+        toast.success("Calendar settings saved", { id: "calendar-settings" })
+      }
+    },
   })
 }

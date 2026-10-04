@@ -11,7 +11,7 @@ import {
 } from "@dnd-kit/core"
 import { FolderIcon } from "lucide-react"
 import { createContext, useContext, useMemo, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 import { useLinkResources, useMoveProject, useProjectTree } from "@/hooks/queries/projects"
 import { useCollapsedProjects } from "@/lib/projects/use-collapsed"

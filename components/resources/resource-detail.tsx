@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useMemo, useRef, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 import { EmptyState } from "@/components/empty-state"
 import { ProjectSinglePicker } from "@/components/projects/project-picker"

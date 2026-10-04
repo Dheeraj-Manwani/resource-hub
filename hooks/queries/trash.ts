@@ -1,7 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 import { api } from "@/lib/api-client"
 import type { TrashEntityType, TrashItem } from "@/lib/server/dal/trash"

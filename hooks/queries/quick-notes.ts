@@ -6,7 +6,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 import { api, toQueryString } from "@/lib/api-client"
 import type { QuickNoteDto } from "@/lib/quick-notes/dto"

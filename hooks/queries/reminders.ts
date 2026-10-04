@@ -1,7 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 import { api } from "@/lib/api-client"
 import type { DueReminder } from "@/lib/server/dal/reminders"
@@ -26,7 +26,10 @@ export function useAddReminder() {
   return useMutation({
     mutationFn: ({ taskId, offsetMinutes }: { taskId: string; offsetMinutes: number }) =>
       api<ReminderDto>(`/api/v1/tasks/${taskId}/reminders`, { method: "POST", body: { offsetMinutes } }),
-    onSuccess: (_reminder, { taskId }) => qc.invalidateQueries({ queryKey: taskKeys.detail(taskId) }),
+    onSuccess: (_reminder, { taskId }) => {
+      toast.success("Reminder added")
+      return qc.invalidateQueries({ queryKey: taskKeys.detail(taskId) })
+    },
     onError: (error) => toast.error(`Couldn't add reminder: ${error.message}`),
   })
 }
@@ -36,7 +39,10 @@ export function useDeleteReminder() {
   return useMutation({
     mutationFn: ({ taskId, reminderId }: { taskId: string; reminderId: string }) =>
       api<null>(`/api/v1/tasks/${taskId}/reminders/${reminderId}`, { method: "DELETE" }),
-    onSuccess: (_data, { taskId }) => qc.invalidateQueries({ queryKey: taskKeys.detail(taskId) }),
+    onSuccess: (_data, { taskId }) => {
+      toast.success("Reminder removed")
+      return qc.invalidateQueries({ queryKey: taskKeys.detail(taskId) })
+    },
     onError: (error) => toast.error(`Couldn't remove reminder: ${error.message}`),
   })
 }

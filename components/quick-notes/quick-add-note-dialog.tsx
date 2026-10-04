@@ -1,6 +1,6 @@
 "use client"
 
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 import { useShell } from "@/components/shell/shell-context"
 import { useCreateQuickNote, useUpdateQuickNote } from "@/hooks/queries/quick-notes"

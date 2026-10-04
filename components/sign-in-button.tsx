@@ -2,7 +2,7 @@
 
 import { Loader2Icon } from "lucide-react"
 import { useState } from "react"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 import { Button } from "@/components/ui/button"
 import { signIn } from "@/lib/auth-client"

@@ -1,7 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 import { api, toQueryString } from "@/lib/api-client"
 import type { CalendarOccurrence } from "@/lib/server/dal/calendar"

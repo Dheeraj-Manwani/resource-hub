@@ -6,7 +6,8 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
+import { showToast } from "@/lib/toast"
 
 import { api } from "@/lib/api-client"
 import { invalidateResourceLists, upsertResourceInCache } from "@/hooks/queries/resources"
@@ -57,7 +58,10 @@ export function useCreateProject() {
   return useMutation({
     mutationFn: (input: CreateProjectInput) =>
       api<ProjectDto>("/api/v1/projects", { method: "POST", body: input }),
-    onSuccess: () => invalidateTree(qc),
+    onSuccess: () => {
+      toast.success("Project created")
+      return invalidateTree(qc)
+    },
     onError: (error) => toast.error(`Couldn't create project: ${error.message}`),
   })
 }
@@ -112,6 +116,7 @@ export function useMoveProject() {
       if (context?.previous) qc.setQueryData(projectKeys.tree(), context.previous)
       toast.error(`Couldn't move: ${error.message}`)
     },
+    onSuccess: () => toast.success("Project moved"),
     onSettled: () => invalidateTree(qc),
   })
 }
@@ -131,7 +136,7 @@ export function useDeleteProject() {
       invalidateTree(qc)
       invalidateResourceLists(qc)
       if (mode === "reparent") {
-        toast.success("Project deleted", {
+        showToast("Project deleted", {
           action: {
             label: "Undo",
             onClick: () => {
@@ -140,11 +145,11 @@ export function useDeleteProject() {
                 .catch(() => toast.error("Couldn't undo"))
             },
           },
-        })
+        }, "success")
       } else {
-        toast.success("Project and its sub-projects deleted", {
+        showToast("Project and its sub-projects deleted", {
           description: "Restore each one from Trash if you change your mind.",
-        })
+        }, "success")
       }
     },
     onError: (error) => toast.error(`Couldn't delete: ${error.message}`),
@@ -202,7 +207,7 @@ export function useUnlinkResources() {
       resourceIds.forEach((id) =>
         qc.invalidateQueries({ queryKey: ["resources", "detail", id] })
       )
-      toast("Removed from project", {
+      showToast("Removed from project", {
         action: {
           label: "Undo",
           onClick: () => {
@@ -241,7 +246,7 @@ export function useMoveResources() {
       }),
     onSuccess: ({ items }, { resourceIds, from, to }) => {
       mergeResources(qc, items)
-      toast("Moved", {
+      showToast("Moved", {
         action: {
           label: "Undo",
           onClick: () => {

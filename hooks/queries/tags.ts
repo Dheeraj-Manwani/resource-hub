@@ -1,7 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 import { api } from "@/lib/api-client"
 import type { TagWithCounts } from "@/lib/server/dal/tags"
@@ -27,7 +27,10 @@ export function useRenameTag() {
   return useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) =>
       api(`/api/v1/tags/${id}`, { method: "PATCH", body: { name } }),
-    onSuccess: () => invalidateTags(qc),
+    onSuccess: () => {
+      invalidateTags(qc)
+      toast.success("Tag renamed")
+    },
     onError: (error) => toast.error(`Couldn't rename: ${error.message}`),
   })
 }
@@ -37,7 +40,10 @@ export function useSetTagColor() {
   return useMutation({
     mutationFn: ({ id, color }: { id: string; color: string | null }) =>
       api(`/api/v1/tags/${id}`, { method: "PATCH", body: { color } }),
-    onSuccess: () => invalidateTags(qc),
+    onSuccess: () => {
+      invalidateTags(qc)
+      toast.success("Tag color updated", { id: "tag-color" })
+    },
     onError: (error) => toast.error(`Couldn't recolor: ${error.message}`),
   })
 }

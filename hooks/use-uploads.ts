@@ -2,6 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query"
 import { useCallback, useState } from "react"
+import { toast } from "react-hot-toast"
 
 import { api } from "@/lib/api-client"
 import type { ResourceDto } from "@/lib/resources/dto"
@@ -110,6 +111,11 @@ export function useUploads() {
 
   const start = useCallback(
     async (files: File[], tags?: string[], projectIds?: string[]) => {
+      if (!files.length) return
+      const toastId = toast.loading(
+        `Uploading ${files.length} file${files.length === 1 ? "" : "s"}…`
+      )
+      let uploaded = 0
       const queued = files.map((file) => ({
         file,
         item: {
@@ -134,6 +140,7 @@ export function useUploads() {
                 }),
             })
             update(item.key, { status: "done", progress: 1, resource })
+            uploaded += 1
             upsertResourceInCache(qc, resource)
           } catch (error) {
             update(item.key, {
@@ -143,6 +150,17 @@ export function useUploads() {
           }
         })
       )
+      const failed = files.length - uploaded
+      if (failed) {
+        toast.error(
+          `${uploaded ? `${uploaded} uploaded; ` : ""}${failed} file${failed === 1 ? "" : "s"} failed to upload. See file details for the error.`,
+          { id: toastId }
+        )
+      } else {
+        toast.success(`Uploaded ${uploaded} file${uploaded === 1 ? "" : "s"}`, {
+          id: toastId,
+        })
+      }
       await invalidateResourceLists(qc)
     },
     [qc]

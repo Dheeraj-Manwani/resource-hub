@@ -2,7 +2,8 @@
 
 import { BellIcon, BellRingIcon, CheckIcon, ClockIcon } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
+import { showToast } from "@/lib/toast"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -22,7 +23,7 @@ function requestNotificationPermission() {
 }
 
 function notify(reminder: DueReminder) {
-  toast(reminder.title, {
+  showToast(reminder.title, {
     description: "Reminder",
     icon: <ClockIcon className="size-4" />,
   })
@@ -61,6 +62,7 @@ export function RemindersBell() {
   function snooze(reminder: DueReminder, minutes: number) {
     const key = `${reminder.reminderId}:${reminder.occurrenceAt}`
     setSnoozed((prev) => new Set(prev).add(key))
+    toast.success(`Reminder snoozed for ${minutes} minutes`)
     window.setTimeout(() => {
       setSnoozed((prev) => {
         const next = new Set(prev)

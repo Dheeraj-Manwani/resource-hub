@@ -2,7 +2,7 @@
 
 import { NotebookPenIcon, PlusIcon } from "lucide-react"
 import { useState } from "react"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { EmptyState } from "@/components/empty-state"

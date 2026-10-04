@@ -2,7 +2,7 @@
 
 import { CheckIcon, CopyIcon, DownloadIcon, FileTextIcon } from "lucide-react"
 import { useState } from "react"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 import { Button } from "@/components/ui/button"
 import { formatDate } from "@/lib/format"
@@ -184,6 +184,7 @@ export function CopyButton({
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(text)
+          toast.success("Copied to clipboard", { id: "clipboard" })
           setCopied(true)
           window.setTimeout(() => setCopied(false), 1500)
         } catch {

@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { KeyRoundIcon, Loader2Icon, Trash2Icon } from "lucide-react"
 import { useState } from "react"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
 
 import { CopyButton } from "@/components/resources/cards/type-cards"
 import { Button } from "@/components/ui/button"
@@ -30,6 +30,7 @@ export function TokenSettings({ appUrl }: { appUrl: string }) {
       }),
     onSuccess: ({ token }) => {
       setCreated(token)
+      toast.success("Token created — copy it now")
       void qc.invalidateQueries({ queryKey: ["tokens"] })
     },
     onError: (e) => toast.error(e.message),

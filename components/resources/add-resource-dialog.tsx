@@ -10,7 +10,8 @@ import {
   XCircleIcon,
 } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
+import { showToast } from "@/lib/toast"
 
 import { ProjectMultiPicker } from "@/components/projects/project-picker"
 import { useShell } from "@/components/shell/shell-context"
@@ -164,18 +165,18 @@ function DialogBody({
           tags,
           projectIds,
         })
-        toast.success("Saved", { description: prettyUrl(item.url) })
+        showToast("Saved", { description: prettyUrl(item.url) }, "success")
       } else {
         const result = await bulk.mutateAsync({
           urls: parsed.items.map((i) => i.url),
           tags,
           projectIds,
         })
-        toast.success(`Saved ${result.created.length} links`, {
+        showToast(`Saved ${result.created.length} links`, {
           description: result.invalid.length
             ? `${result.invalid.length} lines were skipped`
             : "Details are filling in…",
-        })
+        }, "success")
       }
       onClose()
     } catch (error) {

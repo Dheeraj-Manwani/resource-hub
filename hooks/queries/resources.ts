@@ -8,7 +8,8 @@ import {
   type InfiniteData,
   type QueryClient,
 } from "@tanstack/react-query"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
+import { showToast } from "@/lib/toast"
 
 import { api, toQueryString } from "@/lib/api-client"
 import type { ResourceDto, ResourcePage, TagDto } from "@/lib/resources/dto"
@@ -259,7 +260,7 @@ export function useDeleteResource() {
     },
     onSuccess: (_data, id) => {
       qc.removeQueries({ queryKey: resourceKeys.detail(id) })
-      toast.success("Moved to trash", {
+      showToast("Moved to trash", {
         action: {
           label: "Undo",
           onClick: () => {
@@ -268,7 +269,7 @@ export function useDeleteResource() {
               .catch(() => toast.error("Couldn't undo"))
           },
         },
-      })
+      }, "success")
     },
   })
 }

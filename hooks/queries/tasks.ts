@@ -8,7 +8,8 @@ import {
   type InfiniteData,
   type QueryClient,
 } from "@tanstack/react-query"
-import { toast } from "sonner"
+import { toast } from "react-hot-toast"
+import { showToast } from "@/lib/toast"
 
 import { api, toQueryString } from "@/lib/api-client"
 import { invalidateResourceLists } from "@/hooks/queries/resources"
@@ -120,6 +121,7 @@ export function useCreateTask() {
       upsertTaskInCache(qc, task)
       invalidateTaskLists(qc)
       if (task.resources.length) invalidateResourceLists(qc)
+      toast.success("Task created")
     },
     onError: (error) => toast.error(`Couldn't create task: ${error.message}`),
   })
@@ -209,7 +211,7 @@ export function useDeleteTask() {
     },
     onSuccess: (_data, id) => {
       qc.removeQueries({ queryKey: taskKeys.detail(id) })
-      toast.success("Task deleted", {
+      showToast("Task deleted", {
         action: {
           label: "Undo",
           onClick: () => {
@@ -218,7 +220,7 @@ export function useDeleteTask() {
               .catch(() => toast.error("Couldn't undo"))
           },
         },
-      })
+      }, "success")
     },
   })
 }
