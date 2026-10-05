@@ -1,4 +1,5 @@
 "use client"
+import { LoadingState, QueryFeedback } from "@/components/query-feedback"
 
 import { useQuery } from "@tanstack/react-query"
 import { Command } from "cmdk"
@@ -72,9 +73,12 @@ export function CommandPalette() {
   const results = useQuery({
     queryKey: ["command-search", debounced],
     queryFn: ({ signal }) =>
-      api<SearchResults>(`/api/v1/search${toQueryString({ q: debounced, limit: 6 })}`, {
-        signal,
-      }),
+      api<SearchResults>(
+        `/api/v1/search${toQueryString({ q: debounced, limit: 6 })}`,
+        {
+          signal,
+        }
+      ),
     enabled: open && debounced.length > 0,
   })
 
@@ -88,9 +92,9 @@ export function CommandPalette() {
     fn()
     close()
   }
-
-  const hasQuery = debounced.length > 0
-  const data = results.data
+  const hasQuery = query.trim().length > 0
+  const typing = query.trim() !== debounced
+  const data = typing ? undefined : results.data
 
   return (
     <Command.Dialog
@@ -112,13 +116,30 @@ export function CommandPalette() {
         />
       </div>
       <Command.List className="max-h-[60vh] overflow-y-auto p-2">
-        <Command.Empty className="py-6 text-center text-sm text-subtle">
-          {hasQuery ? "Nothing found" : "No matches"}
-        </Command.Empty>
+        {hasQuery && typing ? (
+          <LoadingState label="Searching…" />
+        ) : hasQuery ? (
+          <QueryFeedback query={results} label="search results" />
+        ) : null}
+        {hasQuery &&
+        !typing &&
+        !results.isPending &&
+        !results.isFetching &&
+        !results.isError &&
+        data &&
+        !data.resources.length &&
+        !data.tasks.length &&
+        !data.projects.length &&
+        !data.tags.length ? (
+          <p className="py-6 text-center text-sm text-subtle">Nothing found</p>
+        ) : null}
 
         {!hasQuery ? (
           <>
-            <Command.Group heading="Quick actions" className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1">
+            <Command.Group
+              heading="Quick actions"
+              className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1"
+            >
               <PaletteItem onSelect={() => go(() => openAddResource())}>
                 <PlusIcon className="size-4 text-brand" />
                 Add resource
@@ -136,21 +157,33 @@ export function CommandPalette() {
                 New quick note
               </PaletteItem>
             </Command.Group>
-            <Command.Group heading="Go to" className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1">
+            <Command.Group
+              heading="Go to"
+              className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1"
+            >
               {NAV_ACTIONS.map(({ label, href, icon: Icon }) => (
-                <PaletteItem key={href} onSelect={() => go(() => router.push(href))}>
+                <PaletteItem
+                  key={href}
+                  onSelect={() => go(() => router.push(href))}
+                >
                   <Icon className="size-4 text-subtle" />
                   {label}
                 </PaletteItem>
               ))}
             </Command.Group>
           </>
-        ) : (
+        ) : typing ? null : (
           <>
             {data?.resources.length ? (
-              <Command.Group heading="Resources" className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1">
+              <Command.Group
+                heading="Resources"
+                className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1"
+              >
                 {data.resources.map((hit) => (
-                  <PaletteItem key={hit.id} onSelect={() => go(() => openResource(hit.id))}>
+                  <PaletteItem
+                    key={hit.id}
+                    onSelect={() => go(() => openResource(hit.id))}
+                  >
                     {hit.resourceType ? (
                       <TypeIcon type={hit.resourceType} className="size-4" />
                     ) : (
@@ -162,9 +195,15 @@ export function CommandPalette() {
               </Command.Group>
             ) : null}
             {data?.tasks.length ? (
-              <Command.Group heading="Tasks" className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1">
+              <Command.Group
+                heading="Tasks"
+                className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1"
+              >
                 {data.tasks.map((hit) => (
-                  <PaletteItem key={hit.id} onSelect={() => go(() => openTask(hit.id))}>
+                  <PaletteItem
+                    key={hit.id}
+                    onSelect={() => go(() => openTask(hit.id))}
+                  >
                     <ListTodoIcon className="size-4 text-subtle" />
                     <span className="truncate">{hit.title}</span>
                   </PaletteItem>
@@ -172,11 +211,16 @@ export function CommandPalette() {
               </Command.Group>
             ) : null}
             {data?.projects.length ? (
-              <Command.Group heading="Projects" className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1">
+              <Command.Group
+                heading="Projects"
+                className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1"
+              >
                 {data.projects.map((hit) => (
                   <PaletteItem
                     key={hit.id}
-                    onSelect={() => go(() => router.push(`/projects/${hit.id}`))}
+                    onSelect={() =>
+                      go(() => router.push(`/projects/${hit.id}`))
+                    }
                   >
                     <FolderIcon className="size-4 text-subtle" />
                     <span className="truncate">{hit.title}</span>
@@ -185,9 +229,15 @@ export function CommandPalette() {
               </Command.Group>
             ) : null}
             {data?.tags.length ? (
-              <Command.Group heading="Tags" className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1">
+              <Command.Group
+                heading="Tags"
+                className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1"
+              >
                 {data.tags.map((hit) => (
-                  <PaletteItem key={hit.id} onSelect={() => go(() => router.push("/tags"))}>
+                  <PaletteItem
+                    key={hit.id}
+                    onSelect={() => go(() => router.push("/tags"))}
+                  >
                     <TagIcon className="size-4 text-subtle" />
                     <span className="truncate">{hit.title}</span>
                   </PaletteItem>
@@ -197,7 +247,9 @@ export function CommandPalette() {
             <Command.Group className="px-2 py-1.5">
               <PaletteItem
                 onSelect={() =>
-                  go(() => router.push(`/search${toQueryString({ q: debounced })}`))
+                  go(() =>
+                    router.push(`/search${toQueryString({ q: debounced })}`)
+                  )
                 }
               >
                 <SearchIcon className="size-4 text-brand" />

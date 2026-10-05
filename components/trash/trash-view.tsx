@@ -1,6 +1,14 @@
 "use client"
 
-import { FolderIcon, ListTodoIcon, RotateCcwIcon, Trash2Icon } from "lucide-react"
+import { QueryFeedback } from "@/components/query-feedback"
+
+import {
+  LoaderCircleIcon,
+  FolderIcon,
+  ListTodoIcon,
+  RotateCcwIcon,
+  Trash2Icon,
+} from "lucide-react"
 import { useState } from "react"
 
 import { ConfirmDialog } from "@/components/confirm-dialog"
@@ -8,7 +16,12 @@ import { EmptyState } from "@/components/empty-state"
 import { PageHeader } from "@/components/page-header"
 import { TypeIcon } from "@/components/resources/type-icon"
 import { Button } from "@/components/ui/button"
-import { useEmptyTrash, usePermanentlyDelete, useRestoreFromTrash, useTrash } from "@/hooks/queries/trash"
+import {
+  useEmptyTrash,
+  usePermanentlyDelete,
+  useRestoreFromTrash,
+  useTrash,
+} from "@/hooks/queries/trash"
 import { formatRelative } from "@/lib/format"
 import type { TrashEntityType, TrashItem } from "@/lib/server/dal/trash"
 
@@ -39,15 +52,26 @@ function Row({ item }: { item: TrashItem }) {
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label="Restore"
-        onClick={() => restore.mutate({ entityType: item.entityType, id: item.id })}
+        aria-label={restore.isPending ? "Restoring item" : "Restore"}
+        disabled={restore.isPending || permanentlyDelete.isPending}
+        onClick={() =>
+          restore.mutate({ entityType: item.entityType, id: item.id })
+        }
       >
-        <RotateCcwIcon />
+        {restore.isPending ? (
+          <LoaderCircleIcon
+            aria-hidden
+            className="animate-spin motion-reduce:animate-none"
+          />
+        ) : (
+          <RotateCcwIcon />
+        )}
       </Button>
       <Button
         variant="ghost"
         size="icon-sm"
         aria-label="Delete forever"
+        disabled={restore.isPending || permanentlyDelete.isPending}
         onClick={() => setConfirming(true)}
       >
         <Trash2Icon />
@@ -58,14 +82,20 @@ function Row({ item }: { item: TrashItem }) {
         title={`Delete "${item.title}" forever?`}
         description="This can't be undone. Any uploaded files are removed from storage too."
         confirmLabel="Delete forever"
-        onConfirm={() => permanentlyDelete.mutate({ entityType: item.entityType, id: item.id })}
+        onConfirm={() =>
+          permanentlyDelete.mutateAsync({
+            entityType: item.entityType,
+            id: item.id,
+          })
+        }
       />
     </li>
   )
 }
 
 export function TrashView() {
-  const { data: items = [], isPending } = useTrash()
+  const trashQuery = useTrash()
+  const { data: items = [], isPending } = trashQuery
   const emptyTrash = useEmptyTrash()
   const [confirmingEmpty, setConfirmingEmpty] = useState(false)
 
@@ -76,7 +106,11 @@ export function TrashView() {
         description="Deleted resources, tasks and projects, purged automatically after 30 days."
         actions={
           items.length ? (
-            <Button variant="outline" size="sm" onClick={() => setConfirmingEmpty(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmingEmpty(true)}
+            >
               <Trash2Icon />
               Empty Trash
             </Button>
@@ -84,7 +118,8 @@ export function TrashView() {
         }
       />
 
-      {!isPending && items.length === 0 ? (
+      <QueryFeedback query={trashQuery} label="Trash" />
+      {!isPending && !trashQuery.isError && items.length === 0 ? (
         <EmptyState
           icon={Trash2Icon}
           title="Trash is empty"
@@ -98,7 +133,8 @@ export function TrashView() {
             return (
               <section key={key}>
                 <h2 className="mb-2 text-sm font-medium text-text-muted">
-                  {label} <span className="text-subtle">({section.length})</span>
+                  {label}{" "}
+                  <span className="text-subtle">({section.length})</span>
                 </h2>
                 <ul className="divide-y divide-border rounded-xl border border-border">
                   {section.map((item) => (
@@ -117,7 +153,7 @@ export function TrashView() {
         title="Empty Trash?"
         description={`Permanently deletes all ${items.length} item${items.length === 1 ? "" : "s"} in Trash, including any uploaded files. This can't be undone.`}
         confirmLabel="Empty Trash"
-        onConfirm={() => emptyTrash.mutate()}
+        onConfirm={() => emptyTrash.mutateAsync()}
       />
     </>
   )

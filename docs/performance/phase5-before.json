@@ -1,0 +1,173 @@
+{
+  "label": "phase5-before",
+  "baselineMasonryRevision": "c240406",
+  "capturedAt": "2026-10-05T07:42:53.344Z",
+  "browser": "153.0.8010.12",
+  "viewport": "1440x900",
+  "fixture": "Production React; actual Masonry/ResourceCard/ResourceList; 500 deterministic link DTOs; no external media; fresh page and forced GC per sample",
+  "rows": [
+    {
+      "run": 1,
+      "mode": "grid",
+      "count": 50,
+      "mounted": 50,
+      "heapBytes": 10181804,
+      "nodes": 2218,
+      "listeners": 410
+    },
+    {
+      "run": 1,
+      "mode": "grid",
+      "count": 250,
+      "mounted": 250,
+      "heapBytes": 31992344,
+      "nodes": 11018,
+      "listeners": 1410
+    },
+    {
+      "run": 1,
+      "mode": "grid",
+      "count": 500,
+      "mounted": 500,
+      "heapBytes": 58589596,
+      "nodes": 22018,
+      "listeners": 2660
+    },
+    {
+      "run": 1,
+      "mode": "list",
+      "count": 50,
+      "mounted": 21,
+      "heapBytes": 6624000,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 1,
+      "mode": "list",
+      "count": 250,
+      "mounted": 21,
+      "heapBytes": 6625208,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 1,
+      "mode": "list",
+      "count": 500,
+      "mounted": 21,
+      "heapBytes": 6679224,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 2,
+      "mode": "grid",
+      "count": 50,
+      "mounted": 50,
+      "heapBytes": 10181444,
+      "nodes": 2218,
+      "listeners": 410
+    },
+    {
+      "run": 2,
+      "mode": "grid",
+      "count": 250,
+      "mounted": 250,
+      "heapBytes": 31750668,
+      "nodes": 11018,
+      "listeners": 1410
+    },
+    {
+      "run": 2,
+      "mode": "grid",
+      "count": 500,
+      "mounted": 500,
+      "heapBytes": 58040468,
+      "nodes": 22018,
+      "listeners": 2660
+    },
+    {
+      "run": 2,
+      "mode": "list",
+      "count": 50,
+      "mounted": 21,
+      "heapBytes": 6621644,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 2,
+      "mode": "list",
+      "count": 250,
+      "mounted": 21,
+      "heapBytes": 6622956,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 2,
+      "mode": "list",
+      "count": 500,
+      "mounted": 21,
+      "heapBytes": 6686928,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 3,
+      "mode": "grid",
+      "count": 50,
+      "mounted": 50,
+      "heapBytes": 10242828,
+      "nodes": 2218,
+      "listeners": 410
+    },
+    {
+      "run": 3,
+      "mode": "grid",
+      "count": 250,
+      "mounted": 250,
+      "heapBytes": 31722660,
+      "nodes": 11018,
+      "listeners": 1410
+    },
+    {
+      "run": 3,
+      "mode": "grid",
+      "count": 500,
+      "mounted": 500,
+      "heapBytes": 58036752,
+      "nodes": 22018,
+      "listeners": 2660
+    },
+    {
+      "run": 3,
+      "mode": "list",
+      "count": 50,
+      "mounted": 21,
+      "heapBytes": 6690476,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 3,
+      "mode": "list",
+      "count": 250,
+      "mounted": 21,
+      "heapBytes": 6631008,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 3,
+      "mode": "list",
+      "count": 500,
+      "mounted": 21,
+      "heapBytes": 6688796,
+      "nodes": 543,
+      "listeners": 207
+    }
+  ],
+  "checks": null
+}

@@ -52,13 +52,18 @@ export function YoutubePlayer({
       "*"
     )
 
-  const media = useMediaController({ pause: () => command("pauseVideo") })
-  const { activate } = media
+  const media = useMediaController({
+    pause: () => {
+      command("pauseVideo")
+      if (!inView) setLoaded(false)
+    },
+  })
+  const { activate, deactivate } = media
   // Far off-screen players go back to their poster.
-  const { ref } = useInView<HTMLDivElement>({
+  const { ref, inView } = useInView<HTMLDivElement>({
     rootMargin: "1200px",
     onChange: (visible) => {
-      if (!visible) setLoaded(false)
+      if (!visible && !media.isActive) setLoaded(false)
     },
   })
 
@@ -74,16 +79,24 @@ export function YoutubePlayer({
       try {
         const data =
           typeof event.data === "string" ? JSON.parse(event.data) : event.data
-        if (data?.event === "infoDelivery" && data.info?.playerState === 1)
-          activate()
-        if (data?.event === "onStateChange" && data.info === 1) activate()
+        const state =
+          data?.event === "infoDelivery"
+            ? data.info?.playerState
+            : data?.event === "onStateChange"
+              ? data.info
+              : undefined
+        if (state === 1) activate()
+        else if (state === 0 || state === 2) {
+          deactivate()
+          if (!inView) setLoaded(false)
+        }
       } catch {
         // not a player message
       }
     }
     window.addEventListener("message", onMessage)
     return () => window.removeEventListener("message", onMessage)
-  }, [loaded, activate])
+  }, [loaded, activate, deactivate, inView])
 
   const origin = typeof window !== "undefined" ? window.location.origin : ""
   const src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?autoplay=1&enablejsapi=1&rel=0&playsinline=1&origin=${encodeURIComponent(origin)}${start ? `&start=${start}` : ""}`

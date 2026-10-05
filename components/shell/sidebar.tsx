@@ -11,6 +11,7 @@ import { Logo } from "@/components/logo"
 import { cn } from "@/lib/utils"
 
 import { NAV_ITEMS } from "./nav-config"
+import { SyncStatus } from "./sync-status"
 
 export function SidebarContent({
   onNavigate,
@@ -75,31 +76,34 @@ export function SidebarContent({
       </Suspense>
       <ProjectsSidebarSection draggable={draggable} />
 
-      <div className="mt-auto flex flex-col gap-0.5 border-t border-sidebar-border p-2">
-        <Link
-          href="/trash"
-          onClick={onNavigate}
-          aria-current={isActive("/trash") ? "page" : undefined}
-          className={cn(
-            "flex h-9 items-center gap-3 rounded-lg px-3 text-sm text-text-muted hover:bg-white/[0.04] hover:text-foreground",
-            isActive("/trash") && "bg-brand-soft text-foreground"
-          )}
-        >
-          <Trash2Icon className="size-4 text-subtle" />
-          Trash
-        </Link>
-        <Link
-          href="/settings"
-          onClick={onNavigate}
-          aria-current={isActive("/settings") ? "page" : undefined}
-          className={cn(
-            "flex h-9 items-center gap-3 rounded-lg px-3 text-sm text-text-muted hover:bg-white/[0.04] hover:text-foreground",
-            isActive("/settings") && "bg-brand-soft text-foreground"
-          )}
-        >
-          <SettingsIcon className="size-4 text-subtle" />
-          Settings
-        </Link>
+      <div className="mt-auto flex flex-col gap-0.5 p-2">
+        <SyncStatus />
+        <div className="mt-auto flex flex-col gap-0.5 border-t border-sidebar-border p-2">
+          <Link
+            href="/trash"
+            onClick={onNavigate}
+            aria-current={isActive("/trash") ? "page" : undefined}
+            className={cn(
+              "flex h-9 items-center gap-3 rounded-lg px-3 text-sm text-text-muted hover:bg-white/[0.04] hover:text-foreground",
+              isActive("/trash") && "bg-brand-soft text-foreground"
+            )}
+          >
+            <Trash2Icon className="size-4 text-subtle" />
+            Trash
+          </Link>
+          <Link
+            href="/settings"
+            onClick={onNavigate}
+            aria-current={isActive("/settings") ? "page" : undefined}
+            className={cn(
+              "flex h-9 items-center gap-3 rounded-lg px-3 text-sm text-text-muted hover:bg-white/[0.04] hover:text-foreground",
+              isActive("/settings") && "bg-brand-soft text-foreground"
+            )}
+          >
+            <SettingsIcon className="size-4 text-subtle" />
+            Settings
+          </Link>
+        </div>
       </div>
     </div>
   )

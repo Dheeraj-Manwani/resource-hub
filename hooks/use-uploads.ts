@@ -4,22 +4,28 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useCallback, useState } from "react"
 import { toast } from "react-hot-toast"
 
-import { api } from "@/lib/api-client"
+import { WorkQueue } from "@/lib/memory/work-queue"
+
+import { api, ApiClientError } from "@/lib/api-client"
 import type { ResourceDto } from "@/lib/resources/dto"
+import type { SyncController } from "@/lib/sync/controller"
+import { useSyncController } from "@/components/sync-provider"
 
 import {
   invalidateResourceLists,
   upsertResourceInCache,
 } from "./queries/resources"
 
+const transferQueue = new WorkQueue(3)
+let uploadSequence = 0
+
 export type UploadItem = {
   key: string
   name: string
   size: number
   progress: number
-  status: "uploading" | "processing" | "done" | "error"
+  status: "queued" | "uploading" | "processing" | "done" | "error"
   error?: string
-  resource?: ResourceDto
 }
 
 const EXTENSION_MIME: Record<string, string> = {
@@ -48,6 +54,10 @@ function putWithProgress(
   return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open("PUT", url)
+    xhr.timeout = 180_000
+    xhr.ontimeout = () =>
+      reject(new Error("Upload timed out. Try the file again."))
+    xhr.onabort = () => reject(new Error("Upload cancelled"))
     xhr.setRequestHeader("Content-Type", contentType)
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress(e.loaded / e.total)
@@ -79,28 +89,69 @@ export async function uploadFile(
     tags,
     projectIds,
     onProgress,
+    onStart,
+    sync,
   }: {
     purpose?: "resource" | "thumbnail"
     resourceId?: string
     tags?: string[]
     projectIds?: string[]
     onProgress?: (p: number) => void
-  } = {}
+    onStart?: () => void
+    sync: SyncController
+  }
 ) {
-  const mime = mimeOf(file)
-  const start = await api<StartResponse>("/api/v1/uploads", {
-    method: "POST",
-    body: { name: file.name, mime, size: file.size, purpose, resourceId },
-  })
-  await putWithProgress(start.uploadUrl, file, mime, (p) => onProgress?.(p))
-  return api<ResourceDto>(`/api/v1/uploads/${start.fileId}/complete`, {
-    method: "POST",
-    body: { tags, projectIds },
-  })
+  return sync.track(
+    {
+      label: purpose === "thumbnail" ? "Uploading thumbnail" : "Uploading file",
+      source: "upload",
+      entityKeys: [
+        resourceId
+          ? `resource:${resourceId}`
+          : `resource:new-upload:${++uploadSequence}`,
+      ],
+      href: resourceId ? `/resources?r=${resourceId}` : "/resources",
+    },
+    (saved, isCurrent) =>
+      transferQueue.run(async () => {
+        const checkSession = () => {
+          if (!isCurrent())
+            throw new ApiClientError(
+              499,
+              "Upload cancelled because the session changed"
+            )
+        }
+        checkSession()
+        onStart?.()
+        const mime = mimeOf(file)
+        const start = await api<StartResponse>("/api/v1/uploads", {
+          method: "POST",
+          body: { name: file.name, mime, size: file.size, purpose, resourceId },
+          signal: AbortSignal.timeout(30_000),
+        })
+        checkSession()
+        await putWithProgress(start.uploadUrl, file, mime, (p) =>
+          onProgress?.(p)
+        )
+        checkSession()
+        const result = await api<ResourceDto>(
+          `/api/v1/uploads/${start.fileId}/complete`,
+          {
+            method: "POST",
+            body: { tags, projectIds },
+            signal: AbortSignal.timeout(45_000),
+          }
+        )
+        checkSession()
+        saved()
+        return result
+      })
+  )
 }
 
 /** Multi-file upload queue with per-file progress (used by the add dialog). */
 export function useUploads() {
+  const sync = useSyncController()
   const qc = useQueryClient()
   const [items, setItems] = useState<UploadItem[]>([])
 
@@ -123,7 +174,7 @@ export function useUploads() {
           name: file.name,
           size: file.size,
           progress: 0,
-          status: "uploading" as const,
+          status: "queued" as const,
         },
       }))
       setItems((list) => [...list, ...queued.map((q) => q.item)])
@@ -131,6 +182,8 @@ export function useUploads() {
         queued.map(async ({ file, item }) => {
           try {
             const resource = await uploadFile(file, {
+              sync,
+              onStart: () => update(item.key, { status: "uploading" }),
               tags,
               projectIds,
               onProgress: (progress) =>
@@ -139,7 +192,7 @@ export function useUploads() {
                   status: progress >= 1 ? "processing" : "uploading",
                 }),
             })
-            update(item.key, { status: "done", progress: 1, resource })
+            update(item.key, { status: "done", progress: 1 })
             uploaded += 1
             upsertResourceInCache(qc, resource)
           } catch (error) {
@@ -163,7 +216,7 @@ export function useUploads() {
       }
       await invalidateResourceLists(qc)
     },
-    [qc]
+    [qc, sync]
   )
 
   const reset = useCallback(() => setItems([]), [])

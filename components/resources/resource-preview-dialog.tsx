@@ -1,15 +1,15 @@
 "use client"
 
+import { QueryFeedback } from "@/components/query-feedback"
+
 import {
   CheckCircle2Icon,
   CircleIcon,
   Edit,
   ExternalLinkIcon,
   StarIcon,
-  TriangleAlertIcon,
 } from "lucide-react"
 
-import { EmptyState } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -28,7 +28,12 @@ import { useResource, useUpdateResource } from "@/hooks/queries/resources"
 import { displayTitle } from "@/lib/resources/dto"
 import { cn } from "@/lib/utils"
 
-import { MetaLine, ProjectChips, TagChips, TaskCountChip } from "./cards/card-parts"
+import {
+  MetaLine,
+  ProjectChips,
+  TagChips,
+  TaskCountChip,
+} from "./cards/card-parts"
 import { ResourceFullView } from "./full-view/resource-full-view"
 import { useLightbox } from "./lightbox/lightbox-provider"
 import { TypeBadge } from "./type-icon"
@@ -54,7 +59,8 @@ export function ResourcePreviewDialog({
   onClose: () => void
   onEdit: (id: string) => void
 }) {
-  const { data: resource, isPending, isError } = useResource(id)
+  const query = useResource(id)
+  const { data: resource, isPending, isError } = query
   const update = useUpdateResource()
   const { openImages } = useLightbox()
 
@@ -69,12 +75,13 @@ export function ResourcePreviewDialog({
         {!resource ? (
           isError ? (
             <div className="p-6">
-              <DialogTitle className="sr-only">Not found</DialogTitle>
-              <EmptyState
-                icon={TriangleAlertIcon}
-                title="Resource not found"
-                description="It may have been deleted."
-              />
+              <DialogTitle className="sr-only">
+                Unable to load resource
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                Resource preview
+              </DialogDescription>
+              <QueryFeedback query={query} label="resource" />
             </div>
           ) : isPending ? (
             <>
@@ -84,6 +91,9 @@ export function ResourcePreviewDialog({
           ) : null
         ) : (
           <>
+            <div className="px-4">
+              <QueryFeedback query={query} label="resource" loading={false} />
+            </div>
             <div className="flex items-center gap-1 border-b border-border px-4 py-2.5 pr-12">
               <TypeBadge type={resource.type} />
               <div className="ml-auto flex items-center gap-0.5">
@@ -109,7 +119,9 @@ export function ResourcePreviewDialog({
                     }
                   >
                     <StarIcon
-                      className={cn(resource.isFavorite && "fill-brand text-brand")}
+                      className={cn(
+                        resource.isFavorite && "fill-brand text-brand"
+                      )}
                     />
                   </TooltipTrigger>
                   <TooltipContent>Favorite</TooltipContent>

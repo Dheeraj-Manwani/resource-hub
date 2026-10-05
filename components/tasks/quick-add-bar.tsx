@@ -1,6 +1,6 @@
 "use client"
 
-import { CalendarIcon, FolderIcon, HashIcon, Loader2Icon } from "lucide-react"
+import { CalendarIcon, HashIcon, Loader2Icon } from "lucide-react"
 import { useMemo, useRef, useState } from "react"
 
 import { useProjectOptions } from "@/components/projects/project-picker"
@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { useCreateTask } from "@/hooks/queries/tasks"
 import { formatDate } from "@/lib/format"
 import { parseQuickAdd } from "@/lib/tasks/quick-add"
-import { cn } from "@/lib/utils"
 
 import { PriorityDot } from "./task-priority"
 
@@ -69,7 +68,8 @@ export function QuickAddBar({
     typedProject ?? (parsed.projectQuery ? null : (defaultProject ?? null))
 
   function submit() {
-    if (!parsed.title.trim()) return
+    if (!parsed.title.trim() || create.isPending) return
+    const submitted = text
     create.mutate(
       {
         title: parsed.title,
@@ -81,7 +81,10 @@ export function QuickAddBar({
         dueDate: parsed.dueDate,
         allDay: parsed.allDay,
       },
-      { onSuccess: () => setText("") }
+      {
+        onSuccess: () =>
+          setText((current) => (current === submitted ? "" : current)),
+      }
     )
   }
 
@@ -105,7 +108,7 @@ export function QuickAddBar({
             if (e.key === "Enter" || e.key === "Tab") {
               e.preventDefault()
               submit()
-            } else if (e.key === "Escape") {
+            } else if (e.key === "Escape" && !create.isPending) {
               setText("")
               onDone?.()
             }

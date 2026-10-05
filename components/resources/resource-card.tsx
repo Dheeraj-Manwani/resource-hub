@@ -71,7 +71,7 @@ function CardBody({
 }
 
 const INTERACTIVE =
-  "a,button,input,textarea,iframe,[data-interactive],[role=menu]"
+  "a,button,input,textarea,iframe,[data-interactive],[role=checkbox],[role=menu]"
 
 export const ResourceCard = memo(function ResourceCard({
   resource,

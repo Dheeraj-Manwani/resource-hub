@@ -13,12 +13,21 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVerticalIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import {
+  GripVerticalIcon,
+  LoaderCircleIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react"
 import { useRef, useState } from "react"
 
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
-import { Progress, ProgressIndicator, ProgressTrack } from "@/components/ui/progress"
+import {
+  Progress,
+  ProgressIndicator,
+  ProgressTrack,
+} from "@/components/ui/progress"
 import {
   useAddChecklistItem,
   useDeleteChecklistItem,
@@ -52,6 +61,7 @@ function ChecklistRowView({
   const update = useUpdateChecklistItem()
   const remove = useDeleteChecklistItem()
   const [draft, setDraft] = useState(item.title)
+  const pending = item.id.startsWith("pending-checklist:")
 
   return (
     <li
@@ -65,6 +75,7 @@ function ChecklistRowView({
       <button
         type="button"
         aria-label="Drag to reorder"
+        disabled={pending}
         {...drag?.attributes}
         {...drag?.listeners}
         className="flex size-5 shrink-0 cursor-grab items-center justify-center text-subtle opacity-0 group-hover/item:opacity-100"
@@ -72,17 +83,26 @@ function ChecklistRowView({
         <GripVerticalIcon className="size-3.5" />
       </button>
       <Checkbox
+        disabled={pending}
+        aria-label={
+          pending ? "Creating checklist item" : `Complete ${item.title}`
+        }
         checked={item.done}
         onCheckedChange={(done) =>
           update.mutate({ taskId, itemId: item.id, patch: { done: !!done } })
         }
       />
       <Input
+        disabled={pending}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => {
           if (draft.trim() && draft !== item.title) {
-            update.mutate({ taskId, itemId: item.id, patch: { title: draft.trim() } })
+            update.mutate({
+              taskId,
+              itemId: item.id,
+              patch: { title: draft.trim() },
+            })
           } else setDraft(item.title)
         }}
         onKeyDown={(e) => {
@@ -96,17 +116,28 @@ function ChecklistRowView({
       />
       <button
         type="button"
-        aria-label="Delete item"
+        aria-label={remove.isPending ? "Deleting item" : "Delete item"}
+        disabled={pending || remove.isPending}
         onClick={() => remove.mutate({ taskId, itemId: item.id })}
-        className="flex size-6 shrink-0 items-center justify-center rounded text-subtle opacity-0 hover:bg-white/10 hover:text-destructive group-hover/item:opacity-100"
+        className="flex size-6 shrink-0 items-center justify-center rounded text-subtle opacity-0 group-hover/item:opacity-100 hover:bg-white/10 hover:text-destructive"
       >
-        <Trash2Icon className="size-3.5" />
+        {pending || remove.isPending ? (
+          <LoaderCircleIcon className="size-3.5 animate-spin motion-reduce:animate-none" />
+        ) : (
+          <Trash2Icon className="size-3.5" />
+        )}
       </button>
     </li>
   )
 }
 
-function ChecklistRow({ taskId, item }: { taskId: string; item: ChecklistItemDto }) {
+function ChecklistRow({
+  taskId,
+  item,
+}: {
+  taskId: string
+  item: ChecklistItemDto
+}) {
   const sortable = useSortable({ id: item.id })
   return (
     <ChecklistRowView
@@ -133,17 +164,32 @@ function AddItemRow({ taskId }: { taskId: string }) {
 
   function submit() {
     const trimmed = title.trim()
-    if (!trimmed) return
-    add.mutate({ taskId, title: trimmed })
-    setTitle("")
-    ref.current?.focus()
+    if (!trimmed || add.isPending) return
+    add.mutate(
+      { taskId, title: trimmed },
+      {
+        onSuccess: () => {
+          setTitle("")
+          ref.current?.focus()
+        },
+      }
+    )
   }
 
   return (
     <div className="flex items-center gap-1.5 px-1">
-      <PlusIcon className="size-3.5 shrink-0 text-subtle" />
+      {add.isPending ? (
+        <LoaderCircleIcon
+          aria-label="Adding item"
+          className="size-3.5 animate-spin motion-reduce:animate-none"
+        />
+      ) : (
+        <PlusIcon className="size-3.5 shrink-0 text-subtle" />
+      )}
       <Input
         ref={ref}
+        aria-label="Checklist item title"
+        disabled={add.isPending}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => {
@@ -167,12 +213,19 @@ export function TaskChecklist({
   checklist: ChecklistItemDto[]
 }) {
   const reorder = useReorderChecklistItem()
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
+  )
   const { done, total } = checklistProgress(checklist)
 
   function onDragEnd(e: DragEndEvent) {
     const { active, over } = e
-    if (!over || active.id === over.id) return
+    if (
+      !over ||
+      active.id === over.id ||
+      checklist.some((item) => item.id.startsWith("pending-checklist:"))
+    )
+      return
     const activeIndex = checklist.findIndex((i) => i.id === active.id)
     const overIndex = checklist.findIndex((i) => i.id === over.id)
     if (activeIndex === -1 || overIndex === -1) return
@@ -202,7 +255,10 @@ export function TaskChecklist({
       ) : null}
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-        <SortableContext items={checklist.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext
+          items={checklist.map((i) => i.id)}
+          strategy={verticalListSortingStrategy}
+        >
           <ul className="space-y-0.5">
             {checklist.map((item) => (
               <ChecklistRow key={item.id} taskId={taskId} item={item} />

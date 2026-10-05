@@ -1,5 +1,7 @@
 "use client"
 
+import { QueryFeedback } from "@/components/query-feedback"
+
 import { Loader2Icon, SearchIcon } from "lucide-react"
 import { useMemo, useState } from "react"
 
@@ -33,14 +35,16 @@ export function AddExistingDialog({
 }) {
   const [query, setQuery] = useState("")
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const resourcesQuery = useResourceList({
+    unsorted: true,
+    sort: "created",
+    order: "desc",
+  })
   const { data, isPending, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useResourceList({ unsorted: true, sort: "created", order: "desc" })
+    resourcesQuery
   const link = useLinkResources()
 
-  const items = useMemo(
-    () => data?.pages.flatMap((p) => p.items) ?? [],
-    [data]
-  )
+  const items = useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data])
   const filtered = query.trim()
     ? items.filter((r) =>
         displayTitle(r).toLowerCase().includes(query.trim().toLowerCase())
@@ -63,7 +67,10 @@ export function AddExistingDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (!o ? close() : undefined)}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => (!o && !link.isPending ? close() : undefined)}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add existing resources</DialogTitle>
@@ -76,6 +83,7 @@ export function AddExistingDialog({
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-subtle" />
           <Input
             value={query}
+            disabled={link.isPending}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter by title…"
             className="pl-8"
@@ -83,6 +91,11 @@ export function AddExistingDialog({
         </div>
 
         <div className="max-h-80 space-y-1 overflow-y-auto rounded-lg border border-border p-1.5">
+          <QueryFeedback
+            query={resourcesQuery}
+            label="resources"
+            loading={false}
+          />
           {isPending ? (
             <div className="flex justify-center py-8">
               <Loader2Icon className="size-5 animate-spin text-subtle" />
@@ -94,6 +107,7 @@ export function AddExistingDialog({
                 className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-2 text-sm hover:bg-white/[0.04]"
               >
                 <Checkbox
+                  disabled={link.isPending}
                   checked={selected.has(r.id)}
                   onCheckedChange={() => toggle(r.id)}
                 />
@@ -103,7 +117,7 @@ export function AddExistingDialog({
                 </span>
               </label>
             ))
-          ) : (
+          ) : resourcesQuery.isError && !data ? null : (
             <p className="py-8 text-center text-sm text-subtle">
               {items.length ? "No matches" : "Your Inbox is empty"}
             </p>
@@ -125,7 +139,7 @@ export function AddExistingDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={close}>
+          <Button variant="outline" disabled={link.isPending} onClick={close}>
             Cancel
           </Button>
           <Button

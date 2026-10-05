@@ -1,6 +1,8 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { useRef, useState } from "react"
+import { LoaderCircleIcon } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -28,27 +30,67 @@ export function ConfirmDialog({
   description?: React.ReactNode
   confirmLabel?: string
   destructive?: boolean
-  onConfirm: () => void
+  onConfirm: () => unknown | Promise<unknown>
 }) {
+  const [pending, setPending] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const submitting = useRef(false)
+  const changeOpen = (next: boolean) => {
+    if (!submitting.current) {
+      setFailed(false)
+      onOpenChange(next)
+    }
+  }
+  async function confirm() {
+    if (submitting.current) return
+    submitting.current = true
+    setPending(true)
+    setFailed(false)
+    try {
+      await onConfirm()
+      onOpenChange(false)
+    } catch {
+      setFailed(true)
+    } finally {
+      submitting.current = false
+      setPending(false)
+    }
+  }
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={changeOpen}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          {description ? <DialogDescription>{description}</DialogDescription> : null}
+          {description ? (
+            <DialogDescription>{description}</DialogDescription>
+          ) : null}
         </DialogHeader>
+        {failed ? (
+          <p role="alert" className="text-sm text-destructive">
+            Couldn&apos;t complete this action. Review the error and try again.
+          </p>
+        ) : null}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            disabled={pending}
+            onClick={() => changeOpen(false)}
+          >
             Cancel
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
-            onClick={() => {
-              onConfirm()
-              onOpenChange(false)
-            }}
+            disabled={pending}
+            aria-busy={pending}
+            onClick={() => void confirm()}
           >
-            {confirmLabel}
+            {pending ? (
+              <LoaderCircleIcon
+                aria-hidden
+                className="animate-spin motion-reduce:animate-none"
+              />
+            ) : null}
+            {pending ? "Working…" : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

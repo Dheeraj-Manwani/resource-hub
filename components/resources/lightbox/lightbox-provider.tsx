@@ -2,6 +2,10 @@
 
 import dynamic from "next/dynamic"
 import {
+  AsyncDialogFeedback,
+  AsyncDialogBoundary,
+} from "@/components/async-dialog"
+import {
   createContext,
   useCallback,
   useContext,
@@ -14,14 +18,23 @@ import { displayTitle } from "@/lib/resources/dto"
 
 import type { LightboxSlide } from "./lightbox-impl"
 
-const LightboxImpl = dynamic(() => import("./lightbox-impl"), { ssr: false })
+const LightboxImpl = dynamic(() => import("./lightbox-impl"), {
+  ssr: false,
+  loading: () => <LightboxLoading />,
+})
 
 type LightboxContextValue = {
   /** Opens the viewer on `startId`, with next/prev over the image resources in `list`. */
   openImages: (list: ResourceDto[], startId: string) => void
+  closeImages: () => void
 }
 
 const LightboxContext = createContext<LightboxContextValue | null>(null)
+
+function LightboxLoading() {
+  const { closeImages } = useLightbox()
+  return <AsyncDialogFeedback label="image viewer" onClose={closeImages} />
+}
 
 function toSlide(r: ResourceDto): LightboxSlide | null {
   const src = r.file?.url ?? r.thumbnailUrl
@@ -54,17 +67,33 @@ export function LightboxProvider({ children }: { children: React.ReactNode }) {
     if (slides.length) setState({ slides, index })
   }, [])
 
-  const value = useMemo(() => ({ openImages }), [openImages])
+  const closeImages = useCallback(() => setState(null), [])
+  const value = useMemo(
+    () => ({ openImages, closeImages }),
+    [openImages, closeImages]
+  )
   return (
     <LightboxContext.Provider value={value}>
       {children}
       {state ? (
-        <LightboxImpl
-          slides={state.slides}
-          index={state.index}
-          onClose={() => setState(null)}
-          onIndexChange={(index) => setState((s) => (s ? { ...s, index } : s))}
-        />
+        <AsyncDialogBoundary
+          fallback={
+            <AsyncDialogFeedback
+              label="image viewer"
+              onClose={closeImages}
+              failed
+            />
+          }
+        >
+          <LightboxImpl
+            slides={state.slides}
+            index={state.index}
+            onClose={closeImages}
+            onIndexChange={(index) =>
+              setState((s) => (s ? { ...s, index } : s))
+            }
+          />
+        </AsyncDialogBoundary>
       ) : null}
     </LightboxContext.Provider>
   )

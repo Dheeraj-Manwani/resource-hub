@@ -1,6 +1,22 @@
 "use client"
 
 import {
+  beginTasks,
+  settleTasks,
+  taskResources,
+  changeTags,
+  replaceTags,
+  reorderChecklist,
+  pendingChecklistId,
+} from "@/lib/optimistic/actions"
+import { taskCache } from "@/lib/optimistic/domains"
+import { generateKeyBetween } from "fractional-indexing"
+
+import { useSyncController } from "@/components/sync-provider"
+
+import { syncMutation } from "@/lib/sync/mutations"
+
+import {
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -13,7 +29,12 @@ import { showToast } from "@/lib/toast"
 
 import { api, toQueryString } from "@/lib/api-client"
 import { invalidateResourceLists } from "@/hooks/queries/resources"
-import type { TaskDto, TaskPage, TaskPriority, TaskStatus } from "@/lib/tasks/types"
+import type {
+  TaskDto,
+  TaskPage,
+  TaskPriority,
+  TaskStatus,
+} from "@/lib/tasks/types"
 import type {
   CreateTaskInput,
   ListTasksQuery,
@@ -39,10 +60,12 @@ export const taskKeys = {
   lists: () => ["tasks", "list"] as const,
   list: (filters: TaskFilters) => ["tasks", "list", filters] as const,
   detail: (id: string) => ["tasks", "detail", id] as const,
-  forResource: (resourceId: string) => ["tasks", "for-resource", resourceId] as const,
+  forResource: (resourceId: string) =>
+    ["tasks", "for-resource", resourceId] as const,
 }
 
 export function useTaskList(filters: TaskFilters) {
+  const qc = useQueryClient()
   return useInfiniteQuery({
     queryKey: taskKeys.list(filters),
     initialPageParam: null as string | null,
@@ -55,13 +78,19 @@ export function useTaskList(filters: TaskFilters) {
           cursor: pageParam ?? undefined,
         })}`,
         { signal }
-      ),
+      ).then((page) => {
+        page.items.forEach((item) => taskCache.received(qc, item))
+        return page
+      }),
     getNextPageParam: (last) => last.nextCursor,
+    select: (data) => taskCache.projectList(qc, data, filters),
   })
 }
 
 function findInLists(qc: QueryClient, id: string): TaskDto | undefined {
-  for (const [, data] of qc.getQueriesData<InfiniteData<TaskPage>>({ queryKey: taskKeys.lists() })) {
+  for (const [, data] of qc.getQueriesData<InfiniteData<TaskPage>>({
+    queryKey: taskKeys.lists(),
+  })) {
     for (const page of data?.pages ?? []) {
       const found = page.items.find((t) => t.id === id)
       if (found) return found
@@ -75,46 +104,41 @@ export function useTask(id: string | null) {
   return useQuery<TaskDto>({
     queryKey: taskKeys.detail(id ?? ""),
     enabled: !!id,
-    queryFn: ({ signal }) => api<TaskDto>(`/api/v1/tasks/${id}`, { signal }),
-    placeholderData: (): TaskDto | undefined => (id ? findInLists(qc, id) : undefined),
+    queryFn: ({ signal }) =>
+      api<TaskDto>(`/api/v1/tasks/${id}`, { signal }).then((value) =>
+        taskCache.received(qc, value)
+      ),
+    placeholderData: (): TaskDto | undefined =>
+      id ? findInLists(qc, id) : undefined,
   })
 }
 
 /** Writes a task into every cached list and its detail entry. */
 export function upsertTaskInCache(qc: QueryClient, task: TaskDto) {
-  qc.setQueryData(taskKeys.detail(task.id), task)
-  qc.setQueriesData<InfiniteData<TaskPage>>({ queryKey: taskKeys.lists() }, (data) =>
-    data
-      ? {
-          ...data,
-          pages: data.pages.map((page) => ({
-            ...page,
-            items: page.items.map((t) => (t.id === task.id ? task : t)),
-          })),
-        }
-      : data
-  )
-}
-
-function removeFromLists(qc: QueryClient, id: string) {
-  qc.setQueriesData<InfiniteData<TaskPage>>({ queryKey: taskKeys.lists() }, (data) =>
-    data
-      ? {
-          ...data,
-          pages: data.pages.map((p) => ({ ...p, items: p.items.filter((t) => t.id !== id) })),
-        }
-      : data
-  )
+  taskCache.accept(qc, task)
 }
 
 export function invalidateTaskLists(qc: QueryClient) {
-  qc.invalidateQueries({ queryKey: ["tasks", "smart-counts"] })
-  return qc.invalidateQueries({ queryKey: taskKeys.lists() })
+  if (taskCache.pending(qc)) return Promise.resolve()
+  return Promise.all(
+    [
+      "tasks",
+      "calendar",
+      "projects",
+      "overview",
+      "resources",
+      "tags",
+      "search",
+      "command-search",
+      "reminders",
+    ].map((family) => qc.invalidateQueries({ queryKey: [family] }))
+  ).then(() => undefined)
 }
 
 export function useCreateTask() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("task.create"),
     mutationFn: (input: CreateTaskInput) =>
       api<TaskDto>("/api/v1/tasks", { method: "POST", body: input }),
     onSuccess: (task) => {
@@ -127,14 +151,23 @@ export function useCreateTask() {
   })
 }
 
-function applyPatch(task: TaskDto, patch: UpdateTaskInput): TaskDto {
+export function applyPatch(
+  task: TaskDto,
+  patch: UpdateTaskInput,
+  qc: QueryClient
+): TaskDto {
   const next: TaskDto = { ...task }
   if (patch.title !== undefined) next.title = patch.title
-  if (patch.descriptionJson !== undefined) next.descriptionJson = patch.descriptionJson
-  if (patch.descriptionText !== undefined) next.descriptionText = patch.descriptionText
+  if (patch.descriptionJson !== undefined)
+    next.descriptionJson = patch.descriptionJson
+  if (patch.descriptionText !== undefined)
+    next.descriptionText = patch.descriptionText
   if (patch.status !== undefined) {
     next.status = patch.status
-    next.completedAt = patch.status === "done" ? (next.completedAt ?? new Date().toISOString()) : null
+    next.completedAt =
+      patch.status === "done"
+        ? (next.completedAt ?? new Date().toISOString())
+        : null
   }
   if (patch.priority !== undefined) next.priority = patch.priority
   if (patch.startAt !== undefined) next.startAt = patch.startAt
@@ -142,12 +175,69 @@ function applyPatch(task: TaskDto, patch: UpdateTaskInput): TaskDto {
   if (patch.startDate !== undefined) next.startDate = patch.startDate
   if (patch.dueDate !== undefined) next.dueDate = patch.dueDate
   if (patch.allDay !== undefined) next.allDay = patch.allDay
-  if (patch.archived !== undefined) next.archivedAt = patch.archived ? new Date().toISOString() : null
-  if (patch.tags) {
-    const byName = new Map(task.tags.map((t) => [t.name.toLowerCase(), t]))
-    next.tags = patch.tags.map(
-      (name) => byName.get(name.toLowerCase()) ?? { id: `tmp-${name}`, name, color: null }
+  if (patch.rrule !== undefined) next.rrule = patch.rrule
+  if (patch.projectId !== undefined) {
+    next.projectId = patch.projectId
+    const project = qc
+      .getQueryData<{
+        items: {
+          id: string
+          name: string
+          icon: string | null
+          color: string | null
+        }[]
+      }>(["projects", "tree"])
+      ?.items.find((item) => item.id === patch.projectId)
+    next.project = project
+      ? {
+          id: project.id,
+          name: project.name,
+          icon: project.icon,
+          color: project.color,
+        }
+      : null
+  }
+  next.updatedAt = new Date().toISOString()
+  if (patch.archived !== undefined)
+    next.archivedAt = patch.archived ? new Date().toISOString() : null
+  if (patch.tags) next.tags = replaceTags(qc, task.tags, patch.tags)
+  return next
+}
+
+function optimisticMove(qc: QueryClient, task: TaskDto, input: MoveTaskInput) {
+  const next = applyPatch(task, { status: input.status }, qc)
+  const neighbor = input.beforeId
+    ? taskCache.read(qc, input.beforeId)
+    : input.afterId
+      ? taskCache.read(qc, input.afterId)
+      : null
+  if (neighbor?.status === input.status) {
+    const siblings = [
+      ...new Map(
+        qc
+          .getQueriesData<InfiniteData<TaskPage>>({
+            queryKey: taskKeys.lists(),
+          })
+          .flatMap(
+            ([, data]) => data?.pages.flatMap((page) => page.items) ?? []
+          )
+          .filter((item) => item.id !== task.id && item.status === input.status)
+          .map((item) => [item.id, item])
+      ).values(),
+    ].sort((a, b) =>
+      a.sortKey < b.sortKey ? -1 : a.sortKey > b.sortKey ? 1 : 0
     )
+    const index = siblings.findIndex((item) => item.id === neighbor.id)
+    if (index >= 0) {
+      const lower = input.beforeId
+        ? (siblings[index - 1]?.sortKey ?? null)
+        : neighbor.sortKey
+      const upper = input.beforeId
+        ? neighbor.sortKey
+        : (siblings[index + 1]?.sortKey ?? null)
+      if (lower === null || upper === null || lower < upper)
+        next.sortKey = generateKeyBetween(lower, upper)
+    }
   }
   return next
 }
@@ -156,79 +246,113 @@ function applyPatch(task: TaskDto, patch: UpdateTaskInput): TaskDto {
 export function useUpdateTask() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("task.update"),
     mutationFn: ({ id, patch }: { id: string; patch: UpdateTaskInput }) =>
       api<TaskDto>(`/api/v1/tasks/${id}`, { method: "PATCH", body: patch }),
     onMutate: async ({ id, patch }) => {
       await qc.cancelQueries({ queryKey: taskKeys.all })
-      const previousLists = qc.getQueriesData<InfiniteData<TaskPage>>({ queryKey: taskKeys.lists() })
-      const previousDetail = qc.getQueryData<TaskDto>(taskKeys.detail(id))
-      const current = previousDetail ?? findInLists(qc, id)
-      if (current) upsertTaskInCache(qc, applyPatch(current, patch))
-      return { previousLists, previousDetail }
+      return {
+        token: taskCache.begin(qc, id, (current) =>
+          current ? applyPatch(current, patch, qc) : current
+        ),
+      }
     },
     onError: (error, { id }, context) => {
-      context?.previousLists.forEach(([key, data]) => qc.setQueryData(key, data))
-      if (context?.previousDetail) qc.setQueryData(taskKeys.detail(id), context.previousDetail)
+      taskCache.settle(qc, id, context?.token)
       toast.error(`Couldn't save: ${error.message}`)
     },
-    onSuccess: (task) => upsertTaskInCache(qc, task),
+    onSuccess: (task, { id }, context) =>
+      taskCache.settle(qc, id, context?.token, task),
+    onSettled: () => invalidateTaskLists(qc),
   })
 }
 
 export function useMoveTask() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("task.move"),
     mutationFn: ({ id, input }: { id: string; input: MoveTaskInput }) =>
       api<TaskDto>(`/api/v1/tasks/${id}/move`, { method: "POST", body: input }),
     onMutate: async ({ id, input }) => {
-      await qc.cancelQueries({ queryKey: taskKeys.lists() })
-      const previousLists = qc.getQueriesData<InfiniteData<TaskPage>>({ queryKey: taskKeys.lists() })
-      const current = findInLists(qc, id)
-      if (current) upsertTaskInCache(qc, { ...current, status: input.status })
-      return { previousLists }
+      await qc.cancelQueries({ queryKey: taskKeys.all })
+      return {
+        token: taskCache.begin(qc, id, (current) =>
+          current ? optimisticMove(qc, current, input) : current
+        ),
+      }
     },
-    onError: (error, _vars, context) => {
-      context?.previousLists.forEach(([key, data]) => qc.setQueryData(key, data))
+    onError: (error, { id }, context) => {
+      taskCache.settle(qc, id, context?.token)
       toast.error(`Couldn't move: ${error.message}`)
     },
     onSettled: () => invalidateTaskLists(qc),
+    onSuccess: (task, { id }, context) =>
+      taskCache.settle(qc, id, context?.token, task),
   })
 }
 
 export function useDeleteTask() {
+  const sync = useSyncController()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api<null>(`/api/v1/tasks/${id}`, { method: "DELETE" }),
+    ...syncMutation("task.delete"),
+    mutationFn: (id: string) =>
+      api<null>(`/api/v1/tasks/${id}`, { method: "DELETE" }),
     onMutate: async (id) => {
-      await qc.cancelQueries({ queryKey: taskKeys.lists() })
-      const previousLists = qc.getQueriesData<InfiniteData<TaskPage>>({ queryKey: taskKeys.lists() })
-      removeFromLists(qc, id)
-      return { previousLists }
+      await qc.cancelQueries({ queryKey: taskKeys.all })
+      return { token: taskCache.begin(qc, id, () => null) }
     },
-    onError: (error, _id, context) => {
-      context?.previousLists.forEach(([key, data]) => qc.setQueryData(key, data))
+    onError: (error, id, context) => {
+      taskCache.settle(qc, id, context?.token)
       toast.error(`Couldn't delete: ${error.message}`)
     },
-    onSuccess: (_data, id) => {
+    onSuccess: (_data, id, context) => {
+      taskCache.settle(qc, id, context?.token, null)
       qc.removeQueries({ queryKey: taskKeys.detail(id) })
-      showToast("Task deleted", {
-        action: {
-          label: "Undo",
-          onClick: () => {
-            api(`/api/v1/trash/task/${id}/restore`, { method: "POST" })
-              .then(() => qc.invalidateQueries({ queryKey: taskKeys.lists() }))
-              .catch(() => toast.error("Couldn't undo"))
+      showToast(
+        "Task deleted",
+        {
+          action: {
+            label: "Undo",
+            onClick: () => {
+              sync
+                .track(
+                  {
+                    label: "Restoring task",
+                    source: "manual",
+                    entityKeys: [`task:${id}`],
+                    href: "/trash",
+                  },
+                  async (saved) => {
+                    await api(`/api/v1/trash/task/${id}/restore`, {
+                      method: "POST",
+                    })
+                    saved()
+                    await qc.invalidateQueries(
+                      { queryKey: taskKeys.lists() },
+                      { throwOnError: true }
+                    )
+                  }
+                )
+                .catch(() =>
+                  toast.error("Undo needs attention. Check sync details.")
+                )
+            },
           },
         },
-      }, "success")
+        "success"
+      )
     },
+    onSettled: () => invalidateTaskLists(qc),
   })
 }
 
 export function useDuplicateTask() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api<TaskDto>(`/api/v1/tasks/${id}/duplicate`, { method: "POST" }),
+    ...syncMutation("task.duplicate"),
+    mutationFn: (id: string) =>
+      api<TaskDto>(`/api/v1/tasks/${id}/duplicate`, { method: "POST" }),
     onSuccess: (task) => {
       upsertTaskInCache(qc, task)
       invalidateTaskLists(qc)
@@ -241,45 +365,98 @@ export function useDuplicateTask() {
 export function useArchiveTask() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api<TaskDto>(`/api/v1/tasks/${id}/archive`, { method: "POST" }),
-    onSuccess: (task) => {
-      upsertTaskInCache(qc, task)
-      invalidateTaskLists(qc)
+    ...syncMutation("task.archive"),
+    mutationFn: (id: string) =>
+      api<TaskDto>(`/api/v1/tasks/${id}/archive`, { method: "POST" }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: taskKeys.all })
+      return {
+        token: taskCache.begin(qc, id, (task) =>
+          task ? applyPatch(task, { archived: !task.archivedAt }, qc) : task
+        ),
+      }
+    },
+    onSuccess: (task, id, context) => {
+      taskCache.settle(qc, id, context?.token, task)
       toast.success(task.archivedAt ? "Task archived" : "Task unarchived")
     },
-    onError: (error) => toast.error(`Couldn't archive: ${error.message}`),
+    onError: (error, id, context) => {
+      taskCache.settle(qc, id, context?.token)
+      toast.error(`Couldn't archive: ${error.message}`)
+    },
+    onSettled: () => invalidateTaskLists(qc),
   })
 }
 
 export function useLinkTaskResources() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ taskId, resourceIds }: { taskId: string; resourceIds: string[] }) =>
+    ...syncMutation("task.link"),
+    mutationFn: ({
+      taskId,
+      resourceIds,
+    }: {
+      taskId: string
+      resourceIds: string[]
+    }) =>
       api<{ linked: number }>(`/api/v1/tasks/${taskId}/resources`, {
         method: "POST",
         body: { resourceIds },
       }),
-    onSuccess: (_data, { taskId }) => {
+    onMutate: async ({ taskId, resourceIds }) => {
+      await qc.cancelQueries({ queryKey: taskKeys.all })
+      return {
+        token: taskCache.begin(qc, taskId, (task) =>
+          task ? taskResources(qc, task, resourceIds, true) : task
+        ),
+      }
+    },
+    onSuccess: (_data, { taskId }, context) => {
+      taskCache.commit(qc, taskId, context?.token)
       qc.invalidateQueries({ queryKey: taskKeys.detail(taskId) })
       invalidateResourceLists(qc)
     },
-    onError: (error) => toast.error(`Couldn't link resource: ${error.message}`),
+    onError: (error, { taskId }, context) => {
+      taskCache.settle(qc, taskId, context?.token)
+      toast.error(`Couldn't change resource links: ${error.message}`)
+    },
+    onSettled: () => invalidateTaskLists(qc),
   })
 }
 
 export function useUnlinkTaskResources() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ taskId, resourceIds }: { taskId: string; resourceIds: string[] }) =>
+    ...syncMutation("task.unlink"),
+    mutationFn: ({
+      taskId,
+      resourceIds,
+    }: {
+      taskId: string
+      resourceIds: string[]
+    }) =>
       api<{ unlinked: number }>(`/api/v1/tasks/${taskId}/resources`, {
         method: "DELETE",
         body: { resourceIds },
       }),
-    onSuccess: (_data, { taskId }) => {
+    onMutate: async ({ taskId, resourceIds }) => {
+      await qc.cancelQueries({ queryKey: taskKeys.all })
+      return {
+        token: taskCache.begin(qc, taskId, (task) =>
+          task ? taskResources(qc, task, resourceIds, false) : task
+        ),
+      }
+    },
+    onSuccess: (_data, { taskId }, context) => {
+      taskCache.commit(qc, taskId, context?.token)
       qc.invalidateQueries({ queryKey: taskKeys.detail(taskId) })
       invalidateResourceLists(qc)
     },
-    onError: (error) => toast.error(`Couldn't unlink resource: ${error.message}`),
+    onError: (error, { taskId }, context) => {
+      taskCache.settle(qc, taskId, context?.token)
+      toast.error(`Couldn't change resource links: ${error.message}`)
+    },
+    onSettled: () => invalidateTaskLists(qc),
   })
 }
 
@@ -287,12 +464,17 @@ export function useSmartFilterCounts() {
   return useQuery({
     queryKey: ["tasks", "smart-counts"],
     queryFn: ({ signal }) =>
-      api<Record<SmartFilter, number>>("/api/v1/tasks/smart-counts", { signal }),
+      api<Record<SmartFilter, number>>("/api/v1/tasks/smart-counts", {
+        signal,
+      }),
     staleTime: 10_000,
   })
 }
 
-export function useProjectTaskProgress(projectId: string, includeDescendants: boolean) {
+export function useProjectTaskProgress(
+  projectId: string,
+  includeDescendants: boolean
+) {
   return useQuery({
     queryKey: ["projects", "tasks-progress", projectId, includeDescendants],
     queryFn: ({ signal }) =>
@@ -310,10 +492,15 @@ export function useResourceTasks(resourceId: string, enabled = true) {
     queryKey: taskKeys.forResource(resourceId),
     enabled,
     queryFn: ({ signal }) =>
-      api<{ items: { id: string; title: string; status: TaskStatus; priority: TaskPriority; dueAt: string | null }[] }>(
-        `/api/v1/resources/${resourceId}/tasks`,
-        { signal }
-      ),
+      api<{
+        items: {
+          id: string
+          title: string
+          status: TaskStatus
+          priority: TaskPriority
+          dueAt: string | null
+        }[]
+      }>(`/api/v1/resources/${resourceId}/tasks`, { signal }),
     select: (d) => d.items,
   })
 }
@@ -323,16 +510,51 @@ export function useResourceTasks(resourceId: string, enabled = true) {
 export function useAddChecklistItem() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("task.checklist-add"),
     mutationFn: ({ taskId, title }: { taskId: string; title: string }) =>
-      api<TaskDto>(`/api/v1/tasks/${taskId}/checklist`, { method: "POST", body: { title } }),
-    onSuccess: (task) => upsertTaskInCache(qc, task),
-    onError: (error) => toast.error(`Couldn't add item: ${error.message}`),
+      api<TaskDto>(`/api/v1/tasks/${taskId}/checklist`, {
+        method: "POST",
+        body: { title },
+      }),
+    onMutate: async ({ taskId, title }) => {
+      await qc.cancelQueries({ queryKey: taskKeys.all })
+      const pendingId = pendingChecklistId()
+      return {
+        token: taskCache.begin(qc, taskId, (task) =>
+          task
+            ? {
+                ...task,
+                checklist: [
+                  ...task.checklist,
+                  {
+                    id: pendingId,
+                    title,
+                    done: false,
+                    sortKey: generateKeyBetween(
+                      task.checklist.at(-1)?.sortKey ?? null,
+                      null
+                    ),
+                  },
+                ],
+              }
+            : task
+        ),
+      }
+    },
+    onSuccess: (task, { taskId }, context) =>
+      taskCache.settle(qc, taskId, context?.token, task),
+    onError: (error, { taskId }, context) => {
+      taskCache.settle(qc, taskId, context?.token)
+      toast.error(`Couldn't add item: ${error.message}`)
+    },
+    onSettled: () => invalidateTaskLists(qc),
   })
 }
 
 export function useUpdateChecklistItem() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("task.checklist-update"),
     mutationFn: ({
       taskId,
       itemId,
@@ -347,39 +569,66 @@ export function useUpdateChecklistItem() {
         body: patch,
       }),
     onMutate: async ({ taskId, itemId, patch }) => {
-      await qc.cancelQueries({ queryKey: taskKeys.detail(taskId) })
-      const previous = qc.getQueryData<TaskDto>(taskKeys.detail(taskId))
-      if (previous) {
-        upsertTaskInCache(qc, {
-          ...previous,
-          checklist: previous.checklist.map((item) =>
-            item.id === itemId ? { ...item, ...patch } : item
-          ),
-        })
+      await qc.cancelQueries({ queryKey: taskKeys.all })
+      return {
+        token: taskCache.begin(qc, taskId, (current) =>
+          current
+            ? {
+                ...current,
+                checklist: current.checklist.map((item) =>
+                  item.id === itemId ? { ...item, ...patch } : item
+                ),
+              }
+            : current
+        ),
       }
-      return { previous }
     },
     onError: (error, { taskId }, context) => {
-      if (context?.previous) qc.setQueryData(taskKeys.detail(taskId), context.previous)
+      taskCache.settle(qc, taskId, context?.token)
       toast.error(`Couldn't update item: ${error.message}`)
     },
-    onSuccess: (task) => upsertTaskInCache(qc, task),
+    onSuccess: (task, { taskId }, context) =>
+      taskCache.settle(qc, taskId, context?.token, task),
+    onSettled: () => invalidateTaskLists(qc),
   })
 }
 
 export function useDeleteChecklistItem() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("task.checklist-delete"),
     mutationFn: ({ taskId, itemId }: { taskId: string; itemId: string }) =>
-      api<TaskDto>(`/api/v1/tasks/${taskId}/checklist/${itemId}`, { method: "DELETE" }),
-    onSuccess: (task) => upsertTaskInCache(qc, task),
-    onError: (error) => toast.error(`Couldn't remove item: ${error.message}`),
+      api<TaskDto>(`/api/v1/tasks/${taskId}/checklist/${itemId}`, {
+        method: "DELETE",
+      }),
+    onMutate: async ({ taskId, itemId }) => {
+      await qc.cancelQueries({ queryKey: taskKeys.all })
+
+      return {
+        token: taskCache.begin(qc, taskId, (task) =>
+          task
+            ? {
+                ...task,
+                checklist: task.checklist.filter((item) => item.id !== itemId),
+              }
+            : task
+        ),
+      }
+    },
+    onSuccess: (task, { taskId }, context) =>
+      taskCache.settle(qc, taskId, context?.token, task),
+    onError: (error, { taskId }, context) => {
+      taskCache.settle(qc, taskId, context?.token)
+      toast.error(`Couldn't remove item: ${error.message}`)
+    },
+    onSettled: () => invalidateTaskLists(qc),
   })
 }
 
 export function useReorderChecklistItem() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("task.checklist-move"),
     mutationFn: ({
       taskId,
       itemId,
@@ -395,8 +644,32 @@ export function useReorderChecklistItem() {
         method: "POST",
         body: { beforeId, afterId },
       }),
-    onSuccess: (task) => upsertTaskInCache(qc, task),
-    onError: (error) => toast.error(`Couldn't reorder: ${error.message}`),
+    onMutate: async ({ taskId, itemId, beforeId, afterId }) => {
+      await qc.cancelQueries({ queryKey: taskKeys.all })
+
+      return {
+        token: taskCache.begin(qc, taskId, (task) =>
+          task
+            ? {
+                ...task,
+                checklist: reorderChecklist(
+                  task.checklist,
+                  itemId,
+                  beforeId,
+                  afterId
+                ),
+              }
+            : task
+        ),
+      }
+    },
+    onSuccess: (task, { taskId }, context) =>
+      taskCache.settle(qc, taskId, context?.token, task),
+    onError: (error, { taskId }, context) => {
+      taskCache.settle(qc, taskId, context?.token)
+      toast.error(`Couldn't reorder: ${error.message}`)
+    },
+    onSettled: () => invalidateTaskLists(qc),
   })
 }
 
@@ -413,17 +686,62 @@ export type BulkTaskAction =
 export function useBulkTaskActions() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("task.bulk"),
     mutationFn: (body: BulkTaskAction) =>
-      api<{ updated: number }>("/api/v1/tasks/bulk-actions", { method: "POST", body }),
-    onSuccess: (_data, vars) => {
+      api<{ updated: number }>("/api/v1/tasks/bulk-actions", {
+        method: "POST",
+        body,
+      }),
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey: taskKeys.all })
+      return {
+        tokens: beginTasks(qc, vars.taskIds, (task) =>
+          vars.action === "delete"
+            ? null
+            : vars.action === "tag" || vars.action === "untag"
+              ? {
+                  ...task,
+                  tags: changeTags(
+                    qc,
+                    task.tags,
+                    vars.tags,
+                    vars.action === "tag"
+                  ),
+                }
+              : applyPatch(
+                  task,
+                  vars.action === "status"
+                    ? { status: vars.status }
+                    : vars.action === "priority"
+                      ? { priority: vars.priority }
+                      : { projectId: vars.projectId },
+                  qc
+                )
+        ),
+      }
+    },
+    onSuccess: (_data, vars, context) => {
+      settleTasks(qc, context?.tokens, true)
       if (vars.action === "delete") {
-        vars.taskIds.forEach((id) => qc.removeQueries({ queryKey: taskKeys.detail(id) }))
+        vars.taskIds.forEach((id) =>
+          qc.removeQueries({ queryKey: taskKeys.detail(id) })
+        )
       } else {
-        vars.taskIds.forEach((id) => qc.invalidateQueries({ queryKey: taskKeys.detail(id) }))
+        vars.taskIds.forEach((id) =>
+          qc.invalidateQueries({ queryKey: taskKeys.detail(id) })
+        )
       }
       invalidateTaskLists(qc)
-      toast.success(vars.action === "delete" ? `Deleted ${vars.taskIds.length} tasks` : "Tasks updated")
+      toast.success(
+        vars.action === "delete"
+          ? `Deleted ${vars.taskIds.length} tasks`
+          : "Tasks updated"
+      )
     },
-    onError: (error) => toast.error(`Couldn't update: ${error.message}`),
+    onError: (error, _vars, context) => {
+      settleTasks(qc, context?.tokens, false)
+      toast.error(`Couldn't update: ${error.message}`)
+    },
+    onSettled: () => invalidateTaskLists(qc),
   })
 }

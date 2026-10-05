@@ -1,6 +1,9 @@
 "use client"
 
-import { Suspense } from "react"
+import { Suspense, useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { useSyncController } from "@/components/sync-provider"
+import { SyncStatus } from "./sync-status"
 
 import { QuickAddProjectDialog } from "@/components/projects/quick-add-project-dialog"
 import { QuickAddNoteDialog } from "@/components/quick-notes/quick-add-note-dialog"
@@ -42,6 +45,11 @@ export function AppShell({
   user: AppUser
   children: React.ReactNode
 }) {
+  const sync = useSyncController()
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    if (sync.setSession(user.id)) queryClient.clear()
+  }, [sync, queryClient, user.id])
   return (
     <ShellProvider user={user}>
       <LightboxProvider>
@@ -53,6 +61,7 @@ export function AppShell({
               </aside>
               <div className="flex min-w-0 flex-1 flex-col">
                 <TopBar />
+                <SyncStatus className="sticky top-14 z-20 border-b border-border bg-background px-3 md:hidden" />
                 <main className="flex-1 px-4 pt-6 pb-28 md:px-8 md:pb-12">
                   {children}
                 </main>

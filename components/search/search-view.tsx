@@ -1,5 +1,7 @@
 "use client"
 
+import { QueryFeedback } from "@/components/query-feedback"
+
 import {
   FolderIcon,
   ListTodoIcon,
@@ -79,7 +81,9 @@ export function SearchView() {
     [q, type, resourceType, tag, favorite, linked, from, to]
   )
 
-  const { data, isFetching } = useSearch(query)
+  const search = useSearch(query)
+  const { data, isFetching } = search
+  const enabled = search.isEnabled
   const total = data
     ? data.resources.length +
       data.tasks.length +
@@ -235,13 +239,14 @@ export function SearchView() {
         />
       </div>
 
-      {!data && !isFetching ? (
+      {enabled ? <QueryFeedback query={search} label="search results" /> : null}
+      {search.isError && !data ? null : !enabled ? (
         <EmptyState
           icon={SearchIcon}
           title="Search your whole library"
           description="Type a query or set a filter above. Matches on title, notes, description and extracted text are highlighted; typos are tolerated."
         />
-      ) : total === 0 && !isFetching ? (
+      ) : total === 0 && search.isSuccess && !isFetching ? (
         <EmptyState
           icon={SearchIcon}
           title="Nothing found"

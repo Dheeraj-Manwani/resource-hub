@@ -1,7 +1,10 @@
 "use client"
+import { QueryFeedback } from "@/components/query-feedback"
+import { ApiClientError } from "@/lib/api-client"
 
 import {
   CopyIcon,
+  LoaderCircleIcon,
   ExternalLinkIcon,
   FolderIcon,
   PlusIcon,
@@ -44,11 +47,13 @@ import { RemindersField } from "./reminders-field"
 import { StatusSelect } from "./task-status"
 import { TaskChecklist } from "./task-checklist"
 import { TaskResourcePickerDialog } from "./task-resource-picker-dialog"
-
-const NoteEditor = dynamic(() => import("@/components/resources/full-view/note-editor"), {
-  ssr: false,
-  loading: () => <Skeleton className="h-32 w-full" />,
-})
+const NoteEditor = dynamic(
+  () => import("@/components/resources/full-view/note-editor"),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-32 w-full" />,
+  }
+)
 
 function Field({
   label,
@@ -61,7 +66,10 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={htmlFor} className="text-xs font-medium tracking-wide text-subtle uppercase">
+      <Label
+        htmlFor={htmlFor}
+        className="text-xs font-medium tracking-wide text-subtle uppercase"
+      >
         {label}
       </Label>
       {children}
@@ -70,7 +78,14 @@ function Field({
 }
 
 /** Text input that saves on blur/Enter when its value changed. */
-function InlineTitle({ value, onSave }: { value: string; onSave: (value: string) => void }) {
+
+function InlineTitle({
+  value,
+  onSave,
+}: {
+  value: string
+  onSave: (value: string) => void
+}) {
   const [draft, setDraft] = useState(value)
   const [prevValue, setPrevValue] = useState(value)
   if (value !== prevValue) {
@@ -131,7 +146,13 @@ function ResourcesField({ task }: { task: TaskDto }) {
                       variant="ghost"
                       aria-label="Open original"
                       nativeButton={false}
-                      render={<a href={r.url} target="_blank" rel="noopener noreferrer" />}
+                      render={
+                        <a
+                          href={r.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        />
+                      }
                     />
                   }
                 >
@@ -144,7 +165,9 @@ function ResourcesField({ task }: { task: TaskDto }) {
               size="icon-sm"
               variant="ghost"
               aria-label="Unlink resource"
-              onClick={() => unlink.mutate({ taskId: task.id, resourceIds: [r.id] })}
+              onClick={() =>
+                unlink.mutate({ taskId: task.id, resourceIds: [r.id] })
+              }
             >
               <XIcon />
             </Button>
@@ -185,12 +208,19 @@ function DetailContent({ task }: { task: TaskDto }) {
                 <Button
                   size="icon-sm"
                   variant="ghost"
-                  aria-label="Duplicate"
+                  aria-label={
+                    duplicate.isPending ? "Duplicating…" : "Duplicate"
+                  }
+                  disabled={duplicate.isPending}
                   onClick={() => duplicate.mutate(task.id)}
                 />
               }
             >
-              <CopyIcon />
+              {duplicate.isPending ? (
+                <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
+              ) : (
+                <CopyIcon />
+              )}
             </TooltipTrigger>
             <TooltipContent>Duplicate</TooltipContent>
           </Tooltip>
@@ -200,16 +230,20 @@ function DetailContent({ task }: { task: TaskDto }) {
                 <Button
                   size="icon-sm"
                   variant="ghost"
-                  aria-label="Delete"
+                  aria-label={remove.isPending ? "Deleting…" : "Delete"}
+                  disabled={remove.isPending}
                   className="hover:text-destructive"
                   onClick={() => {
-                    remove.mutate(task.id)
-                    close()
+                    remove.mutate(task.id, { onSuccess: close })
                   }}
                 />
               }
             >
-              <Trash2Icon />
+              {remove.isPending ? (
+                <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
+              ) : (
+                <Trash2Icon />
+              )}
             </TooltipTrigger>
             <TooltipContent>Delete</TooltipContent>
           </Tooltip>
@@ -224,20 +258,33 @@ function DetailContent({ task }: { task: TaskDto }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <StatusSelect value={task.status} onChange={(status) => save({ status })} />
-          <PrioritySelect value={task.priority} onChange={(priority) => save({ priority })} />
+          <StatusSelect
+            value={task.status}
+            onChange={(status) => save({ status })}
+          />
+          <PrioritySelect
+            value={task.priority}
+            onChange={(priority) => save({ priority })}
+          />
         </div>
 
         <Field label="Due">
           <DueDateField
-            value={{ dueAt: task.dueAt, dueDate: task.dueDate, allDay: task.allDay }}
+            value={{
+              dueAt: task.dueAt,
+              dueDate: task.dueDate,
+              allDay: task.allDay,
+            }}
             onChange={(v) => save(v)}
           />
         </Field>
 
         {task.seriesId ? null : (
           <Field label="Repeat">
-            <RecurrenceField rrule={task.rrule} onChange={(rrule) => save({ rrule })} />
+            <RecurrenceField
+              rrule={task.rrule}
+              onChange={(rrule) => save({ rrule })}
+            />
           </Field>
         )}
 
@@ -247,8 +294,16 @@ function DetailContent({ task }: { task: TaskDto }) {
 
         <Field label="Description">
           <NoteEditor
+            draftKey={`task:${task.id}`}
             content={task.descriptionJson}
-            onSave={(doc, text) => save({ descriptionJson: doc, descriptionText: text })}
+            onSave={(doc, text) =>
+              update
+                .mutateAsync({
+                  id: task.id,
+                  patch: { descriptionJson: doc, descriptionText: text },
+                })
+                .then(() => undefined)
+            }
           />
         </Field>
 
@@ -256,11 +311,19 @@ function DetailContent({ task }: { task: TaskDto }) {
           <ProjectSinglePicker
             value={task.projectId}
             onChange={(projectId) => save({ projectId })}
-            render={<button type="button" className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-sm hover:border-border-strong" />}
+            render={
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-sm hover:border-border-strong"
+              />
+            }
           >
             {task.project ? (
               <>
-                <FolderIcon className="size-3.5" style={{ color: task.project.color ?? undefined }} />
+                <FolderIcon
+                  className="size-3.5"
+                  style={{ color: task.project.color ?? undefined }}
+                />
                 {task.project.name}
               </>
             ) : (
@@ -273,7 +336,10 @@ function DetailContent({ task }: { task: TaskDto }) {
         </Field>
 
         <Field label="Tags">
-          <TagInput value={task.tags.map((t) => t.name)} onChange={(tags) => save({ tags })} />
+          <TagInput
+            value={task.tags.map((t) => t.name)}
+            onChange={(tags) => save({ tags })}
+          />
         </Field>
 
         <Field label="Checklist">
@@ -287,10 +353,21 @@ function DetailContent({ task }: { task: TaskDto }) {
             <dt className="text-subtle">Added</dt>
             <dd className="text-text-muted">{formatDate(task.createdAt)}</dd>
             <dt className="text-subtle">Updated</dt>
-            <dd className="text-text-muted">{formatRelative(task.updatedAt)}</dd>
+            <dd className="text-text-muted">
+              {formatRelative(task.updatedAt)}
+            </dd>
           </dl>
-          <Button variant="outline" size="sm" onClick={() => archive.mutate(task.id)}>
-            {task.archivedAt ? "Unarchive" : "Archive"}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={archive.isPending}
+            onClick={() => archive.mutate(task.id)}
+          >
+            {archive.isPending
+              ? "Saving…"
+              : task.archivedAt
+                ? "Unarchive"
+                : "Archive"}
           </Button>
         </div>
       </div>
@@ -299,15 +376,38 @@ function DetailContent({ task }: { task: TaskDto }) {
 }
 
 export function TaskDetail({ id }: { id: string }) {
-  const { data, isPending, isError } = useTask(id)
+  const query = useTask(id)
+  const { data, isPending } = query
   if (isPending && !data) return <DetailSkeleton />
-  if (isError || !data) {
+  if (
+    !data &&
+    query.isError &&
+    !(query.error instanceof ApiClientError && query.error.status === 404)
+  )
+    return (
+      <div className="p-6 pt-14">
+        <SheetTitle className="sr-only">Unable to load task</SheetTitle>
+        <QueryFeedback query={query} label="task" />
+      </div>
+    )
+  if (!data) {
     return (
       <div className="p-6 pt-14">
         <SheetTitle className="sr-only">Not found</SheetTitle>
-        <EmptyState icon={TriangleAlertIcon} title="Task not found" description="It may have been deleted." />
+        <EmptyState
+          icon={TriangleAlertIcon}
+          title="Task not found"
+          description="It may have been deleted."
+        />
       </div>
     )
   }
-  return <DetailContent task={data} />
+  return (
+    <>
+      <div className="px-6">
+        <QueryFeedback query={query} label="task" loading={false} />
+      </div>
+      <DetailContent task={data} />
+    </>
+  )
 }

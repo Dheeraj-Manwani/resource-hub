@@ -1,5 +1,7 @@
 "use client"
 
+import { useSyncController } from "@/components/sync-provider"
+
 import { FolderIcon, XIcon } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useEffect, useRef, useState } from "react"
@@ -55,7 +57,7 @@ export type SaveOpts = {
   /** The caller reports the id the backend assigned (or kept) for this
    * save, so a later save in the same session updates that note instead
    * of creating another one. */
-  onSaved: (id: string) => void
+  onSaved: (id: string) => boolean
 }
 
 function isDirty(baseline: LiveDraft, live: LiveDraft) {
@@ -124,6 +126,7 @@ function DialogBody({
   onSaveClick: () => void
   saving: boolean
 }) {
+  const sync = useSyncController()
   const [title, setTitle] = useState(draft.title)
   const [projectId, setProjectId] = useState(draft.projectId)
   const { options: projectOptions } = useProjectOptions()
@@ -133,7 +136,7 @@ function DialogBody({
 
   return (
     <>
-      <DialogHeader className="flex-row shrink-0 items-center gap-2 border-b border-border py-4 pr-4 pl-6">
+      <DialogHeader className="shrink-0 flex-row items-center gap-2 border-b border-border py-4 pr-4 pl-6">
         <div className="flex min-w-0 flex-1 flex-col gap-0">
           <DialogTitle className="sr-only">
             {draft.id ? "Edit quick note" : "New quick note"}
@@ -176,7 +179,7 @@ function DialogBody({
           onSave={(json, text) =>
             onLiveChange({ bodyJson: json, bodyText: text })
           }
-          onUploadImage={uploadQuickNoteImage}
+          onUploadImage={(file) => uploadQuickNoteImage(file, sync)}
           onLinkPreview={fetchQuickNoteLinkPreview}
         />
       </div>
@@ -328,6 +331,7 @@ export function QuickNoteDialog({
         onSaved: (id) => {
           savedId.current = id
           baseline.current = snapshot
+          return !isDirty(snapshot, live.current)
         },
       }
     )

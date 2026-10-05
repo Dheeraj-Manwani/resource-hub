@@ -1,5 +1,9 @@
 "use client"
 
+import { PendingCreations } from "@/components/pending-creations"
+
+import { QueryFeedback } from "@/components/query-feedback"
+
 import { ListPlusIcon, NotebookPenIcon, PlusIcon } from "lucide-react"
 import { useState } from "react"
 import { toast } from "react-hot-toast"
@@ -34,10 +38,11 @@ export function ProjectQuickNotesTab({
   projectId: string
   includeDescendants: boolean
 }) {
-  const { data: notes = [], isPending } = useQuickNotes({
+  const notesQuery = useQuickNotes({
     projectId,
     includeDescendants,
   })
+  const { data: notes = [], isPending } = notesQuery
   const createNote = useCreateQuickNote()
   const updateNote = useUpdateQuickNote()
   const deleteNote = useDeleteQuickNote()
@@ -76,9 +81,9 @@ export function ProjectQuickNotesTab({
       bodyText: next.bodyText,
     }
     const onSuccess = (note: QuickNoteDto) => {
-      opts.onSaved(note.id)
+      const currentSaved = opts.onSaved(note.id)
       toast.success("Note saved")
-      if (!opts.keepOpen) setDraft(null)
+      if (currentSaved && !opts.keepOpen) setDraft(null)
     }
     if (next.id) {
       updateNote.mutate({ id: next.id, ...payload }, { onSuccess })
@@ -90,7 +95,11 @@ export function ProjectQuickNotesTab({
   return (
     <div>
       <div className="mb-2 flex h-6 items-center justify-end gap-2">
-        <Button variant="outline" size="xs" onClick={() => setAddingExisting(true)}>
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => setAddingExisting(true)}
+        >
           <ListPlusIcon />
           Add existing
         </Button>
@@ -100,13 +109,18 @@ export function ProjectQuickNotesTab({
         </Button>
       </div>
 
+      <QueryFeedback query={notesQuery} label="project notes" loading={false} />
+      <PendingCreations
+        entity="quick-note"
+        filters={{ projectId, includeDescendants }}
+      />
       {isPending ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-40 rounded-xl" />
           ))}
         </div>
-      ) : notes.length === 0 ? (
+      ) : notesQuery.isError && !notesQuery.data ? null : notes.length === 0 ? (
         <EmptyState
           icon={NotebookPenIcon}
           title="No quick notes linked"
@@ -150,10 +164,10 @@ export function ProjectQuickNotesTab({
         title={`Delete "${deleting?.title || "Untitled"}"?`}
         description="This note is permanently deleted. This can't be undone."
         confirmLabel="Delete"
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!deleting) return
+          await deleteNote.mutateAsync(deleting.id)
           if (deleting.id === draft?.id) setDraft(null)
-          deleteNote.mutate(deleting.id)
         }}
       />
     </div>

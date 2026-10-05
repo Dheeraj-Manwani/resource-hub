@@ -1,4 +1,5 @@
 "use client"
+import { QueryFeedback, LoadingState } from "@/components/query-feedback"
 
 import type {
   DateSelectArg,
@@ -9,7 +10,11 @@ import type {
   EventInput,
 } from "@fullcalendar/core"
 import dayGridPlugin from "@fullcalendar/daygrid"
-import interactionPlugin, { type DateClickArg, type DropArg, type EventResizeDoneArg } from "@fullcalendar/interaction"
+import interactionPlugin, {
+  type DateClickArg,
+  type DropArg,
+  type EventResizeDoneArg,
+} from "@fullcalendar/interaction"
 import listPlugin from "@fullcalendar/list"
 import FullCalendar from "@fullcalendar/react"
 import timeGridPlugin from "@fullcalendar/timegrid"
@@ -31,7 +36,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { useCalendarOccurrences, useEditOccurrence } from "@/hooks/queries/calendar"
+import {
+  useCalendarOccurrences,
+  useEditOccurrence,
+} from "@/hooks/queries/calendar"
 import { useSettings, useUpdateSettings } from "@/hooks/queries/settings"
 import { useTagSearch } from "@/hooks/queries/resources"
 import { useDetailDrawer } from "@/hooks/use-detail-drawer"
@@ -44,8 +52,14 @@ import type { UpdateTaskInput } from "@/lib/validation/tasks"
 import { cn } from "@/lib/utils"
 
 import { CalendarSidePanel } from "./calendar-side-panel"
-import { OccurrenceScopeDialog, type OccurrenceScope } from "./occurrence-scope-dialog"
-import { QuickCreateDialog, type QuickCreateTarget } from "./quick-create-dialog"
+import {
+  OccurrenceScopeDialog,
+  type OccurrenceScope,
+} from "./occurrence-scope-dialog"
+import {
+  QuickCreateDialog,
+  type QuickCreateTarget,
+} from "./quick-create-dialog"
 
 type ViewName = "dayGridMonth" | "timeGridWeek" | "timeGridDay" | "listWeek"
 const VIEWS: { value: ViewName; label: string }[] = [
@@ -62,9 +76,19 @@ function occurrenceInstant(occ: CalendarOccurrence): string {
   return occ.allDay ? `${occ.start}T00:00:00.000Z` : occ.start
 }
 
-function buildDatePatch(event: { allDay: boolean; start: Date | null; end: Date | null }): UpdateTaskInput {
+function buildDatePatch(event: {
+  allDay: boolean
+  start: Date | null
+  end: Date | null
+}): UpdateTaskInput {
   if (event.allDay) {
-    return { dueDate: toDateOnly(event.start!), startDate: null, dueAt: null, startAt: null, allDay: true }
+    return {
+      dueDate: toDateOnly(event.start!),
+      startDate: null,
+      dueAt: null,
+      startAt: null,
+      allDay: true,
+    }
   }
   return {
     dueAt: (event.end ?? event.start)!.toISOString(),
@@ -74,15 +98,24 @@ function buildDatePatch(event: { allDay: boolean; start: Date | null; end: Date 
     dueDate: null,
   }
 }
+type PendingMove = {
+  occ: CalendarOccurrence
+  occurrenceAt: string
+  patch: UpdateTaskInput
+  revert: () => void
+}
 
-type PendingMove = { occ: CalendarOccurrence; occurrenceAt: string; patch: UpdateTaskInput; revert: () => void }
-
-export function CalendarView({ initialSettings }: { initialSettings: SettingsDto }) {
+export function CalendarView({
+  initialSettings,
+}: {
+  initialSettings: SettingsDto
+}) {
   const calendarRef = useRef<FullCalendar>(null)
   const { openTask } = useDetailDrawer()
   const { data: settings } = useSettings(initialSettings)
   const updateSettings = useUpdateSettings()
-  const colorMode = settings?.calendarColorMode ?? initialSettings.calendarColorMode
+  const colorMode =
+    settings?.calendarColorMode ?? initialSettings.calendarColorMode
   const { options: projectOptions } = useProjectOptions()
   const { data: tags = [] } = useTagSearch("")
 
@@ -96,9 +129,14 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
   const [pendingMove, setPendingMove] = useState<PendingMove | null>(null)
 
   const editOccurrence = useEditOccurrence()
-  const { data: occurrences = [] } = useCalendarOccurrences(
+  const calendarQuery = useCalendarOccurrences(
     range ?? { from: new Date(), to: new Date() },
-    { projectId, tag, status: status as never }
+    { projectId, tag, status: status as never },
+    !!range
+  )
+  const occurrences = useMemo(
+    () => calendarQuery.data ?? [],
+    [calendarQuery.data]
   )
 
   useEffect(() => {
@@ -108,8 +146,10 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
       calendarRef.current?.getApi().changeView("listWeek")
     }
   }, [])
-
-  const projectColors = useMemo(() => new Map(projectOptions.map((p) => [p.id, p.color])), [projectOptions])
+  const projectColors = useMemo(
+    () => new Map(projectOptions.map((p) => [p.id, p.color])),
+    [projectOptions]
+  )
   const colorFor = useCallback(
     (occ: CalendarOccurrence) => {
       if (colorMode === "priority") return TASK_PRIORITY_HEX[occ.priority]
@@ -133,21 +173,36 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
       })),
     [occurrences, colorFor]
   )
-
-  function applyMove(occ: CalendarOccurrence, occurrenceAt: string, patch: UpdateTaskInput, revert: () => void) {
+  function applyMove(
+    occ: CalendarOccurrence,
+    occurrenceAt: string,
+    patch: UpdateTaskInput,
+    revert: () => void
+  ) {
     if (occ.isRecurring) {
       setPendingMove({ occ, occurrenceAt, patch, revert })
     } else {
-      editOccurrence.mutate({ taskId: occ.taskId, input: { scope: "all", patch } }, { onError: revert })
+      editOccurrence.mutate(
+        { taskId: occ.taskId, input: { scope: "all", patch } },
+        { onError: revert }
+      )
     }
   }
 
   function onToggleComplete(occ: CalendarOccurrence) {
-    const patch: UpdateTaskInput = { status: occ.status === "done" ? "todo" : "done" }
+    const patch: UpdateTaskInput = {
+      status: occ.status === "done" ? "todo" : "done",
+    }
     if (occ.isRecurring) {
-      editOccurrence.mutate({ taskId: occ.taskId, input: { occurrenceAt: occurrenceInstant(occ), scope: "this", patch } })
+      editOccurrence.mutate({
+        taskId: occ.taskId,
+        input: { occurrenceAt: occurrenceInstant(occ), scope: "this", patch },
+      })
     } else {
-      editOccurrence.mutate({ taskId: occ.taskId, input: { scope: "all", patch } })
+      editOccurrence.mutate({
+        taskId: occ.taskId,
+        input: { scope: "all", patch },
+      })
     }
   }
 
@@ -158,14 +213,20 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
 
   function onEventDrop(info: EventDropArg) {
     const occ = info.event.extendedProps as CalendarOccurrence
-    const occurrenceAt = (info.oldEvent.start ?? info.event.start)!.toISOString()
-    applyMove(occ, occurrenceAt, buildDatePatch(info.event), () => info.revert())
+    const occurrenceAt = (info.oldEvent.start ??
+      info.event.start)!.toISOString()
+    applyMove(occ, occurrenceAt, buildDatePatch(info.event), () =>
+      info.revert()
+    )
   }
 
   function onEventResize(info: EventResizeDoneArg) {
     const occ = info.event.extendedProps as CalendarOccurrence
-    const occurrenceAt = (info.oldEvent.start ?? info.event.start)!.toISOString()
-    applyMove(occ, occurrenceAt, buildDatePatch(info.event), () => info.revert())
+    const occurrenceAt = (info.oldEvent.start ??
+      info.event.start)!.toISOString()
+    applyMove(occ, occurrenceAt, buildDatePatch(info.event), () =>
+      info.revert()
+    )
   }
 
   function onDateClick(arg: DateClickArg) {
@@ -183,7 +244,11 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
   function onDrop(arg: DropArg) {
     const taskId = arg.draggedEl.dataset.taskId
     if (!taskId) return
-    const patch = buildDatePatch({ allDay: arg.allDay, start: arg.date, end: null })
+    const patch = buildDatePatch({
+      allDay: arg.allDay,
+      start: arg.date,
+      end: null,
+    })
     editOccurrence.mutate({ taskId, input: { scope: "all", patch } })
   }
 
@@ -202,7 +267,11 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
     <div className="flex flex-col gap-4 lg:flex-row">
       <div className="min-w-0 flex-1">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => calendarRef.current?.getApi().today()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => calendarRef.current?.getApi().today()}
+          >
             Today
           </Button>
           <Button
@@ -224,10 +293,20 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
           <h2 className="px-1 text-base font-medium">{title}</h2>
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <Select value={projectId ?? ALL} onValueChange={(v: string | null) => setProjectId(!v || v === ALL ? undefined : v)}>
+            <Select
+              value={projectId ?? ALL}
+              onValueChange={(v: string | null) =>
+                setProjectId(!v || v === ALL ? undefined : v)
+              }
+            >
               <SelectTrigger size="sm" aria-label="Filter by project">
                 <SelectValue>
-                  {(v: string) => (v === ALL ? "All projects" : projectOptions.find((p) => p.id === v)?.name ?? "Project")}
+                  {(v: string) =>
+                    v === ALL
+                      ? "All projects"
+                      : (projectOptions.find((p) => p.id === v)?.name ??
+                        "Project")
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent align="end">
@@ -239,9 +318,20 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
                 ))}
               </SelectContent>
             </Select>
-            <Select value={tag ?? ALL} onValueChange={(v: string | null) => setTag(!v || v === ALL ? undefined : v)}>
+            <Select
+              value={tag ?? ALL}
+              onValueChange={(v: string | null) =>
+                setTag(!v || v === ALL ? undefined : v)
+              }
+            >
               <SelectTrigger size="sm" aria-label="Filter by tag">
-                <SelectValue>{(v: string) => (v === ALL ? "All tags" : `#${tags.find((t) => t.id === v)?.name ?? "tag"}`)}</SelectValue>
+                <SelectValue>
+                  {(v: string) =>
+                    v === ALL
+                      ? "All tags"
+                      : `#${tags.find((t) => t.id === v)?.name ?? "tag"}`
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent align="end">
                 <SelectItem value={ALL}>All tags</SelectItem>
@@ -252,10 +342,19 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
                 ))}
               </SelectContent>
             </Select>
-            <Select value={status ?? ALL} onValueChange={(v: string | null) => setStatus(!v || v === ALL ? undefined : v)}>
+            <Select
+              value={status ?? ALL}
+              onValueChange={(v: string | null) =>
+                setStatus(!v || v === ALL ? undefined : v)
+              }
+            >
               <SelectTrigger size="sm" aria-label="Filter by status">
                 <SelectValue>
-                  {(v: string) => (v === ALL ? "All statuses" : TASK_STATUS_LABELS[v as keyof typeof TASK_STATUS_LABELS])}
+                  {(v: string) =>
+                    v === ALL
+                      ? "All statuses"
+                      : TASK_STATUS_LABELS[v as keyof typeof TASK_STATUS_LABELS]
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent align="end">
@@ -267,7 +366,13 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
                 ))}
               </SelectContent>
             </Select>
-            <Select value={colorMode} onValueChange={(v: string | null) => v && updateSettings.mutate({ calendarColorMode: v as ColorMode })}>
+            <Select
+              value={colorMode}
+              onValueChange={(v: string | null) =>
+                v &&
+                updateSettings.mutate({ calendarColorMode: v as ColorMode })
+              }
+            >
               <SelectTrigger size="sm" aria-label="Color by">
                 <SelectValue>{(v: string) => `Color: ${v}`}</SelectValue>
               </SelectTrigger>
@@ -288,7 +393,12 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
               aria-label="Calendar view"
             >
               {VIEWS.map((v) => (
-                <ToggleGroupItem key={v.value} value={v.value} aria-label={v.label} title={v.label}>
+                <ToggleGroupItem
+                  key={v.value}
+                  value={v.value}
+                  aria-label={v.label}
+                  title={v.label}
+                >
                   {v.value === "listWeek" ? <ListIcon /> : <CalendarDaysIcon />}
                   <span className="hidden sm:inline">{v.label}</span>
                 </ToggleGroupItem>
@@ -296,16 +406,36 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
             </ToggleGroup>
           </div>
         </div>
+        {range ? (
+          <QueryFeedback query={calendarQuery} label="calendar" />
+        ) : (
+          <LoadingState label="Preparing calendar…" />
+        )}
+        {editOccurrence.isPending ? (
+          <LoadingState label="Updating event…" />
+        ) : null}
 
         <FullCalendar
           ref={calendarRef}
-          plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
+          plugins={[
+            dayGridPlugin,
+            timeGridPlugin,
+            listPlugin,
+            interactionPlugin,
+          ]}
           initialView="dayGridMonth"
           headerToolbar={false}
           height="auto"
-          editable
-          selectable
-          droppable
+          editable={!editOccurrence.isPending}
+          selectable={!editOccurrence.isPending}
+          droppable={!editOccurrence.isPending}
+          noEventsContent={
+            calendarQuery.isPending
+              ? "Loading events…"
+              : calendarQuery.isError && !calendarQuery.data
+                ? "Events unavailable. Retry above."
+                : "No events in this range."
+          }
           dayMaxEvents
           events={events}
           eventContent={(arg: EventContentArg) => {
@@ -315,11 +445,18 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
                 <input
                   type="checkbox"
                   checked={occ.status === "done"}
+                  aria-label={`Mark ${arg.event.title} ${occ.status === "done" ? "incomplete" : "complete"}`}
+                  disabled={editOccurrence.isPending}
                   onClick={(e) => e.stopPropagation()}
                   onChange={() => onToggleComplete(occ)}
                   className="size-3 shrink-0"
                 />
-                <span className={cn("truncate", occ.status === "done" && "line-through opacity-70")}>
+                <span
+                  className={cn(
+                    "truncate",
+                    occ.status === "done" && "line-through opacity-70"
+                  )}
+                >
                   {arg.event.title}
                 </span>
               </div>
@@ -336,8 +473,10 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
       </div>
 
       <CalendarSidePanel className="lg:order-first" />
-
-      <QuickCreateDialog target={quickCreate} onClose={() => setQuickCreate(null)} />
+      <QuickCreateDialog
+        target={quickCreate}
+        onClose={() => setQuickCreate(null)}
+      />
 
       <OccurrenceScopeDialog
         open={!!pendingMove}
@@ -352,7 +491,11 @@ export function CalendarView({ initialSettings }: { initialSettings: SettingsDto
           editOccurrence.mutate(
             {
               taskId: pendingMove.occ.taskId,
-              input: { occurrenceAt: pendingMove.occurrenceAt, scope, patch: pendingMove.patch },
+              input: {
+                occurrenceAt: pendingMove.occurrenceAt,
+                scope,
+                patch: pendingMove.patch,
+              },
             },
             { onError: pendingMove.revert }
           )

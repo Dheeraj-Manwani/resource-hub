@@ -21,10 +21,12 @@ export function useSearch(query: Partial<SearchQuery>) {
   return useQuery({
     queryKey: ["search", query],
     queryFn: ({ signal }) =>
-      api<SearchResults>(`/api/v1/search${toQueryString(query as Record<string, string | number | boolean | undefined>)}`, {
-        signal,
-      }),
+      api<SearchResults>(
+        `/api/v1/search${toQueryString(query as Record<string, string | number | boolean | undefined>)}`,
+        {
+          signal,
+        }
+      ),
     enabled: hasAnyFilter,
-    placeholderData: (prev) => prev,
   })
 }

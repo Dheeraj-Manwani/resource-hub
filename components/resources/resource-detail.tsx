@@ -1,4 +1,6 @@
 "use client"
+import { QueryFeedback } from "@/components/query-feedback"
+import { ApiClientError } from "@/lib/api-client"
 
 import {
   CheckCircle2Icon,
@@ -61,6 +63,7 @@ import {
 } from "@/hooks/queries/tasks"
 import { useDetailDrawer } from "@/hooks/use-detail-drawer"
 import { uploadFile } from "@/hooks/use-uploads"
+import { useSyncController } from "@/components/sync-provider"
 import { useQueryClient } from "@tanstack/react-query"
 import { formatDate, formatRelative } from "@/lib/format"
 import type { ResourceDto } from "@/lib/resources/dto"
@@ -140,7 +143,9 @@ function InlineText({
     if (dirty) onSave(draft)
   }
   const cancel = () => setDraft(value)
-  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const onKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     if (e.key === "Escape") {
       cancel()
       ;(e.target as HTMLElement).blur()
@@ -199,6 +204,7 @@ function DetailSkeleton() {
 }
 
 function CustomThumbnailButton({ resource }: { resource: ResourceDto }) {
+  const sync = useSyncController()
   const qc = useQueryClient()
   const input = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -216,6 +222,7 @@ function CustomThumbnailButton({ resource }: { resource: ResourceDto }) {
           setBusy(true)
           try {
             const updated = await uploadFile(file, {
+              sync,
               purpose: "thumbnail",
               resourceId: resource.id,
             })
@@ -301,17 +308,29 @@ function ProjectsField({ resource }: { resource: ResourceDto }) {
 /** Searchable popover to pick an existing task to link (title filter
  * client-side, same convention as `ProjectSinglePicker`'s project search —
  * full-text search across all tasks arrives in Phase 6). */
-function LinkTaskPicker({ resourceId, excludeIds }: { resourceId: string; excludeIds: Set<string> }) {
+
+function LinkTaskPicker({
+  resourceId,
+  excludeIds,
+}: {
+  resourceId: string
+  excludeIds: Set<string>
+}) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const { data } = useTaskList({})
   const link = useLinkTaskResources()
   const items = useMemo(
-    () => (data?.pages.flatMap((p) => p.items) ?? []).filter((t) => !excludeIds.has(t.id)),
+    () =>
+      (data?.pages.flatMap((p) => p.items) ?? []).filter(
+        (t) => !excludeIds.has(t.id)
+      ),
     [data, excludeIds]
   )
   const filtered = query.trim()
-    ? items.filter((t) => t.title.toLowerCase().includes(query.trim().toLowerCase()))
+    ? items.filter((t) =>
+        t.title.toLowerCase().includes(query.trim().toLowerCase())
+      )
     : items
 
   return (
@@ -357,7 +376,9 @@ function LinkTaskPicker({ resourceId, excludeIds }: { resourceId: string; exclud
               </button>
             ))
           ) : (
-            <p className="px-2 py-3 text-center text-xs text-subtle">No matching tasks</p>
+            <p className="px-2 py-3 text-center text-xs text-subtle">
+              No matching tasks
+            </p>
           )}
         </div>
       </PopoverContent>
@@ -390,7 +411,9 @@ function TasksField({ resource }: { resource: ResourceDto }) {
             <button
               type="button"
               aria-label={`Unlink ${t.title}`}
-              onClick={() => unlink.mutate({ taskId: t.id, resourceIds: [resource.id] })}
+              onClick={() =>
+                unlink.mutate({ taskId: t.id, resourceIds: [resource.id] })
+              }
               className="rounded-full p-0.5 text-text-muted hover:bg-white/10 hover:text-foreground"
             >
               <XIcon className="size-3" />
@@ -482,14 +505,18 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
                     size="icon-sm"
                     variant="ghost"
                     aria-label="Refresh metadata"
-                    disabled={resource.metadataStatus === "pending"}
+                    disabled={
+                      refresh.isPending || resource.metadataStatus === "pending"
+                    }
                     onClick={() => refresh.mutate(resource.id)}
                   />
                 }
               >
                 <RefreshCwIcon
                   className={cn(
-                    resource.metadataStatus === "pending" && "animate-spin"
+                    (refresh.isPending ||
+                      resource.metadataStatus === "pending") &&
+                      "animate-spin motion-reduce:animate-none"
                   )}
                 />
               </TooltipTrigger>
@@ -526,16 +553,20 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
                 <Button
                   size="icon-sm"
                   variant="ghost"
-                  aria-label="Delete"
+                  aria-label={remove.isPending ? "Deleting…" : "Delete"}
+                  disabled={remove.isPending}
                   className="hover:text-destructive"
                   onClick={() => {
-                    remove.mutate(resource.id)
-                    close()
+                    remove.mutate(resource.id, { onSuccess: close })
                   }}
                 />
               }
             >
-              <Trash2Icon />
+              {remove.isPending ? (
+                <Loader2Icon className="animate-spin motion-reduce:animate-none" />
+              ) : (
+                <Trash2Icon />
+              )}
             </TooltipTrigger>
             <TooltipContent>Move to trash</TooltipContent>
           </Tooltip>
@@ -700,9 +731,21 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
 }
 
 export function ResourceDetail({ id }: { id: string }) {
-  const { data, isPending, isError } = useResource(id)
+  const query = useResource(id)
+  const { data, isPending } = query
   if (isPending && !data) return <DetailSkeleton />
-  if (isError || !data) {
+  if (
+    !data &&
+    query.isError &&
+    !(query.error instanceof ApiClientError && query.error.status === 404)
+  )
+    return (
+      <div className="p-6 pt-14">
+        <SheetTitle className="sr-only">Unable to load resource</SheetTitle>
+        <QueryFeedback query={query} label="resource" />
+      </div>
+    )
+  if (!data) {
     return (
       <div className="p-6 pt-14">
         <SheetTitle className="sr-only">Not found</SheetTitle>
@@ -714,5 +757,12 @@ export function ResourceDetail({ id }: { id: string }) {
       </div>
     )
   }
-  return <DetailContent resource={data} />
+  return (
+    <>
+      <div className="px-6">
+        <QueryFeedback query={query} label="resource" loading={false} />
+      </div>
+      <DetailContent resource={data} />
+    </>
+  )
 }

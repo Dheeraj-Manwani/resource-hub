@@ -1,5 +1,12 @@
 "use client"
 
+import { replaceTags } from "@/lib/optimistic/actions"
+import { resourceCache } from "@/lib/optimistic/domains"
+
+import { useSyncController } from "@/components/sync-provider"
+
+import { syncMutation } from "@/lib/sync/mutations"
+
 import {
   useInfiniteQuery,
   useMutation,
@@ -37,9 +44,8 @@ export const resourceKeys = {
   readme: (id: string) => ["resources", "readme", id] as const,
 }
 
-const PENDING_POLL_MS = 3_000
-
 export function useResourceList(filters: ResourceFilters) {
+  const qc = useQueryClient()
   return useInfiniteQuery({
     queryKey: resourceKeys.list(filters),
     initialPageParam: null as string | null,
@@ -57,20 +63,19 @@ export function useResourceList(filters: ResourceFilters) {
               : String(filters.reviewed),
           unsorted: filters.unsorted ? "true" : undefined,
           hasTasks:
-            filters.hasTasks === undefined ? undefined : String(filters.hasTasks),
+            filters.hasTasks === undefined
+              ? undefined
+              : String(filters.hasTasks),
           includeDescendants: filters.includeDescendants ? "true" : undefined,
           cursor: pageParam ?? undefined,
         })}`,
         { signal }
-      ),
+      ).then((page) => {
+        page.items.forEach((item) => resourceCache.received(qc, item))
+        return page
+      }),
     getNextPageParam: (last) => last.nextCursor,
-    // Keep polling while any visible resource is still fetching metadata.
-    refetchInterval: (query) =>
-      query.state.data?.pages.some((p) =>
-        p.items.some((r) => r.metadataStatus === "pending")
-      )
-        ? PENDING_POLL_MS
-        : false,
+    select: (data) => resourceCache.projectList(qc, data, filters),
   })
 }
 
@@ -92,52 +97,31 @@ export function useResource(id: string | null) {
     queryKey: resourceKeys.detail(id ?? ""),
     enabled: !!id,
     queryFn: ({ signal }) =>
-      api<ResourceDto>(`/api/v1/resources/${id}`, { signal }),
+      api<ResourceDto>(`/api/v1/resources/${id}`, { signal }).then((value) =>
+        resourceCache.received(qc, value)
+      ),
     placeholderData: (): ResourceDto | undefined =>
       id ? findInLists(qc, id) : undefined,
-    refetchInterval: (query) =>
-      query.state.data?.metadataStatus === "pending" ? PENDING_POLL_MS : false,
   })
 }
 
 /** Writes a resource into every cached list and its detail entry. */
 export function upsertResourceInCache(qc: QueryClient, resource: ResourceDto) {
-  qc.setQueryData(resourceKeys.detail(resource.id), resource)
-  qc.setQueriesData<InfiniteData<ResourcePage>>(
-    { queryKey: resourceKeys.lists() },
-    (data) =>
-      data
-        ? {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              items: page.items.map((r) =>
-                r.id === resource.id ? resource : r
-              ),
-            })),
-          }
-        : data
-  )
-}
-
-function removeFromLists(qc: QueryClient, id: string) {
-  qc.setQueriesData<InfiniteData<ResourcePage>>(
-    { queryKey: resourceKeys.lists() },
-    (data) =>
-      data
-        ? {
-            ...data,
-            pages: data.pages.map((p) => ({
-              ...p,
-              items: p.items.filter((r) => r.id !== id),
-            })),
-          }
-        : data
-  )
+  resourceCache.accept(qc, resource)
 }
 
 export function invalidateResourceLists(qc: QueryClient) {
-  return qc.invalidateQueries({ queryKey: resourceKeys.lists() }).catch(() => {})
+  if (resourceCache.pending(qc)) return Promise.resolve()
+  return Promise.all(
+    [
+      "resources",
+      "projects",
+      "overview",
+      "tags",
+      "search",
+      "command-search",
+    ].map((family) => qc.invalidateQueries({ queryKey: [family] }))
+  ).then(() => undefined)
 }
 
 export type CreateResourceBody = {
@@ -152,15 +136,20 @@ export type CreateResourceBody = {
 export function useCreateResource() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("resource.create"),
     mutationFn: (body: CreateResourceBody) =>
       api<ResourceDto>("/api/v1/resources", { method: "POST", body }),
-    onSuccess: () => invalidateResourceLists(qc),
+    onSuccess: (resource) => {
+      upsertResourceInCache(qc, resource)
+      return invalidateResourceLists(qc)
+    },
   })
 }
 
 export function useBulkCreateResources() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("resource.bulk-create"),
     mutationFn: (body: {
       urls: string[]
       tags?: string[]
@@ -170,15 +159,20 @@ export function useBulkCreateResources() {
         "/api/v1/resources/bulk",
         { method: "POST", body }
       ),
-    onSuccess: () => invalidateResourceLists(qc),
+    onSuccess: ({ created }) => {
+      created.forEach((resource) => upsertResourceInCache(qc, resource))
+      return invalidateResourceLists(qc)
+    },
   })
 }
 
 function applyPatch(
   resource: ResourceDto,
-  patch: UpdateResourceInput
+  patch: UpdateResourceInput,
+  qc: QueryClient
 ): ResourceDto {
   const next: ResourceDto = { ...resource }
+  next.updatedAt = new Date().toISOString()
   if (patch.title !== undefined) next.title = patch.title
   if (patch.notes !== undefined) next.notes = patch.notes
   if (patch.description !== undefined) next.description = patch.description
@@ -188,17 +182,7 @@ function applyPatch(
   if (patch.type !== undefined) next.type = patch.type
   if (patch.bodyJson !== undefined) next.bodyJson = patch.bodyJson
   if (patch.bodyText !== undefined) next.bodyText = patch.bodyText
-  if (patch.tags) {
-    const byName = new Map(resource.tags.map((t) => [t.name.toLowerCase(), t]))
-    next.tags = patch.tags.map(
-      (name): TagDto =>
-        byName.get(name.toLowerCase()) ?? {
-          id: `tmp-${name}`,
-          name,
-          color: null,
-        }
-    )
-  }
+  if (patch.tags) next.tags = replaceTags(qc, resource.tags, patch.tags)
   if (patch.metadataOverride !== undefined) {
     next.metadataOverride = patch.metadataOverride
     next.metadata = { ...resource.metadata, ...(patch.metadataOverride ?? {}) }
@@ -210,6 +194,7 @@ function applyPatch(
 export function useUpdateResource() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("resource.update"),
     mutationFn: ({ id, patch }: { id: string; patch: UpdateResourceInput }) =>
       api<ResourceDto>(`/api/v1/resources/${id}`, {
         method: "PATCH",
@@ -217,66 +202,82 @@ export function useUpdateResource() {
       }),
     onMutate: async ({ id, patch }) => {
       await qc.cancelQueries({ queryKey: resourceKeys.all })
-      const previousLists = qc.getQueriesData<InfiniteData<ResourcePage>>({
-        queryKey: resourceKeys.lists(),
-      })
-      const previousDetail = qc.getQueryData<ResourceDto>(
-        resourceKeys.detail(id)
-      )
-      const current = previousDetail ?? findInLists(qc, id)
-      if (current) upsertResourceInCache(qc, applyPatch(current, patch))
-      return { previousLists, previousDetail }
+      return {
+        token: resourceCache.begin(qc, id, (current) =>
+          current ? applyPatch(current, patch, qc) : current
+        ),
+      }
     },
     onError: (error, { id }, context) => {
-      context?.previousLists.forEach(([key, data]) =>
-        qc.setQueryData(key, data)
-      )
-      if (context?.previousDetail)
-        qc.setQueryData(resourceKeys.detail(id), context.previousDetail)
+      resourceCache.settle(qc, id, context?.token)
       toast.error(`Couldn't save: ${error.message}`)
     },
-    onSuccess: (resource) => upsertResourceInCache(qc, resource),
+    onSuccess: (resource, { id }, context) =>
+      resourceCache.settle(qc, id, context?.token, resource),
+    onSettled: () => invalidateResourceLists(qc),
   })
 }
 
 export function useDeleteResource() {
+  const sync = useSyncController()
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("resource.delete"),
     mutationFn: (id: string) =>
       api<null>(`/api/v1/resources/${id}`, { method: "DELETE" }),
     onMutate: async (id) => {
-      await qc.cancelQueries({ queryKey: resourceKeys.lists() })
-      const previousLists = qc.getQueriesData<InfiniteData<ResourcePage>>({
-        queryKey: resourceKeys.lists(),
-      })
-      removeFromLists(qc, id)
-      return { previousLists }
+      await qc.cancelQueries({ queryKey: resourceKeys.all })
+      return { token: resourceCache.begin(qc, id, () => null) }
     },
-    onError: (error, _id, context) => {
-      context?.previousLists.forEach(([key, data]) =>
-        qc.setQueryData(key, data)
-      )
+    onError: (error, id, context) => {
+      resourceCache.settle(qc, id, context?.token)
       toast.error(`Couldn't delete: ${error.message}`)
     },
-    onSuccess: (_data, id) => {
+    onSuccess: (_data, id, context) => {
+      resourceCache.settle(qc, id, context?.token, null)
       qc.removeQueries({ queryKey: resourceKeys.detail(id) })
-      showToast("Moved to trash", {
-        action: {
-          label: "Undo",
-          onClick: () => {
-            api(`/api/v1/trash/resource/${id}/restore`, { method: "POST" })
-              .then(() => qc.invalidateQueries({ queryKey: resourceKeys.lists() }))
-              .catch(() => toast.error("Couldn't undo"))
+      showToast(
+        "Moved to trash",
+        {
+          action: {
+            label: "Undo",
+            onClick: () => {
+              sync
+                .track(
+                  {
+                    label: "Restoring resource",
+                    source: "manual",
+                    entityKeys: [`resource:${id}`],
+                    href: "/trash",
+                  },
+                  async (saved) => {
+                    await api(`/api/v1/trash/resource/${id}/restore`, {
+                      method: "POST",
+                    })
+                    saved()
+                    await qc.invalidateQueries(
+                      { queryKey: resourceKeys.lists() },
+                      { throwOnError: true }
+                    )
+                  }
+                )
+                .catch(() =>
+                  toast.error("Undo needs attention. Check sync details.")
+                )
+            },
           },
         },
-      }, "success")
+        "success"
+      )
     },
+    onSettled: () => invalidateResourceLists(qc),
   })
 }
 
 export function useRefreshMetadata() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("resource.refresh"),
     mutationFn: (id: string) =>
       api<ResourceDto>(`/api/v1/resources/${id}/refresh-metadata`, {
         method: "POST",
@@ -329,6 +330,7 @@ export function checkDuplicate(url: string, signal?: AbortSignal) {
 export function useLoadDemoData() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("resource.demo"),
     mutationFn: () =>
       api<{ count: number }>("/api/v1/demo", { method: "POST" }),
     onSuccess: ({ count }) => {

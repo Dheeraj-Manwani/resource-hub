@@ -1,4 +1,5 @@
 "use client"
+import { QueryFeedback } from "@/components/query-feedback"
 
 import { TagIcon, Trash2Icon } from "lucide-react"
 import { useState } from "react"
@@ -9,7 +10,11 @@ import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   useDeleteTag,
   useMergeTags,
@@ -29,9 +34,12 @@ function ColorSwatch({ tag }: { tag: TagWithCounts }) {
         render={
           <button
             type="button"
-            aria-label="Change color"
+            aria-label={setColor.isPending ? "Saving color" : "Change color"}
+            disabled={setColor.isPending}
             className="size-5 shrink-0 rounded-full ring-1 ring-black/20"
-            style={{ backgroundColor: tag.color ?? "var(--color-border-strong)" }}
+            style={{
+              backgroundColor: tag.color ?? "var(--color-border-strong)",
+            }}
           />
         }
       />
@@ -42,6 +50,7 @@ function ColorSwatch({ tag }: { tag: TagWithCounts }) {
               key={c}
               type="button"
               aria-label={`Color ${c}`}
+              disabled={setColor.isPending}
               onClick={() => setColor.mutate({ id: tag.id, color: c })}
               style={{ backgroundColor: c }}
               className={cn(
@@ -64,7 +73,8 @@ function TagNameField({ tag }: { tag: TagWithCounts }) {
   function commit() {
     setEditing(false)
     const trimmed = value.trim()
-    if (trimmed && trimmed !== tag.name) rename.mutate({ id: tag.id, name: trimmed })
+    if (trimmed && trimmed !== tag.name)
+      rename.mutate({ id: tag.id, name: trimmed })
     else setValue(tag.name)
   }
 
@@ -72,10 +82,11 @@ function TagNameField({ tag }: { tag: TagWithCounts }) {
     return (
       <button
         type="button"
+        disabled={rename.isPending}
         onClick={() => setEditing(true)}
         className="truncate text-left text-sm font-medium hover:underline"
       >
-        #{tag.name}
+        {rename.isPending ? "Saving… " : ""}#{tag.name}
       </button>
     )
   }
@@ -98,7 +109,8 @@ function TagNameField({ tag }: { tag: TagWithCounts }) {
 }
 
 export function TagsView() {
-  const { data: tags = [], isPending } = useTagsWithCounts()
+  const tagsQuery = useTagsWithCounts()
+  const { data: tags = [], isPending } = tagsQuery
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState<TagWithCounts | null>(null)
   const deleteTag = useDeleteTag()
@@ -128,21 +140,26 @@ export function TagsView() {
               </PopoverTrigger>
               <PopoverContent>
                 <p className="mb-2 text-xs text-text-muted">
-                  Merge into which tag? The others are deleted; every resource and task
-                  keeps the tag.
+                  Merge into which tag? The others are deleted; every resource
+                  and task keeps the tag.
                 </p>
                 <ul className="space-y-0.5">
                   {selectedTags.map((t) => (
                     <li key={t.id}>
                       <button
                         type="button"
+                        disabled={mergeTags.isPending}
                         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/[0.06]"
                         onClick={() => {
-                          mergeTags.mutate({
-                            sourceIds: selectedTags.filter((s) => s.id !== t.id).map((s) => s.id),
-                            targetId: t.id,
-                          })
-                          setSelected(new Set())
+                          mergeTags.mutate(
+                            {
+                              sourceIds: selectedTags
+                                .filter((s) => s.id !== t.id)
+                                .map((s) => s.id),
+                              targetId: t.id,
+                            },
+                            { onSuccess: () => setSelected(new Set()) }
+                          )
                         }}
                       >
                         <TagIcon className="size-3.5 text-subtle" />#{t.name}
@@ -155,8 +172,13 @@ export function TagsView() {
           ) : undefined
         }
       />
-
-      {!isPending && tags.length === 0 ? (
+      {mergeTags.isPending ? (
+        <p role="status" className="py-2 text-sm text-subtle">
+          Merging tags…
+        </p>
+      ) : null}
+      <QueryFeedback query={tagsQuery} label="tags" />
+      {!isPending && !tagsQuery.isError && tags.length === 0 ? (
         <EmptyState
           icon={TagIcon}
           title="No tags yet"
@@ -176,8 +198,8 @@ export function TagsView() {
                 <TagNameField tag={tag} />
               </div>
               <span className="shrink-0 text-xs text-subtle">
-                {tag.resourceCount} resource{tag.resourceCount === 1 ? "" : "s"} ·{" "}
-                {tag.taskCount} task{tag.taskCount === 1 ? "" : "s"}
+                {tag.resourceCount} resource{tag.resourceCount === 1 ? "" : "s"}{" "}
+                · {tag.taskCount} task{tag.taskCount === 1 ? "" : "s"}
               </span>
               <Button
                 variant="ghost"
@@ -198,7 +220,9 @@ export function TagsView() {
         title={`Delete #${deleting?.name}?`}
         description="The tag is removed from every resource and task it's on. This can't be undone."
         confirmLabel="Delete"
-        onConfirm={() => deleting && deleteTag.mutate(deleting.id)}
+        onConfirm={() =>
+          deleting ? deleteTag.mutateAsync(deleting.id) : undefined
+        }
       />
     </>
   )

@@ -1,6 +1,6 @@
 "use client"
-
-import { useState } from "react"
+import { LoaderCircleIcon } from "lucide-react"
+import { useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -23,15 +23,36 @@ export function DeleteProjectDialog({
 }: {
   project: ProjectTreeNode | null
   onOpenChange: (open: boolean) => void
-  onConfirm: (mode: Mode) => void
+  onConfirm: (mode: Mode) => unknown | Promise<unknown>
 }) {
   const [mode, setMode] = useState<Mode>("subtree")
+  const [pending, setPending] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const submitting = useRef(false)
+  async function confirm() {
+    if (submitting.current) return
+    submitting.current = true
+    setPending(true)
+    setFailed(false)
+    try {
+      await onConfirm(mode)
+      setMode("subtree")
+      onOpenChange(false)
+    } catch {
+      setFailed(true)
+    } finally {
+      submitting.current = false
+      setPending(false)
+    }
+  }
   const hasChildren = !!project?.children.length
 
   return (
     <Dialog
       open={!!project}
       onOpenChange={(open) => {
+        if (submitting.current) return
+        setFailed(false)
         if (!open) setMode("subtree")
         onOpenChange(open)
       }}
@@ -58,6 +79,7 @@ export function DeleteProjectDialog({
                 >
                   <input
                     type="radio"
+                    disabled={pending}
                     className="mt-0.5"
                     checked={mode === "subtree"}
                     onChange={() => setMode("subtree")}
@@ -78,12 +100,15 @@ export function DeleteProjectDialog({
                 >
                   <input
                     type="radio"
+                    disabled={pending}
                     className="mt-0.5"
                     checked={mode === "reparent"}
                     onChange={() => setMode("reparent")}
                   />
                   <span>
-                    <span className="font-medium">Move children up a level</span>
+                    <span className="font-medium">
+                      Move children up a level
+                    </span>
                     <span className="block text-xs text-text-muted">
                       Sub-projects keep their resources and move to where this
                       project was.
@@ -92,13 +117,36 @@ export function DeleteProjectDialog({
                 </label>
               </div>
             ) : null}
+            {failed ? (
+              <p role="alert" className="text-sm text-destructive">
+                Couldn&apos;t delete this project. Try again.
+              </p>
+            ) : null}
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                variant="outline"
+                disabled={pending}
+                onClick={() => {
+                  setFailed(false)
+                  onOpenChange(false)
+                }}
+              >
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={() => onConfirm(mode)}>
-                Delete
+              <Button
+                variant="destructive"
+                disabled={pending}
+                aria-busy={pending}
+                onClick={() => void confirm()}
+              >
+                {pending ? (
+                  <LoaderCircleIcon
+                    aria-hidden
+                    className="animate-spin motion-reduce:animate-none"
+                  />
+                ) : null}
+                {pending ? "Deleting…" : "Delete"}
               </Button>
             </DialogFooter>
           </>

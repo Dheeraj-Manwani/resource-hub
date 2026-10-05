@@ -31,7 +31,7 @@ export function QuickAddProjectDialog() {
 
   function submit() {
     const trimmed = name.trim()
-    if (!trimmed) return
+    if (!trimmed || create.isPending) return
     create.mutate(
       { name: trimmed, parentId: addProject.parentId ?? null },
       {
@@ -44,13 +44,17 @@ export function QuickAddProjectDialog() {
   }
 
   return (
-    <Dialog open={addProject.open} onOpenChange={(open) => !open && close()}>
+    <Dialog
+      open={addProject.open}
+      onOpenChange={(open) => !open && !create.isPending && close()}
+    >
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>New project</DialogTitle>
         </DialogHeader>
         <Input
           autoFocus
+          disabled={create.isPending}
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
@@ -59,7 +63,7 @@ export function QuickAddProjectDialog() {
           placeholder="Project name"
         />
         <DialogFooter>
-          <Button variant="outline" onClick={close}>
+          <Button variant="outline" disabled={create.isPending} onClick={close}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={!name.trim() || create.isPending}>

@@ -1,5 +1,7 @@
 "use client"
 
+import { QueryFeedback } from "@/components/query-feedback"
+
 import {
   ArchiveIcon,
   ArchiveRestoreIcon,
@@ -153,12 +155,9 @@ function ProjectMenu({ projectId }: { projectId: string }) {
             : null
         }
         onOpenChange={(open) => !open && setDeleting(false)}
-        onConfirm={(mode) => {
-          deleteProject.mutate(
-            { id: projectId, mode },
-            { onSuccess: () => router.push("/resources") }
-          )
-          setDeleting(false)
+        onConfirm={async (mode) => {
+          await deleteProject.mutateAsync({ id: projectId, mode })
+          router.push("/resources")
         }}
       />
     </>
@@ -192,7 +191,8 @@ export function ProjectPage({
   projectId: string
   initialSettings: SettingsDto
 }) {
-  const { data, isError } = useProject(projectId)
+  const projectQuery = useProject(projectId)
+  const { data } = projectQuery
   const { data: tree } = useProjectTree()
   const [includeDescendants, setIncludeDescendants] = useState(true)
   const [addingExisting, setAddingExisting] = useState(false)
@@ -216,18 +216,14 @@ export function ProjectPage({
     [projectId, includeDescendants]
   )
 
-  if (isError) {
-    return (
-      <p className="py-16 text-center text-sm text-subtle">
-        This project doesn&apos;t exist or was deleted.
-      </p>
-    )
-  }
+  if (projectQuery.isError && !data)
+    return <QueryFeedback query={projectQuery} label="project" />
 
   const project = data?.project
 
   return (
     <>
+      <QueryFeedback query={projectQuery} label="project" loading={false} />
       <Breadcrumbs projectId={projectId} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">

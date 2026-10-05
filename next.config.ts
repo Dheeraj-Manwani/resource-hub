@@ -50,6 +50,8 @@ const cspHeader = `
   .trim()
 
 const nextConfig: NextConfig = {
+  // Keep standalone test-server builds separate from normal dev/build output.
+  distDir: process.env.PLAYWRIGHT_SERVER === "1" ? ".next-e2e" : ".next",
   async redirects() {
     return [
       { source: "/library", destination: "/resources", permanent: false },

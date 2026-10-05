@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 
 import { LogoMark } from "@/components/logo"
+import { useSyncController } from "@/components/sync-provider"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api-client"
 import type { ResourceDto } from "@/lib/resources/dto"
@@ -35,18 +36,35 @@ export function CaptureClient({
       : { status: "saving" }
   )
   const started = useRef(false)
+  const sync = useSyncController()
 
   useEffect(() => {
     if (nothing || started.current) return
     started.current = true
     const shareTitle =
       title || (sharedUrl ? text.replace(sharedUrl, "").trim() : "")
-    api<{ resource: ResourceDto; duplicate: boolean }>("/api/v1/capture", {
-      method: "POST",
-      body: sharedUrl
-        ? { url: sharedUrl, title: shareTitle || undefined }
-        : { text },
-    })
+    sync
+      .track(
+        {
+          label: "Saving shared resource",
+          source: "manual",
+          entityKeys: ["resource:all"],
+          href: "/resources",
+        },
+        async (saved) => {
+          const result = await api<{
+            resource: ResourceDto
+            duplicate: boolean
+          }>("/api/v1/capture", {
+            method: "POST",
+            body: sharedUrl
+              ? { url: sharedUrl, title: shareTitle || undefined }
+              : { text },
+          })
+          saved()
+          return result
+        }
+      )
       .then(({ resource, duplicate }) => {
         setState({ status: "saved", resource, duplicate })
         // Close the bookmarklet popup automatically.
@@ -55,7 +73,7 @@ export function CaptureClient({
       .catch((error: Error) =>
         setState({ status: "error", message: error.message })
       )
-  }, [nothing, sharedUrl, text, title])
+  }, [nothing, sharedUrl, text, title, sync])
 
   return (
     <main className="flex min-h-svh items-center justify-center p-6">
@@ -79,7 +97,11 @@ export function CaptureClient({
               className="mt-3"
               variant="outline"
               nativeButton={false}
-              render={<Link href={`/resources?filter=independent&r=${state.resource.id}`} />}
+              render={
+                <Link
+                  href={`/resources?filter=independent&r=${state.resource.id}`}
+                />
+              }
             >
               Open
             </Button>

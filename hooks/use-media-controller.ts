@@ -2,11 +2,14 @@
 
 import {
   useCallback,
+  useContext,
   useEffect,
   useId,
   useRef,
   useSyncExternalStore,
 } from "react"
+
+import { MasonryRetention } from "@/components/resources/masonry-retention"
 
 /**
  * "Only one video plays": a single active-media store. Starting a player
@@ -44,6 +47,7 @@ export function deactivateMedia(id: string) {
 }
 
 export function useMediaController(controls: Controls) {
+  const retain = useContext(MasonryRetention)
   const id = useId()
   const controlsRef = useRef<Controls>(controls)
   useEffect(() => {
@@ -63,6 +67,11 @@ export function useMediaController(controls: Controls) {
     () => activeId === id,
     () => false
   )
+
+  useEffect(() => {
+    retain?.(`media:${id}`, isActive)
+    return () => retain?.(`media:${id}`, false)
+  }, [retain, isActive, id])
 
   return {
     id,

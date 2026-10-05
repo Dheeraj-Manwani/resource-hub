@@ -76,7 +76,9 @@ function toDto(
     ...row.metadata,
     ...(row.metadataOverride ?? {}),
   }
-  const thumbnailKey = row.thumbnailFileId ? thumbnailKeys.get(row.thumbnailFileId) : undefined
+  const thumbnailKey = row.thumbnailFileId
+    ? thumbnailKeys.get(row.thumbnailFileId)
+    : undefined
   return {
     id: row.id,
     type: row.type,
@@ -94,7 +96,8 @@ function toDto(
     isFavorite: row.isFavorite,
     isReviewed: row.isReviewed,
     thumbnailUrl: row.thumbnailFileId
-      ? (thumbnailKey ? publicUrlFor(thumbnailKey) : null) ?? `/api/files/${row.thumbnailFileId}`
+      ? ((thumbnailKey ? publicUrlFor(thumbnailKey) : null) ??
+        `/api/files/${row.thumbnailFileId}`)
       : (row.metadataOverride?.image ?? row.metadata.image ?? null),
     file: file ? fileDto(file) : null,
     tags,
@@ -111,27 +114,28 @@ async function toDtos(rows: ResourceRow[]): Promise<ResourceDto[]> {
   const thumbnailFileIds = rows
     .map((r) => r.thumbnailFileId)
     .filter((id): id is string => !!id)
-  const [tagMap, originals, projectMap, taskCountMap, thumbnailFiles] = await Promise.all([
-    tagsForResources(ids),
-    db
-      .select()
-      .from(files)
-      .where(
-        and(
-          inArray(files.resourceId, ids),
-          eq(files.role, "original"),
-          eq(files.status, "ready")
-        )
-      ),
-    projectsForResources(ids),
-    taskCountsForResources(ids),
-    thumbnailFileIds.length
-      ? db
-          .select({ id: files.id, r2Key: files.r2Key })
-          .from(files)
-          .where(inArray(files.id, thumbnailFileIds))
-      : Promise.resolve([]),
-  ])
+  const [tagMap, originals, projectMap, taskCountMap, thumbnailFiles] =
+    await Promise.all([
+      tagsForResources(ids),
+      db
+        .select()
+        .from(files)
+        .where(
+          and(
+            inArray(files.resourceId, ids),
+            eq(files.role, "original"),
+            eq(files.status, "ready")
+          )
+        ),
+      projectsForResources(ids),
+      taskCountsForResources(ids),
+      thumbnailFileIds.length
+        ? db
+            .select({ id: files.id, r2Key: files.r2Key })
+            .from(files)
+            .where(inArray(files.id, thumbnailFileIds))
+        : Promise.resolve([]),
+    ])
   const fileMap = new Map(originals.map((f) => [f.resourceId!, f]))
   const thumbnailKeys = new Map(thumbnailFiles.map((f) => [f.id, f.r2Key]))
   return rows.map((row) =>
@@ -630,4 +634,18 @@ export async function resourceOverviewCounts(
     favorites: row?.favorites ?? 0,
     inbox: row?.inbox ?? 0,
   }
+}
+
+/** Small ownership-scoped progress read, without note bodies or associations. */
+export async function getMetadataStatuses(userId: string, ids: string[]) {
+  return db
+    .select({ id: resources.id, metadataStatus: resources.metadataStatus })
+    .from(resources)
+    .where(
+      and(
+        eq(resources.userId, userId),
+        isNull(resources.deletedAt),
+        inArray(resources.id, ids)
+      )
+    )
 }

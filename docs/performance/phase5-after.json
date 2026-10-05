@@ -1,0 +1,215 @@
+{
+  "label": "phase5-after",
+  "baselineMasonryRevision": null,
+  "capturedAt": "2026-10-05T07:48:38.083Z",
+  "browser": "153.0.8010.12",
+  "viewport": "1440x900",
+  "fixture": "Production React; actual Masonry/ResourceCard/ResourceList; 500 deterministic link DTOs; no external media; fresh page and forced GC per sample",
+  "rows": [
+    {
+      "run": 1,
+      "mode": "grid",
+      "count": 50,
+      "mounted": 27,
+      "heapBytes": 7849708,
+      "nodes": 1206,
+      "listeners": 303
+    },
+    {
+      "run": 1,
+      "mode": "grid",
+      "count": 250,
+      "mounted": 27,
+      "heapBytes": 7914124,
+      "nodes": 1206,
+      "listeners": 303
+    },
+    {
+      "run": 1,
+      "mode": "grid",
+      "count": 500,
+      "mounted": 27,
+      "heapBytes": 7937540,
+      "nodes": 1206,
+      "listeners": 303
+    },
+    {
+      "run": 1,
+      "mode": "list",
+      "count": 50,
+      "mounted": 21,
+      "heapBytes": 6675340,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 1,
+      "mode": "list",
+      "count": 250,
+      "mounted": 21,
+      "heapBytes": 6679824,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 1,
+      "mode": "list",
+      "count": 500,
+      "mounted": 21,
+      "heapBytes": 6682588,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 2,
+      "mode": "grid",
+      "count": 50,
+      "mounted": 27,
+      "heapBytes": 7844872,
+      "nodes": 1206,
+      "listeners": 303
+    },
+    {
+      "run": 2,
+      "mode": "grid",
+      "count": 250,
+      "mounted": 27,
+      "heapBytes": 7952972,
+      "nodes": 1206,
+      "listeners": 303
+    },
+    {
+      "run": 2,
+      "mode": "grid",
+      "count": 500,
+      "mounted": 27,
+      "heapBytes": 7975856,
+      "nodes": 1206,
+      "listeners": 303
+    },
+    {
+      "run": 2,
+      "mode": "list",
+      "count": 50,
+      "mounted": 21,
+      "heapBytes": 6675500,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 2,
+      "mode": "list",
+      "count": 250,
+      "mounted": 21,
+      "heapBytes": 6679740,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 2,
+      "mode": "list",
+      "count": 500,
+      "mounted": 21,
+      "heapBytes": 6686304,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 3,
+      "mode": "grid",
+      "count": 50,
+      "mounted": 27,
+      "heapBytes": 7842628,
+      "nodes": 1206,
+      "listeners": 303
+    },
+    {
+      "run": 3,
+      "mode": "grid",
+      "count": 250,
+      "mounted": 27,
+      "heapBytes": 7951960,
+      "nodes": 1206,
+      "listeners": 303
+    },
+    {
+      "run": 3,
+      "mode": "grid",
+      "count": 500,
+      "mounted": 27,
+      "heapBytes": 7976736,
+      "nodes": 1206,
+      "listeners": 303
+    },
+    {
+      "run": 3,
+      "mode": "list",
+      "count": 50,
+      "mounted": 21,
+      "heapBytes": 6665628,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 3,
+      "mode": "list",
+      "count": 250,
+      "mounted": 21,
+      "heapBytes": 6679088,
+      "nodes": 543,
+      "listeners": 207
+    },
+    {
+      "run": 3,
+      "mode": "list",
+      "count": 500,
+      "mounted": 21,
+      "heapBytes": 6681008,
+      "nodes": 543,
+      "listeners": 207
+    }
+  ],
+  "checks": {
+    "passed": [
+      "keyboard continuation and focus retention",
+      "bounded mounted count across 20 scroll cycles",
+      "selection after unmount/remount",
+      "drag source retention and drop",
+      "playing frame/menu retention and paused teardown",
+      "mobile resize",
+      "shared compact metadata polling, focus suppression and one completion read",
+      "metadata completion cancellation preserves newer writes"
+    ],
+    "cycles": [
+      {
+        "cycle": 0,
+        "heapBytes": 9647992,
+        "nodes": 1207,
+        "listeners": 316
+      },
+      {
+        "cycle": 5,
+        "heapBytes": 9726212,
+        "nodes": 1207,
+        "listeners": 316
+      },
+      {
+        "cycle": 10,
+        "heapBytes": 9740892,
+        "nodes": 1207,
+        "listeners": 316
+      },
+      {
+        "cycle": 20,
+        "heapBytes": 9793044,
+        "nodes": 1207,
+        "listeners": 316
+      }
+    ],
+    "metadataCalls": {
+      "progress": 5,
+      "list": 0,
+      "detail": 3
+    }
+  }
+}

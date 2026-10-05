@@ -1,5 +1,9 @@
 "use client"
 
+import { PendingCreations } from "@/components/pending-creations"
+
+import { QueryFeedback, LoadingState } from "@/components/query-feedback"
+
 import {
   CheckSquareIcon,
   KanbanSquareIcon,
@@ -137,10 +141,10 @@ export function TasksView() {
   let body: React.ReactNode
   if (query.isPending) {
     body = (
-      <div className="flex justify-center py-16">
-        <Loader2Icon className="size-5 animate-spin text-subtle" />
-      </div>
+      <LoadingState label="Loading tasks…" className="justify-center py-16" />
     )
+  } else if (query.isError && !query.data) {
+    body = null
   } else if (!filteredItems.length) {
     body = (
       <EmptyState
@@ -331,6 +335,8 @@ export function TasksView() {
         </div>
       </div>
 
+      <QueryFeedback query={query} label="tasks" loading={false} />
+      <PendingCreations entity="task" filters={filters} />
       {body}
 
       {view === "list" && hasNextPage ? (

@@ -1,5 +1,9 @@
 "use client"
 
+import { QueryFeedback } from "@/components/query-feedback"
+
+import { syncMutation } from "@/lib/sync/mutations"
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { KeyRoundIcon, Loader2Icon, Trash2Icon } from "lucide-react"
 import { useState } from "react"
@@ -23,6 +27,7 @@ export function TokenSettings({ appUrl }: { appUrl: string }) {
     select: (d) => d.items,
   })
   const create = useMutation({
+    ...syncMutation("token.create"),
     mutationFn: () =>
       api<{ id: string; token: string }>("/api/v1/tokens", {
         method: "POST",
@@ -36,6 +41,7 @@ export function TokenSettings({ appUrl }: { appUrl: string }) {
     onError: (e) => toast.error(e.message),
   })
   const revoke = useMutation({
+    ...syncMutation("token.revoke"),
     mutationFn: (id: string) =>
       api<null>(`/api/v1/tokens/${id}`, { method: "DELETE" }),
     onSuccess: () => {
@@ -93,9 +99,9 @@ export function TokenSettings({ appUrl }: { appUrl: string }) {
         </div>
       ) : null}
 
-      {tokens.isPending ? (
-        <p className="text-subtle">Loading…</p>
-      ) : tokens.data?.length ? (
+      <QueryFeedback query={tokens} label="tokens" />
+      {tokens.isPending || (tokens.isError && !tokens.data) ? null : tokens.data
+          ?.length ? (
         <ul className="divide-y divide-border rounded-lg border border-border">
           {tokens.data.map((t) => (
             <li key={t.id} className="flex items-center gap-3 px-3 py-2.5">

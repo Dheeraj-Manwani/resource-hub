@@ -1,5 +1,7 @@
 "use client"
 
+import { PendingCreations } from "@/components/pending-creations"
+
 import { FolderPlusIcon } from "lucide-react"
 import Link from "next/link"
 import { useMemo, useRef, useState } from "react"
@@ -39,12 +41,13 @@ function InlineCreate({
       <FolderPlusIcon className="size-4 shrink-0 text-subtle" />
       <Input
         autoFocus
+        disabled={create.isPending}
         value={name}
         onChange={(e) => setName(e.target.value)}
         onBlur={submit}
         onKeyDown={(e) => {
           if (e.key === "Enter") submit()
-          if (e.key === "Escape") onDone()
+          if (e.key === "Escape" && !create.isPending) onDone()
         }}
         placeholder="Sub-project name"
         className="h-7 border-none bg-transparent px-0 focus-visible:ring-0"
@@ -108,6 +111,7 @@ export function ProjectSubprojectsTab({
           </Button>
         ) : null}
       </div>
+      <PendingCreations entity="project" filters={{ parentId: projectId }} />
       <div className="space-y-2">
         {rows.map((p) => (
           <Link
@@ -126,7 +130,10 @@ export function ProjectSubprojectsTab({
           </Link>
         ))}
         {creating ? (
-          <InlineCreate parentId={projectId} onDone={() => setCreating(false)} />
+          <InlineCreate
+            parentId={projectId}
+            onDone={() => setCreating(false)}
+          />
         ) : null}
       </div>
     </div>

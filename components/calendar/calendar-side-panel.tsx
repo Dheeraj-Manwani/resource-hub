@@ -1,4 +1,6 @@
 "use client"
+import { QueryFeedback, type QueryState } from "@/components/query-feedback"
+import { Button } from "@/components/ui/button"
 
 import { Draggable } from "@fullcalendar/interaction"
 import { useEffect, useMemo, useRef } from "react"
@@ -13,16 +15,24 @@ function Section({
   title,
   items,
   onOpen,
+  query,
 }: {
   title: string
   items: TaskDto[]
   onOpen: (id: string) => void
+  query: QueryState & {
+    hasNextPage: boolean
+    isFetchingNextPage: boolean
+    fetchNextPage: () => Promise<unknown>
+  }
 }) {
   return (
     <div>
       <h3 className="mb-1.5 px-1 text-xs font-medium tracking-wide text-subtle uppercase">
-        {title} <span className="font-normal text-subtle/70">{items.length}</span>
+        {title}{" "}
+        <span className="font-normal text-subtle/70">{items.length}</span>
       </h3>
+      <QueryFeedback query={query} label={title.toLowerCase() + " tasks"} />
       {items.length ? (
         <ul className="space-y-1">
           {items.map((t) => (
@@ -38,9 +48,19 @@ function Section({
             </li>
           ))}
         </ul>
-      ) : (
+      ) : !query.isPending && !query.isError ? (
         <p className="px-1 text-xs text-subtle">Nothing here.</p>
-      )}
+      ) : null}
+      {query.hasNextPage ? (
+        <Button
+          size="xs"
+          variant="outline"
+          disabled={query.isFetchingNextPage}
+          onClick={() => void query.fetchNextPage().catch(() => {})}
+        >
+          {query.isFetchingNextPage ? "Loading more…" : "Load more"}
+        </Button>
+      ) : null}
     </div>
   )
 }
@@ -52,10 +72,20 @@ function Section({
 export function CalendarSidePanel({ className }: { className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const { openTask } = useDetailDrawer()
-  const overdue = useTaskList({ smartFilter: "overdue", sort: "due", order: "asc" })
-  const unscheduled = useTaskList({ smartFilter: "no_date", sort: "sortKey", order: "asc" })
-
-  const overdueItems = useMemo(() => overdue.data?.pages.flatMap((p) => p.items) ?? [], [overdue.data])
+  const overdue = useTaskList({
+    smartFilter: "overdue",
+    sort: "due",
+    order: "asc",
+  })
+  const unscheduled = useTaskList({
+    smartFilter: "no_date",
+    sort: "sortKey",
+    order: "asc",
+  })
+  const overdueItems = useMemo(
+    () => overdue.data?.pages.flatMap((p) => p.items) ?? [],
+    [overdue.data]
+  )
   const unscheduledItems = useMemo(
     () => unscheduled.data?.pages.flatMap((p) => p.items) ?? [],
     [unscheduled.data]
@@ -75,9 +105,22 @@ export function CalendarSidePanel({ className }: { className?: string }) {
   }, [])
 
   return (
-    <div ref={containerRef} className={cn("w-64 shrink-0 space-y-5", className)}>
-      <Section title="Overdue" items={overdueItems} onOpen={openTask} />
-      <Section title="Unscheduled" items={unscheduledItems} onOpen={openTask} />
+    <div
+      ref={containerRef}
+      className={cn("w-64 shrink-0 space-y-5", className)}
+    >
+      <Section
+        query={overdue}
+        title="Overdue"
+        items={overdueItems}
+        onOpen={openTask}
+      />
+      <Section
+        query={unscheduled}
+        title="Unscheduled"
+        items={unscheduledItems}
+        onOpen={openTask}
+      />
     </div>
   )
 }

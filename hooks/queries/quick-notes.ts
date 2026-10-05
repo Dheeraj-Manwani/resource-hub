@@ -1,5 +1,11 @@
 "use client"
 
+import { rowCache } from "@/lib/optimistic/rows"
+import { inProject } from "@/lib/optimistic/lists"
+import type { ProjectDto } from "@/lib/projects/types"
+import { syncMutation } from "@/lib/sync/mutations"
+import type { SyncController } from "@/lib/sync/controller"
+
 import {
   useMutation,
   useQuery,
@@ -12,6 +18,23 @@ import { api, toQueryString } from "@/lib/api-client"
 import type { QuickNoteDto } from "@/lib/quick-notes/dto"
 
 const KEY = ["quick-notes"]
+export const quickNoteCache = rowCache<QuickNoteDto>(
+  "quick-note",
+  KEY,
+  (row) => row.id,
+  (row, key, client) => {
+    const filter = key[1] as QuickNoteFilters | undefined
+    return (
+      !filter?.projectId ||
+      inProject(
+        client,
+        row.projectId,
+        filter.projectId,
+        filter.includeDescendants
+      ) !== false
+    )
+  }
+)
 
 export type QuickNoteFilters = {
   projectId?: string
@@ -32,14 +55,19 @@ type QuickNoteInput = {
 }
 
 export function useQuickNotes(filters: QuickNoteFilters = {}) {
+  const qc = useQueryClient()
   return useQuery({
     queryKey: quickNoteKeys.list(filters),
     queryFn: ({ signal }) =>
       api<{ items: QuickNoteDto[] }>(
         `/api/v1/quick-notes${toQueryString(filters)}`,
         { signal }
-      ),
-    select: (d) => d.items,
+      ).then((data) => ({
+        ...data,
+        items: quickNoteCache.received(qc, data.items),
+      })),
+    select: (d) =>
+      quickNoteCache.project(qc, d.items, quickNoteKeys.list(filters)),
   })
 }
 
@@ -47,12 +75,14 @@ export function useQuickNotes(filters: QuickNoteFilters = {}) {
  * project-scoped lists (the project page's Notes tab) just get invalidated
  * and refetch from the server. */
 function invalidateFilteredLists(qc: QueryClient) {
+  if (quickNoteCache.pending(qc)) return Promise.resolve()
   return qc.invalidateQueries({ queryKey: KEY }).catch(() => {})
 }
 
 export function useCreateQuickNote() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("quick-note.create"),
     mutationFn: (input: QuickNoteInput = {}) =>
       api<QuickNoteDto>("/api/v1/quick-notes", { method: "POST", body: input }),
     onSuccess: (note) => {
@@ -68,34 +98,55 @@ export function useCreateQuickNote() {
 export function useUpdateQuickNote() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("quick-note.update"),
     mutationFn: ({ id, ...patch }: QuickNoteInput & { id: string }) =>
       api<QuickNoteDto>(`/api/v1/quick-notes/${id}`, {
         method: "PATCH",
         body: patch,
       }),
-    onSuccess: (note) => {
-      qc.setQueryData<{ items: QuickNoteDto[] }>(KEY, (d) =>
-        d
-          ? {
-              items: d.items
-                .map((n) => (n.id === note.id ? note : n))
-                .sort(byUpdated),
-            }
-          : d
-      )
-      invalidateFilteredLists(qc)
+    onMutate: async ({ id, ...patch }) => {
+      await qc.cancelQueries({ queryKey: KEY })
+      return {
+        token: quickNoteCache.begin(qc, id, (note) => {
+          if (!note) return note
+          const projectId =
+            patch.projectId === undefined ? note.projectId : patch.projectId
+          const project = qc
+            .getQueryData<{ items: ProjectDto[] }>(["projects", "tree"])
+            ?.items.find((row) => row.id === projectId)
+          return {
+            ...note,
+            ...patch,
+            projectId,
+            project:
+              patch.projectId === undefined
+                ? note.project
+                : project
+                  ? {
+                      id: project.id,
+                      name: project.name,
+                      icon: project.icon,
+                      color: project.color,
+                    }
+                  : null,
+          }
+        }),
+      }
     },
-    onError: (error) => toast.error(`Couldn't save note: ${error.message}`),
+    onSuccess: (note, { id }, context) =>
+      quickNoteCache.settle(qc, id, context?.token, note),
+    onError: (error, { id }, context) => {
+      quickNoteCache.settle(qc, id, context?.token)
+      toast.error(`Couldn't save note: ${error.message}`)
+    },
+    onSettled: () => invalidateFilteredLists(qc),
   })
-}
-
-function byUpdated(a: QuickNoteDto, b: QuickNoteDto) {
-  return a.updatedAt < b.updatedAt ? 1 : -1
 }
 
 export function useDeleteQuickNote() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("quick-note.delete"),
     mutationFn: (id: string) =>
       api<null>(`/api/v1/quick-notes/${id}`, { method: "DELETE" }),
     onSuccess: (_data, id) => {
@@ -126,22 +177,38 @@ export type QuickNoteImage = {
  * quick note's body — never creates a Resource, unlike the Library's
  * upload flow. */
 export async function uploadQuickNoteImage(
-  file: File
+  file: File,
+  sync: SyncController
 ): Promise<QuickNoteImage> {
-  const start = await api<StartImageResponse>("/api/v1/quick-notes/images", {
-    method: "POST",
-    body: { name: file.name, mime: file.type, size: file.size },
-  })
-  const put = await fetch(start.uploadUrl, {
-    method: "PUT",
-    headers: start.headers,
-    body: file,
-  })
-  if (!put.ok) throw new Error(`Upload failed (${put.status})`)
-  return api<QuickNoteImage>(
-    `/api/v1/quick-notes/images/${start.fileId}/complete`,
+  return sync.track(
     {
-      method: "POST",
+      label: "Uploading note image",
+      source: "upload",
+      entityKeys: ["quick-note:all"],
+      href: "/quick-notes",
+    },
+    async (saved) => {
+      const start = await api<StartImageResponse>(
+        "/api/v1/quick-notes/images",
+        {
+          method: "POST",
+          body: { name: file.name, mime: file.type, size: file.size },
+        }
+      )
+      const put = await fetch(start.uploadUrl, {
+        method: "PUT",
+        headers: start.headers,
+        body: file,
+      })
+      if (!put.ok) throw new Error(`Upload failed (${put.status})`)
+      const result = await api<QuickNoteImage>(
+        `/api/v1/quick-notes/images/${start.fileId}/complete`,
+        {
+          method: "POST",
+        }
+      )
+      saved()
+      return result
     }
   )
 }

@@ -18,7 +18,8 @@ import {
   ListOrderedIcon,
   TypeIcon,
 } from "lucide-react"
-import { useEffect, useRef } from "react"
+import { useEffect, useId, useRef, useSyncExternalStore } from "react"
+import { useSyncController } from "@/components/sync-provider"
 import { toast } from "react-hot-toast"
 
 import { Button } from "@/components/ui/button"
@@ -343,10 +344,13 @@ export default function NoteEditor({
   onLinkPreview,
   debounceMs = 800,
   bare = false,
+  draftKey,
 }: {
   content: Doc | null
   editable?: boolean
-  onSave?: (doc: Doc, text: string) => void
+  onSave?: (doc: Doc, text: string) => void | Promise<void>
+  /** Stable entity key for network autosave and recovery across editor unmounts. */
+  draftKey?: string
   onUploadImage?: UploadImage
   onLinkPreview?: LinkPreview
   /** Delay before `onSave` fires after the last keystroke. 0 calls it
@@ -359,128 +363,191 @@ export default function NoteEditor({
    * still wants the editable area visually set apart from it. */
   bare?: boolean
 }) {
+  const sync = useSyncController()
+  const instanceId = useId()
+  const autosaveId = `autosave:${draftKey ?? instanceId}`
+  const draft = useSyncExternalStore(
+    sync.drafts.subscribe,
+    () => (draftKey ? sync.drafts.get(draftKey) : undefined),
+    () => undefined
+  )
   const timer = useRef<number | undefined>(undefined)
+  // Switching entities keeps the old flush callback bound to its original ID.
   const onSaveRef = useRef(onSave)
+  const callbacks = useRef(new Map<string, NonNullable<typeof onSave>>())
   const onUploadImageRef = useRef(onUploadImage)
   const onLinkPreviewRef = useRef(onLinkPreview)
   useEffect(() => {
     onSaveRef.current = onSave
+    if (draftKey && onSave) callbacks.current.set(draftKey, onSave)
     onUploadImageRef.current = onUploadImage
     onLinkPreviewRef.current = onLinkPreview
   })
 
-  const editor = useEditor({
-    immediatelyRender: false,
-    editable,
-    extensions: [
-      StarterKit.configure({
-        link: {
-          openOnClick: !editable,
-          autolink: true,
-          HTMLAttributes: {
-            rel: "noopener noreferrer nofollow",
-            target: "_blank",
-          },
-        },
-      }),
-      Image.configure({
-        allowBase64: false,
-        HTMLAttributes: { class: "rounded-lg max-w-full" },
-      }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: "Write something…" }),
-    ],
-    content: content ?? undefined,
-    editorProps: {
-      attributes: {
-        class: cn(
-          "prose-dark px-3 py-2 outline-none [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:text-subtle [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
-          bare ? "min-h-full" : "min-h-40"
-        ),
-      },
-      handlePaste: (view, event) => {
-        const data = event.clipboardData
-        if (!data) return false
+  const saveDraft = (key: string) => {
+    const save = callbacks.current.get(key)
+    if (!save) return
+    void sync.drafts
+      .save(key, (doc, text) => Promise.resolve(save(doc, text)))
+      .then(() => {
+        if (sync.drafts.get(key)?.phase === "saved") sync.resolveDraft(key)
+      })
+      .catch(() => {}) // Hooks and the recoverable draft status explain errors.
+    sync.finish(`autosave:${key}`)
+  }
+  const saveDraftRef = useRef(saveDraft)
+  useEffect(() => {
+    saveDraftRef.current = saveDraft
+  })
 
-        const upload = onUploadImageRef.current
-        if (upload) {
-          const images = Array.from(data.files).filter((f) =>
-            f.type.startsWith("image/")
-          )
-          if (images.length) {
+  const editor = useEditor(
+    {
+      immediatelyRender: false,
+      editable,
+      extensions: [
+        StarterKit.configure({
+          link: {
+            openOnClick: !editable,
+            autolink: true,
+            HTMLAttributes: {
+              rel: "noopener noreferrer nofollow",
+              target: "_blank",
+            },
+          },
+        }),
+        Image.configure({
+          allowBase64: false,
+          HTMLAttributes: { class: "rounded-lg max-w-full" },
+        }),
+        TaskList,
+        TaskItem.configure({ nested: true }),
+        Placeholder.configure({ placeholder: "Write something…" }),
+      ],
+      content: content ?? undefined,
+      editorProps: {
+        attributes: {
+          class: cn(
+            "prose-dark px-3 py-2 outline-none [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:text-subtle [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
+            bare ? "min-h-full" : "min-h-40"
+          ),
+        },
+        handlePaste: (view, event) => {
+          const data = event.clipboardData
+          if (!data) return false
+
+          const upload = onUploadImageRef.current
+          if (upload) {
+            const images = Array.from(data.files).filter((f) =>
+              f.type.startsWith("image/")
+            )
+            if (images.length) {
+              event.preventDefault()
+              for (const file of images)
+                insertImageWithUpload(view, file, upload)
+              return true
+            }
+          }
+
+          if (data.types.includes("Files")) return false
+          const html = data.getData("text/html")
+          const text = data.getData("text/plain")
+          if (html || !text) return false
+
+          const preview = onLinkPreviewRef.current
+          const trimmed = text.trim()
+          if (preview && view.state.selection.empty && isBareUrl(trimmed)) {
             event.preventDefault()
-            for (const file of images) insertImageWithUpload(view, file, upload)
+            insertSmartLink(view, trimmed, preview)
             return true
           }
-        }
 
-        if (data.types.includes("Files")) return false
-        const html = data.getData("text/html")
-        const text = data.getData("text/plain")
-        if (html || !text) return false
+          // Plain-text-only clipboard (e.g. copied from Notepad++) with no
+          // HTML to fall back on: preserve every source line ourselves,
+          // since ProseMirror's default parser collapses runs of blank lines.
+          if (text.includes("\n")) {
+            event.preventDefault()
+            return insertLinesPreservingBlanks(view, text)
+          }
 
-        const preview = onLinkPreviewRef.current
-        const trimmed = text.trim()
-        if (preview && view.state.selection.empty && isBareUrl(trimmed)) {
+          return false
+        },
+        handleDrop: (view, event) => {
+          const upload = onUploadImageRef.current
+          const images = Array.from(event.dataTransfer?.files ?? []).filter(
+            (f) => f.type.startsWith("image/")
+          )
+          if (!upload || !images.length) return false
           event.preventDefault()
-          insertSmartLink(view, trimmed, preview)
+          const pos = view.posAtCoords({
+            left: event.clientX,
+            top: event.clientY,
+          })
+          for (const file of images)
+            insertImageWithUpload(view, file, upload, pos?.pos)
           return true
-        }
-
-        // Plain-text-only clipboard (e.g. copied from Notepad++) with no
-        // HTML to fall back on: preserve every source line ourselves,
-        // since ProseMirror's default parser collapses runs of blank lines.
-        if (text.includes("\n")) {
-          event.preventDefault()
-          return insertLinesPreservingBlanks(view, text)
-        }
-
-        return false
+        },
       },
-      handleDrop: (view, event) => {
-        const upload = onUploadImageRef.current
-        const images = Array.from(event.dataTransfer?.files ?? []).filter((f) =>
-          f.type.startsWith("image/")
-        )
-        if (!upload || !images.length) return false
-        event.preventDefault()
-        const pos = view.posAtCoords({
-          left: event.clientX,
-          top: event.clientY,
-        })
-        for (const file of images)
-          insertImageWithUpload(view, file, upload, pos?.pos)
-        return true
+      onUpdate: ({ editor }) => {
+        const commit = () => {
+          timer.current = undefined
+          if (draftKey) {
+            saveDraftRef.current(draftKey)
+            return
+          }
+          onSaveRef.current?.(
+            editor.getJSON() as Doc,
+            editor.getText({ blockSeparator: "\n" })
+          )
+          // The mutation bridge registers the write before removing the queued save.
+          sync.finish(autosaveId)
+        }
+        window.clearTimeout(timer.current)
+        if (draftKey)
+          sync.drafts.edit(
+            draftKey,
+            editor.getJSON() as Doc,
+            editor.getText({ blockSeparator: "\n" })
+          )
+        if (debounceMs <= 0) {
+          commit()
+          return
+        }
+        if (!onSaveRef.current) return
+        sync.queue("Saving note", autosaveId, draftKey ? [draftKey] : [])
+        timer.current = window.setTimeout(commit, debounceMs)
       },
     },
-    onUpdate: ({ editor }) => {
-      const commit = () =>
-        onSaveRef.current?.(
-          editor.getJSON() as Doc,
-          editor.getText({ blockSeparator: "\n" })
-        )
-      window.clearTimeout(timer.current)
-      if (debounceMs <= 0) {
-        commit()
-        return
-      }
-      timer.current = window.setTimeout(commit, debounceMs)
-    },
-  })
+    [draftKey]
+  )
+
+  useEffect(() => {
+    if (
+      editor &&
+      draft?.doc &&
+      JSON.stringify(editor.getJSON()) !== JSON.stringify(draft.doc)
+    ) {
+      editor.commands.setContent(draft.doc, { emitUpdate: false })
+    }
+  }, [editor, draft])
 
   // Flush a pending save when the editor unmounts (drawer closed quickly).
   useEffect(() => {
+    const entityCallbacks = callbacks.current
     return () => {
-      if (timer.current !== undefined && editor && !editor.isDestroyed) {
+      if (timer.current !== undefined) {
         window.clearTimeout(timer.current)
-        onSaveRef.current?.(
-          editor.getJSON() as Doc,
-          editor.getText({ blockSeparator: "\n" })
-        )
+        timer.current = undefined
+        if (draftKey) saveDraftRef.current(draftKey)
+        else if (editor && !editor.isDestroyed)
+          onSaveRef.current?.(
+            editor.getJSON() as Doc,
+            editor.getText({ blockSeparator: "\n" })
+          )
       }
+      sync.finish(autosaveId)
+      if (draftKey) entityCallbacks.delete(draftKey)
     }
-  }, [editor])
+  }, [editor, sync, autosaveId, draftKey, onSaveRef, saveDraftRef])
 
   if (!editor)
     return (
@@ -502,6 +569,48 @@ export default function NoteEditor({
             : "border border-border bg-surface focus-within:border-border-strong")
       )}
     >
+      {draftKey && draft ? (
+        <div
+          className="flex items-center gap-2 border-b border-border px-3 py-1.5 text-xs text-text-muted"
+          role="status"
+          aria-live="polite"
+        >
+          <span>
+            {draft.phase === "dirty"
+              ? "Unsaved changes"
+              : draft.phase === "saving"
+                ? "Saving…"
+                : draft.phase === "failed"
+                  ? "Couldn't save. Your draft is kept in this session."
+                  : "Saved"}
+          </span>
+          {draft.phase === "failed" ? (
+            <>
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => saveDraft(draftKey)}
+              >
+                Retry save
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={() => {
+                  sync.drafts.discard(draftKey)
+                  sync.resolveDraft(draftKey)
+                  editor.commands.setContent(
+                    content ?? { type: "doc", content: [] },
+                    { emitUpdate: false }
+                  )
+                }}
+              >
+                Discard draft
+              </Button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
       {editable ? (
         <>
           <SelectionMenu editor={editor} />

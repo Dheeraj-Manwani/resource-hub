@@ -1,5 +1,9 @@
 "use client"
 
+import { PendingCreations } from "@/components/pending-creations"
+
+import { QueryFeedback } from "@/components/query-feedback"
+
 import { NotebookPenIcon, PlusIcon } from "lucide-react"
 import { useState } from "react"
 import { toast } from "react-hot-toast"
@@ -25,7 +29,8 @@ import {
 } from "./quick-note-dialog"
 
 export function QuickNotesView() {
-  const { data: notes = [], isPending } = useQuickNotes()
+  const notesQuery = useQuickNotes()
+  const { data: notes = [], isPending } = notesQuery
   const createNote = useCreateQuickNote()
   const updateNote = useUpdateQuickNote()
   const deleteNote = useDeleteQuickNote()
@@ -63,9 +68,9 @@ export function QuickNotesView() {
       bodyText: next.bodyText,
     }
     const onSuccess = (note: QuickNoteDto) => {
-      opts.onSaved(note.id)
+      const currentSaved = opts.onSaved(note.id)
       toast.success("Note saved")
-      if (!opts.keepOpen) setDraft(null)
+      if (currentSaved && !opts.keepOpen) setDraft(null)
     }
     if (next.id) {
       updateNote.mutate({ id: next.id, ...payload }, { onSuccess })
@@ -87,13 +92,15 @@ export function QuickNotesView() {
         }
       />
 
+      {/* <QueryFeedback query={notesQuery} label="notes" loading={false} />
+      <PendingCreations entity="quick-note" /> */}
       {isPending ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-40 rounded-xl" />
           ))}
         </div>
-      ) : notes.length === 0 ? (
+      ) : notesQuery.isError && !notesQuery.data ? null : notes.length === 0 ? (
         <EmptyState
           icon={NotebookPenIcon}
           title="No quick notes yet"
@@ -130,10 +137,10 @@ export function QuickNotesView() {
         title={`Delete "${deleting?.title || "Untitled"}"?`}
         description="This note is permanently deleted. This can't be undone."
         confirmLabel="Delete"
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!deleting) return
+          await deleteNote.mutateAsync(deleting.id)
           if (deleting.id === draft?.id) setDraft(null)
-          deleteNote.mutate(deleting.id)
         }}
       />
     </>

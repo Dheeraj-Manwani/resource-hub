@@ -11,11 +11,22 @@ export function loadScript(src: string): Promise<void> {
     script.src = src
     script.async = true
     script.charset = "utf-8"
-    script.onload = () => resolve()
-    script.onerror = () => {
+    const fail = () => {
+      clearTimeout(timer)
+      script.onload = null
+      script.onerror = null
+      script.remove()
       loaded.delete(src)
       reject(new Error(`Failed to load ${src}`))
     }
+    const timer = window.setTimeout(fail, 15_000)
+    script.onload = () => {
+      clearTimeout(timer)
+      script.onload = null
+      script.onerror = null
+      resolve()
+    }
+    script.onerror = fail
     document.body.appendChild(script)
   })
   loaded.set(src, promise)

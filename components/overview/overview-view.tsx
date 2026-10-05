@@ -1,5 +1,7 @@
 "use client"
 
+import { QueryFeedback } from "@/components/query-feedback"
+
 import {
   CalendarDaysIcon,
   CheckCircle2Icon,
@@ -7,14 +9,12 @@ import {
   InboxIcon,
   LibraryBigIcon,
   StarIcon,
-  FileExclamationPoint,
 } from "lucide-react"
 import Link from "next/link"
 
 import { EmptyState } from "@/components/empty-state"
 import { TypeIcon } from "@/components/resources/type-icon"
 import { TaskRow } from "@/components/tasks/task-card"
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useOverview } from "@/hooks/queries/overview"
 import { useDetailDrawer } from "@/hooks/use-detail-drawer"
@@ -171,27 +171,19 @@ function OverviewSkeleton() {
 }
 
 export function OverviewView({ userName }: { userName: string }) {
-  const { data, isPending, isError, refetch } = useOverview()
+  const overviewQuery = useOverview()
+  const { data, isPending } = overviewQuery
   const { openTask, openResource } = useDetailDrawer()
 
   if (isPending) return <OverviewSkeleton />
 
-  if (isError || !data) {
-    return (
-      <EmptyState
-        icon={FileExclamationPoint}
-        title="Couldn't load your overview"
-        description="Something went wrong pulling your data together."
-      >
-        <Button onClick={() => refetch()}>Try again</Button>
-      </EmptyState>
-    )
-  }
+  if (!data) return <QueryFeedback query={overviewQuery} label="overview" />
 
   const { tasks, resources, projects } = data
 
   return (
     <div className="space-y-5 pb-4">
+      <QueryFeedback query={overviewQuery} label="overview" loading={false} />
       <div>
         <p className="text-xs font-medium tracking-wide text-subtle uppercase">
           {DATE_HEADING.format(new Date())}

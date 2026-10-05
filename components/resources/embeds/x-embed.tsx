@@ -42,6 +42,7 @@ export function XEmbed({
     el.innerHTML = ""
     loadScript("https://platform.twitter.com/widgets.js")
       .then(() => {
+        if (cancelled) return
         const twttr = (window as unknown as { twttr?: Twttr }).twttr
         if (!twttr) throw new Error("widgets.js unavailable")
         return twttr.widgets.createTweet(statusId, el, {
@@ -52,13 +53,17 @@ export function XEmbed({
         })
       })
       .then((node) => {
-        if (!cancelled) setState(node ? "ready" : "failed")
+        if (cancelled) {
+          node?.remove()
+          el.replaceChildren()
+        } else setState(node ? "ready" : "failed")
       })
       .catch(() => {
         if (!cancelled) setState("failed")
       })
     return () => {
       cancelled = true
+      el.replaceChildren()
     }
   }, [statusId, generation])
 

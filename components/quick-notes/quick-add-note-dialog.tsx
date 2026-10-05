@@ -3,7 +3,10 @@
 import { toast } from "react-hot-toast"
 
 import { useShell } from "@/components/shell/shell-context"
-import { useCreateQuickNote, useUpdateQuickNote } from "@/hooks/queries/quick-notes"
+import {
+  useCreateQuickNote,
+  useUpdateQuickNote,
+} from "@/hooks/queries/quick-notes"
 
 import {
   QuickNoteDialog,
@@ -39,9 +42,9 @@ export function QuickAddNoteDialog() {
           bodyText: next.bodyText,
         }
         const onSuccess = (note: { id: string }) => {
-          opts.onSaved(note.id)
+          const currentSaved = opts.onSaved(note.id)
           toast.success("Note saved")
-          if (!opts.keepOpen) closeAddQuickNote()
+          if (currentSaved && !opts.keepOpen) closeAddQuickNote()
         }
         // Ctrl/Cmd+S may have already created this note on an earlier
         // keep-open save — update it in place instead of creating another.

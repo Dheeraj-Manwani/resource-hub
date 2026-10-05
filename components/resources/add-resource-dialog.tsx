@@ -1,5 +1,7 @@
 "use client"
 
+import { useIsMutating } from "@tanstack/react-query"
+
 import {
   CheckCircle2Icon,
   FolderIcon,
@@ -63,6 +65,7 @@ function UploadRow({ item }: { item: UploadItem }) {
         <div className="flex items-center justify-between gap-2 text-sm">
           <span className="truncate">{item.name}</span>
           <span className="shrink-0 text-xs text-subtle">
+            {item.status === "queued" ? "Queued · " : ""}
             {formatBytes(item.size)}
           </span>
         </div>
@@ -106,6 +109,10 @@ function DialogBody({
     initialProjectIds ?? []
   )
   const [typeOverride, setTypeOverride] = useState<ResourceType | null>(null)
+  const liveDraft = useRef({ text, tags, projectIds, typeOverride })
+  useEffect(() => {
+    liveDraft.current = { text, tags, projectIds, typeOverride }
+  }, [text, tags, projectIds, typeOverride])
   const [duplicate, setDuplicate] = useState<Duplicate | null>(null)
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -141,7 +148,10 @@ function DialogBody({
 
   const busy = create.isPending || bulk.isPending
   const uploading = uploads.items.some(
-    (i) => i.status === "uploading" || i.status === "processing"
+    (i) =>
+      i.status === "queued" ||
+      i.status === "uploading" ||
+      i.status === "processing"
   )
 
   function addFiles(files: FileList | File[] | null) {
@@ -150,11 +160,17 @@ function DialogBody({
   }
 
   async function submit(force = false) {
-    if (parsed.kind === "empty") return
+    if (parsed.kind === "empty" || busy) return
     if (duplicate && !force) return
+    const submitted = JSON.stringify({ text, tags, projectIds, typeOverride })
     try {
       if (parsed.kind === "note") {
-        await create.mutateAsync({ text: parsed.text, type: "note", tags, projectIds })
+        await create.mutateAsync({
+          text: parsed.text,
+          type: "note",
+          tags,
+          projectIds,
+        })
         toast.success("Note saved")
       } else if (parsed.items.length === 1) {
         const item = parsed.items[0]!
@@ -172,13 +188,22 @@ function DialogBody({
           tags,
           projectIds,
         })
-        showToast(`Saved ${result.created.length} links`, {
-          description: result.invalid.length
-            ? `${result.invalid.length} lines were skipped`
-            : "Details are filling in…",
-        }, "success")
+        showToast(
+          `Saved ${result.created.length} links`,
+          {
+            description: result.invalid.length
+              ? `${result.invalid.length} lines were skipped`
+              : "Details are filling in…",
+          },
+          "success"
+        )
+        if (result.invalid.length) {
+          if (JSON.stringify(liveDraft.current) === submitted)
+            setText(result.invalid.join("\n"))
+          return
+        }
       }
-      onClose()
+      if (JSON.stringify(liveDraft.current) === submitted) onClose()
     } catch (error) {
       toast.error((error as Error).message)
     }
@@ -388,7 +413,7 @@ function DialogBody({
           Upload files
         </Button>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" disabled={busy} onClick={onClose}>
             {uploads.items.length && !uploading ? "Done" : "Cancel"}
           </Button>
           <Button
@@ -408,10 +433,20 @@ function DialogBody({
 
 export function AddResourceDialog() {
   const { addResource, closeAddResource } = useShell()
+  const saving =
+    useIsMutating({
+      mutationKey: ["resource"],
+      predicate: (mutation) =>
+        ["create", "bulk-create"].includes(
+          String(mutation.options.mutationKey?.[1])
+        ),
+    }) > 0
   return (
     <Dialog
       open={addResource.open}
-      onOpenChange={(open) => (!open ? closeAddResource() : undefined)}
+      onOpenChange={(open) =>
+        !open && !saving ? closeAddResource() : undefined
+      }
     >
       <DialogContent className="gap-4 sm:max-w-xl">
         {addResource.open ? (

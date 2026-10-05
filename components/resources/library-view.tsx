@@ -1,5 +1,9 @@
 "use client"
 
+import { PendingCreations } from "@/components/pending-creations"
+
+import { QueryFeedback } from "@/components/query-feedback"
+
 import {
   CheckSquareIcon,
   GalleryVerticalIcon,
@@ -349,7 +353,9 @@ export function LibraryView({
   const filters: ResourceFilters = useMemo(
     () => ({
       ...baseFilters,
-      ...(independentFilter ? { unsorted: independentOnly || undefined } : null),
+      ...(independentFilter
+        ? { unsorted: independentOnly || undefined }
+        : null),
       type,
       tag,
       favorite: favorite || undefined,
@@ -437,16 +443,8 @@ export function LibraryView({
   let body: React.ReactNode
   if (query.isPending) {
     body = view === "list" ? <ListSkeleton /> : <CardGridSkeleton />
-  } else if (query.isError) {
-    body = (
-      <EmptyState
-        icon={FileExclamationPoint}
-        title="Couldn't load resources"
-        description={query.error.message}
-      >
-        <Button onClick={() => query.refetch()}>Try again</Button>
-      </EmptyState>
-    )
+  } else if (query.isError && !query.data) {
+    body = null
   } else if (!items.length) {
     body = filtered ? (
       <EmptyState
@@ -504,7 +502,11 @@ export function LibraryView({
     )
   } else if (view === "list") {
     body = (
-      <ResourceList items={items} onOpen={openResource} onPreview={openPreview} />
+      <ResourceList
+        items={items}
+        onOpen={openResource}
+        onPreview={openPreview}
+      />
     )
   } else if (view === "focus") {
     body = (
@@ -554,6 +556,8 @@ export function LibraryView({
           setSelected(new Set())
         }}
       />
+      <QueryFeedback query={query} label="resources" loading={false} />
+      <PendingCreations entity="resource" filters={filters} />
       {body}
       <div ref={sentinelRef} aria-hidden className="h-px" />
       {isFetchingNextPage ? (

@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-// Signed-out smoke checks. The full signed-in suite (add resource → project →
-// task → calendar → search → trash) lands in Phase 6.
+// Signed-out checks complement the authenticated CRUD journeys.
 
 test("landing page offers Google sign-in", async ({ page }) => {
   await page.goto("/")
@@ -15,7 +14,9 @@ test("landing page offers Google sign-in", async ({ page }) => {
 
 test("a failed sign-in shows an explanation", async ({ page }) => {
   await page.goto("/?error=access_denied")
-  await expect(page.getByRole("alert")).toContainText("cancelled")
+  await expect(
+    page.getByRole("alert").filter({ hasText: "cancelled" })
+  ).toContainText("Sign-in was cancelled.")
 })
 
 test("app pages redirect signed-out visitors to the landing page", async ({
@@ -28,6 +29,10 @@ test("app pages redirect signed-out visitors to the landing page", async ({
 test("API returns 401 without a session", async ({ request }) => {
   const res = await request.get("/api/v1/resources")
   expect(res.status()).toBe(401)
+  const progress = await request.get(
+    "/api/v1/resources/metadata-status?ids=00000000-0000-4000-8000-000000000001"
+  )
+  expect(progress.status()).toBe(401)
   const capture = await request.post("/api/v1/capture", {
     data: { url: "https://example.com" },
   })

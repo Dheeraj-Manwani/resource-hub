@@ -1,7 +1,15 @@
 "use client"
 
-import { CircleHelpIcon, HeartIcon, LogOutIcon, SettingsIcon } from "lucide-react"
+import {
+  CircleHelpIcon,
+  HeartIcon,
+  LogOutIcon,
+  SettingsIcon,
+} from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "react-hot-toast"
+import { useSyncController } from "@/components/sync-provider"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -29,9 +37,17 @@ function initials(name: string) {
 export function UserMenu() {
   const { user, openTour } = useShell()
   const router = useRouter()
+  const sync = useSyncController()
+  const queryClient = useQueryClient()
 
   async function logout() {
-    await signOut()
+    const result = await signOut()
+    if (result.error) {
+      toast.error("Couldn't log out. Try again.")
+      return
+    }
+    sync.reset()
+    queryClient.clear()
     router.replace("/")
     router.refresh()
   }

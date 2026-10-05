@@ -1,5 +1,8 @@
 "use client"
 
+import { useContext } from "react"
+import { MasonryRetention } from "./masonry-retention"
+
 import {
   CheckCircle2Icon,
   CircleIcon,
@@ -38,11 +41,12 @@ export function ResourceContextMenu({
   trigger: React.ReactElement
   children: React.ReactNode
 }) {
+  const retain = useContext(MasonryRetention)
   const update = useUpdateResource()
   const remove = useDeleteResource()
 
   return (
-    <ContextMenu>
+    <ContextMenu onOpenChange={(open) => retain?.("menu", open)}>
       <ContextMenuTrigger render={trigger}>{children}</ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem onClick={() => onPreview(resource.id)}>
@@ -62,7 +66,11 @@ export function ResourceContextMenu({
             })
           }
         >
-          <StarIcon className={resource.isFavorite ? "fill-brand text-brand" : undefined} />
+          <StarIcon
+            className={
+              resource.isFavorite ? "fill-brand text-brand" : undefined
+            }
+          />
           {resource.isFavorite ? "Remove from favorites" : "Add to favorites"}
         </ContextMenuItem>
         <ContextMenuItem
@@ -83,7 +91,11 @@ export function ResourceContextMenu({
         {resource.url ? (
           <ContextMenuItem
             render={
-              <a href={resource.url} target="_blank" rel="noopener noreferrer" />
+              <a
+                href={resource.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              />
             }
           >
             <ExternalLinkIcon />
@@ -91,7 +103,10 @@ export function ResourceContextMenu({
           </ContextMenuItem>
         ) : null}
         <ContextMenuSeparator />
-        <ContextMenuItem variant="destructive" onClick={() => remove.mutate(resource.id)}>
+        <ContextMenuItem
+          variant="destructive"
+          onClick={() => remove.mutate(resource.id)}
+        >
           <Trash2Icon />
           Move to trash
         </ContextMenuItem>

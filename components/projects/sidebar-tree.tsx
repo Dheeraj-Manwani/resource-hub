@@ -1,5 +1,9 @@
 "use client"
 
+import { PendingCreations } from "@/components/pending-creations"
+
+import { QueryFeedback } from "@/components/query-feedback"
+
 import {
   SortableContext,
   useSortable,
@@ -89,12 +93,13 @@ function InlineCreateRow({
       <FolderIcon className="size-3.5 shrink-0 text-subtle" />
       <Input
         ref={ref}
+        disabled={create.isPending}
         value={name}
         onChange={(e) => setName(e.target.value)}
         onBlur={submit}
         onKeyDown={(e) => {
           if (e.key === "Enter") submit()
-          if (e.key === "Escape") onDone()
+          if (e.key === "Escape" && !create.isPending) onDone()
         }}
         placeholder="Project name"
         className="h-6 px-1.5 text-sm"
@@ -366,7 +371,8 @@ function StaticProjectRow(props: RowProps) {
  * nav copy, since a second set of sortable ids in the same DndContext would
  * collide). */
 export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
-  const { data: flat = [], isPending } = useProjectTree()
+  const projectsQuery = useProjectTree()
+  const { data: flat = [], isPending } = projectsQuery
   const { isCollapsed, toggle } = useCollapsedProjects()
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [creating, setCreating] = useState<CreateTarget>(null)
@@ -448,7 +454,9 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
         </Tooltip>
       </div>
 
-      {!isPending && !visible.length && !creating ? (
+      {/* <PendingCreations entity="project" /> */}
+      {/* <QueryFeedback query={projectsQuery} label="projects" /> */}
+      {!isPending && !projectsQuery.isError && !visible.length && !creating ? (
         <button
           type="button"
           onClick={() => setCreating({ parentId: null })}
@@ -496,10 +504,9 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
       <DeleteProjectDialog
         project={deleting}
         onOpenChange={(open) => !open && setDeleting(null)}
-        onConfirm={(mode) => {
+        onConfirm={async (mode) => {
           if (!deleting) return
-          deleteProject.mutate({ id: deleting.id, mode })
-          setDeleting(null)
+          await deleteProject.mutateAsync({ id: deleting.id, mode })
         }}
       />
     </div>

@@ -1,6 +1,23 @@
 "use client"
 
 import {
+  beginResources,
+  settleResources,
+  resourceProjects,
+  changeTags,
+} from "@/lib/optimistic/actions"
+import { resourceCache } from "@/lib/optimistic/domains"
+import {
+  projectCache,
+  projectedTree,
+  projectedProject,
+} from "@/lib/optimistic/projects"
+
+import { useSyncController } from "@/components/sync-provider"
+
+import { syncMutation } from "@/lib/sync/mutations"
+
+import {
   useMutation,
   useQuery,
   useQueryClient,
@@ -10,7 +27,10 @@ import { toast } from "react-hot-toast"
 import { showToast } from "@/lib/toast"
 
 import { api } from "@/lib/api-client"
-import { invalidateResourceLists, upsertResourceInCache } from "@/hooks/queries/resources"
+import {
+  invalidateResourceLists,
+  upsertResourceInCache,
+} from "@/hooks/queries/resources"
 import type { ResourceDto } from "@/lib/resources/dto"
 import type { ProjectDto } from "@/lib/projects/types"
 import type {
@@ -26,11 +46,17 @@ export const projectKeys = {
 }
 
 export function useProjectTree() {
+  const qc = useQueryClient()
   return useQuery({
     queryKey: projectKeys.tree(),
-    queryFn: ({ signal }) =>
-      api<{ items: ProjectDto[] }>("/api/v1/projects/tree", { signal }),
-    select: (d) => d.items,
+    queryFn: async ({ signal }) => {
+      const data = await api<{ items: ProjectDto[] }>("/api/v1/projects/tree", {
+        signal,
+      })
+      data.items.forEach((item) => projectCache.received(qc, item))
+      return data
+    },
+    select: (d) => projectedTree(qc, d.items),
     staleTime: 10_000,
   })
 }
@@ -41,12 +67,36 @@ export type ProjectWithAncestors = {
 }
 
 export function useProject(id: string | null) {
-  return useQuery({
+  const qc = useQueryClient()
+  return useQuery<ProjectWithAncestors>({
     queryKey: projectKeys.detail(id ?? ""),
     enabled: !!id,
-    queryFn: ({ signal }) =>
-      api<ProjectWithAncestors>(`/api/v1/projects/${id}`, { signal }),
+    select: (data) => projectedProject(qc, data),
+    queryFn: async ({ signal }) => {
+      const data = await api<ProjectWithAncestors>(`/api/v1/projects/${id}`, {
+        signal,
+      })
+      projectCache.received(qc, data.project)
+      data.ancestors.forEach((item) => projectCache.received(qc, item))
+      return data
+    },
   })
+}
+
+function reconcileProjects(qc: QueryClient) {
+  if (projectCache.pending(qc)) return Promise.resolve()
+  return Promise.all(
+    [
+      "projects",
+      "resources",
+      "tasks",
+      "quick-notes",
+      "overview",
+      "calendar",
+      "search",
+      "command-search",
+    ].map((family) => qc.invalidateQueries({ queryKey: [family] }))
+  ).then(() => undefined)
 }
 
 function invalidateTree(qc: QueryClient) {
@@ -56,100 +106,139 @@ function invalidateTree(qc: QueryClient) {
 export function useCreateProject() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("project.create"),
     mutationFn: (input: CreateProjectInput) =>
       api<ProjectDto>("/api/v1/projects", { method: "POST", body: input }),
-    onSuccess: () => {
+    onSuccess: (project) => {
+      qc.setQueryData<{ items: ProjectDto[] }>(projectKeys.tree(), (data) => ({
+        items: [
+          ...(data?.items ?? []).filter((row) => row.id !== project.id),
+          project,
+        ],
+      }))
       toast.success("Project created")
       return invalidateTree(qc)
     },
-    onError: (error) => toast.error(`Couldn't create project: ${error.message}`),
+    onError: (error) =>
+      toast.error(`Couldn't create project: ${error.message}`),
   })
 }
 
 export function useUpdateProject() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("project.update"),
     mutationFn: ({ id, patch }: { id: string; patch: UpdateProjectInput }) =>
       api<ProjectDto>(`/api/v1/projects/${id}`, {
         method: "PATCH",
         body: patch,
       }),
-    onSuccess: (project) => {
-      invalidateTree(qc)
-      qc.setQueryData(projectKeys.detail(project.id), (prev: ProjectWithAncestors | undefined) =>
-        prev ? { ...prev, project } : prev
-      )
+    onMutate: async ({ id, patch }) => {
+      await qc.cancelQueries({ queryKey: projectKeys.all })
+      return {
+        token: projectCache.patch(qc, id, (value) =>
+          value
+            ? {
+                ...value,
+                ...patch,
+                archivedAt:
+                  patch.archived === undefined
+                    ? value.archivedAt
+                    : patch.archived
+                      ? new Date().toISOString()
+                      : null,
+              }
+            : value
+        ),
+      }
     },
-    onError: (error) => toast.error(`Couldn't save: ${error.message}`),
+    onSuccess: (project, { id }, context) =>
+      projectCache.settle(qc, id, context?.token, project),
+    onError: (error, { id }, context) => {
+      projectCache.settle(qc, id, context?.token)
+      toast.error(`Couldn't save: ${error.message}`)
+    },
+    onSettled: () => reconcileProjects(qc),
   })
 }
 
 export function useMoveProject() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({
-      id,
-      input,
-    }: {
-      id: string
-      input: MoveProjectInput
-    }) =>
+    ...syncMutation("project.move"),
+    mutationFn: ({ id, input }: { id: string; input: MoveProjectInput }) =>
       api<ProjectDto>(`/api/v1/projects/${id}/move`, {
         method: "POST",
         body: input,
       }),
     onMutate: async ({ id, input }) => {
-      await qc.cancelQueries({ queryKey: projectKeys.tree() })
-      const previous = qc.getQueryData<{ items: ProjectDto[] }>(
-        projectKeys.tree()
-      )
-      if (previous) {
-        qc.setQueryData(projectKeys.tree(), {
-          items: previous.items.map((p) =>
-            p.id === id ? { ...p, parentId: input.parentId } : p
-          ),
-        })
-      }
-      return { previous }
+      await qc.cancelQueries({ queryKey: projectKeys.all })
+      return { token: projectCache.begin(qc, id, input.parentId) }
     },
-    onError: (error, _vars, context) => {
-      if (context?.previous) qc.setQueryData(projectKeys.tree(), context.previous)
+    onError: (error, { id }, context) => {
+      projectCache.settle(qc, id, context?.token)
       toast.error(`Couldn't move: ${error.message}`)
     },
-    onSuccess: () => toast.success("Project moved"),
-    onSettled: () => invalidateTree(qc),
+    onSuccess: (project, { id }, context) => {
+      projectCache.settle(qc, id, context?.token, project)
+      toast.success("Project moved")
+    },
+    onSettled: () => reconcileProjects(qc),
   })
 }
 
 export function useDeleteProject() {
+  const sync = useSyncController()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({
-      id,
-      mode,
-    }: {
-      id: string
-      mode: "subtree" | "reparent"
-    }) =>
+    ...syncMutation("project.delete"),
+    mutationFn: ({ id, mode }: { id: string; mode: "subtree" | "reparent" }) =>
       api<null>(`/api/v1/projects/${id}?mode=${mode}`, { method: "DELETE" }),
     onSuccess: (_data, { id, mode }) => {
       invalidateTree(qc)
       invalidateResourceLists(qc)
       if (mode === "reparent") {
-        showToast("Project deleted", {
-          action: {
-            label: "Undo",
-            onClick: () => {
-              api(`/api/v1/trash/project/${id}/restore`, { method: "POST" })
-                .then(() => invalidateTree(qc))
-                .catch(() => toast.error("Couldn't undo"))
+        showToast(
+          "Project deleted",
+          {
+            action: {
+              label: "Undo",
+              onClick: () => {
+                sync
+                  .track(
+                    {
+                      label: "Restoring project",
+                      source: "manual",
+                      entityKeys: [`project:${id}`],
+                      href: "/trash",
+                    },
+                    async (saved) => {
+                      await api(`/api/v1/trash/project/${id}/restore`, {
+                        method: "POST",
+                      })
+                      saved()
+                      await qc.invalidateQueries(
+                        { queryKey: projectKeys.tree() },
+                        { throwOnError: true }
+                      )
+                    }
+                  )
+                  .catch(() =>
+                    toast.error("Undo needs attention. Check sync details.")
+                  )
+              },
             },
           },
-        }, "success")
+          "success"
+        )
       } else {
-        showToast("Project and its sub-projects deleted", {
-          description: "Restore each one from Trash if you change your mind.",
-        }, "success")
+        showToast(
+          "Project and its sub-projects deleted",
+          {
+            description: "Restore each one from Trash if you change your mind.",
+          },
+          "success"
+        )
       }
     },
     onError: (error) => toast.error(`Couldn't delete: ${error.message}`),
@@ -165,6 +254,7 @@ function mergeResources(qc: QueryClient, items: ResourceDto[]) {
 export function useLinkResources() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("project.link"),
     mutationFn: ({
       projectId,
       resourceIds,
@@ -176,20 +266,41 @@ export function useLinkResources() {
         method: "POST",
         body: { resourceIds },
       }),
-    onSuccess: (_data, { resourceIds }) => {
+    onMutate: async ({ projectId, resourceIds }) => {
+      await qc.cancelQueries({ queryKey: ["resources"] })
+      return {
+        tokens: beginResources(qc, resourceIds, (resource) =>
+          resourceProjects(qc, resource, null, projectId)
+        ),
+      }
+    },
+    onSuccess: (_data, { resourceIds }, context) => {
+      settleResources(qc, context?.tokens, "commit")
       invalidateResourceLists(qc)
       invalidateTree(qc)
       resourceIds.forEach((id) =>
         qc.invalidateQueries({ queryKey: ["resources", "detail", id] })
       )
     },
-    onError: (error) => toast.error(`Couldn't add to project: ${error.message}`),
+    onError: (error, _vars, context) => {
+      settleResources(qc, context?.tokens, "rollback")
+      toast.error(`Couldn't update resources: ${error.message}`)
+    },
+    onSettled: () => {
+      if (!resourceCache.pending(qc))
+        return Promise.all([
+          invalidateResourceLists(qc),
+          invalidateTree(qc),
+        ]).then(() => undefined)
+    },
   })
 }
 
 export function useUnlinkResources() {
+  const sync = useSyncController()
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("project.unlink"),
     mutationFn: ({
       projectId,
       resourceIds,
@@ -201,7 +312,16 @@ export function useUnlinkResources() {
         method: "DELETE",
         body: { resourceIds },
       }),
-    onSuccess: (_data, { projectId, resourceIds }) => {
+    onMutate: async ({ projectId, resourceIds }) => {
+      await qc.cancelQueries({ queryKey: ["resources"] })
+      return {
+        tokens: beginResources(qc, resourceIds, (resource) =>
+          resourceProjects(qc, resource, projectId, null)
+        ),
+      }
+    },
+    onSuccess: (_data, { projectId, resourceIds }, context) => {
+      settleResources(qc, context?.tokens, "commit")
       invalidateResourceLists(qc)
       invalidateTree(qc)
       resourceIds.forEach((id) =>
@@ -211,26 +331,61 @@ export function useUnlinkResources() {
         action: {
           label: "Undo",
           onClick: () => {
-            api(`/api/v1/projects/${projectId}/resources`, {
-              method: "POST",
-              body: { resourceIds },
-            })
-              .then(() => {
-                invalidateResourceLists(qc)
-                invalidateTree(qc)
-              })
-              .catch(() => toast.error("Couldn't undo"))
+            sync
+              .track(
+                {
+                  label: "Restoring project resources",
+                  source: "manual",
+                  entityKeys: [
+                    `project:${projectId}`,
+                    ...resourceIds.map((id) => `resource:${id}`),
+                  ],
+                  href: `/projects/${projectId}`,
+                },
+                async (saved) => {
+                  await api(`/api/v1/projects/${projectId}/resources`, {
+                    method: "POST",
+                    body: { resourceIds },
+                  })
+                  saved()
+                  await Promise.all([
+                    qc.invalidateQueries(
+                      { queryKey: ["resources"] },
+                      { throwOnError: true }
+                    ),
+                    qc.invalidateQueries(
+                      { queryKey: projectKeys.tree() },
+                      { throwOnError: true }
+                    ),
+                  ])
+                }
+              )
+              .catch(() =>
+                toast.error("Undo needs attention. Check sync details.")
+              )
           },
         },
       })
     },
-    onError: (error) => toast.error(`Couldn't remove: ${error.message}`),
+    onError: (error, _vars, context) => {
+      settleResources(qc, context?.tokens, "rollback")
+      toast.error(`Couldn't update resources: ${error.message}`)
+    },
+    onSettled: () => {
+      if (!resourceCache.pending(qc))
+        return Promise.all([
+          invalidateResourceLists(qc),
+          invalidateTree(qc),
+        ]).then(() => undefined)
+    },
   })
 }
 
 export function useMoveResources() {
+  const sync = useSyncController()
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("project.move-resources"),
     mutationFn: ({
       resourceIds,
       from,
@@ -244,30 +399,81 @@ export function useMoveResources() {
         method: "POST",
         body: { resourceIds, from, to },
       }),
-    onSuccess: ({ items }, { resourceIds, from, to }) => {
+    onMutate: async ({ resourceIds, from, to }) => {
+      await qc.cancelQueries({ queryKey: ["resources"] })
+      return {
+        tokens: beginResources(qc, resourceIds, (resource) =>
+          resourceProjects(qc, resource, from, to)
+        ),
+      }
+    },
+    onSuccess: ({ items }, { resourceIds, from, to }, context) => {
+      settleResources(qc, context?.tokens, items)
       mergeResources(qc, items)
       showToast("Moved", {
         action: {
           label: "Undo",
           onClick: () => {
-            api<{ items: ResourceDto[] }>("/api/v1/resources/move", {
-              method: "POST",
-              body: { resourceIds, from: to, to: from },
-            })
-              .then(({ items: undone }) => mergeResources(qc, undone))
-              .catch(() => toast.error("Couldn't undo"))
+            sync
+              .track(
+                {
+                  label: "Undoing resource move",
+                  source: "manual",
+                  entityKeys: resourceIds.map((id) => `resource:${id}`),
+                  href: "/resources",
+                },
+                async (saved) => {
+                  const { items: undone } = await api<{ items: ResourceDto[] }>(
+                    "/api/v1/resources/move",
+                    {
+                      method: "POST",
+                      body: { resourceIds, from: to, to: from },
+                    }
+                  )
+                  saved()
+                  mergeResources(qc, undone)
+                  await Promise.all([
+                    qc.invalidateQueries(
+                      { queryKey: ["resources"] },
+                      { throwOnError: true, cancelRefetch: false }
+                    ),
+                    qc.invalidateQueries(
+                      { queryKey: projectKeys.tree() },
+                      { throwOnError: true, cancelRefetch: false }
+                    ),
+                  ])
+                }
+              )
+              .catch(() =>
+                toast.error("Undo needs attention. Check sync details.")
+              )
           },
         },
       })
     },
-    onError: (error) => toast.error(`Couldn't move: ${error.message}`),
+    onError: (error, _vars, context) => {
+      settleResources(qc, context?.tokens, "rollback")
+      toast.error(`Couldn't update resources: ${error.message}`)
+    },
+    onSettled: () => {
+      if (!resourceCache.pending(qc))
+        return Promise.all([
+          invalidateResourceLists(qc),
+          invalidateTree(qc),
+        ]).then(() => undefined)
+    },
   })
 }
 
 export type BulkAction =
   | { action: "link"; resourceIds: string[]; projectId: string }
   | { action: "unlink"; resourceIds: string[]; projectId: string }
-  | { action: "move"; resourceIds: string[]; from: string | null; to: string | null }
+  | {
+      action: "move"
+      resourceIds: string[]
+      from: string | null
+      to: string | null
+    }
   | { action: "tag"; resourceIds: string[]; tags: string[] }
   | { action: "untag"; resourceIds: string[]; tags: string[] }
   | { action: "favorite"; resourceIds: string[]; value: boolean }
@@ -276,12 +482,47 @@ export type BulkAction =
 export function useBulkResourceActions() {
   const qc = useQueryClient()
   return useMutation({
+    ...syncMutation("project.bulk-resources"),
     mutationFn: (body: BulkAction) =>
       api<{ items: ResourceDto[] }>("/api/v1/resources/bulk-actions", {
         method: "POST",
         body,
       }),
-    onSuccess: ({ items }, vars) => {
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey: ["resources"] })
+      return {
+        tokens: beginResources(qc, vars.resourceIds, (resource) =>
+          vars.action === "delete"
+            ? null
+            : vars.action === "favorite"
+              ? { ...resource, isFavorite: vars.value }
+              : vars.action === "tag" || vars.action === "untag"
+                ? {
+                    ...resource,
+                    tags: changeTags(
+                      qc,
+                      resource.tags,
+                      vars.tags,
+                      vars.action === "tag"
+                    ),
+                  }
+                : vars.action === "move"
+                  ? resourceProjects(qc, resource, vars.from, vars.to)
+                  : resourceProjects(
+                      qc,
+                      resource,
+                      vars.action === "unlink" ? vars.projectId : null,
+                      vars.action === "link" ? vars.projectId : null
+                    )
+        ),
+      }
+    },
+    onSuccess: ({ items }, vars, context) => {
+      settleResources(
+        qc,
+        context?.tokens,
+        vars.action === "delete" ? "delete" : items
+      )
       if (vars.action === "delete") {
         vars.resourceIds.forEach((id) =>
           qc.removeQueries({ queryKey: ["resources", "detail", id] })
@@ -308,6 +549,16 @@ export function useBulkResourceActions() {
                   : "Moved"
       toast.success(label)
     },
-    onError: (error) => toast.error(`Couldn't update: ${error.message}`),
+    onError: (error, _vars, context) => {
+      settleResources(qc, context?.tokens, "rollback")
+      toast.error(`Couldn't update resources: ${error.message}`)
+    },
+    onSettled: () => {
+      if (!resourceCache.pending(qc))
+        return Promise.all([
+          invalidateResourceLists(qc),
+          invalidateTree(qc),
+        ]).then(() => undefined)
+    },
   })
 }

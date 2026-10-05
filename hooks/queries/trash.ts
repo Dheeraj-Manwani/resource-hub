@@ -1,5 +1,7 @@
 "use client"
 
+import { syncMutation } from "@/lib/sync/mutations"
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "react-hot-toast"
 
@@ -11,7 +13,8 @@ const KEY = ["trash"]
 export function useTrash() {
   return useQuery({
     queryKey: KEY,
-    queryFn: ({ signal }) => api<{ items: TrashItem[] }>("/api/v1/trash", { signal }),
+    queryFn: ({ signal }) =>
+      api<{ items: TrashItem[] }>("/api/v1/trash", { signal }),
     select: (d) => d.items,
   })
 }
@@ -26,8 +29,14 @@ function invalidateAfterTrashChange(qc: ReturnType<typeof useQueryClient>) {
 export function useRestoreFromTrash() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ entityType, id }: { entityType: TrashEntityType; id: string }) =>
-      api(`/api/v1/trash/${entityType}/${id}/restore`, { method: "POST" }),
+    ...syncMutation("trash.restore"),
+    mutationFn: ({
+      entityType,
+      id,
+    }: {
+      entityType: TrashEntityType
+      id: string
+    }) => api(`/api/v1/trash/${entityType}/${id}/restore`, { method: "POST" }),
     onSuccess: () => {
       invalidateAfterTrashChange(qc)
       toast.success("Restored")
@@ -39,8 +48,14 @@ export function useRestoreFromTrash() {
 export function usePermanentlyDelete() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ entityType, id }: { entityType: TrashEntityType; id: string }) =>
-      api<null>(`/api/v1/trash/${entityType}/${id}`, { method: "DELETE" }),
+    ...syncMutation("trash.delete"),
+    mutationFn: ({
+      entityType,
+      id,
+    }: {
+      entityType: TrashEntityType
+      id: string
+    }) => api<null>(`/api/v1/trash/${entityType}/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       invalidateAfterTrashChange(qc)
       toast.success("Deleted permanently")
@@ -52,10 +67,14 @@ export function usePermanentlyDelete() {
 export function useEmptyTrash() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => api<{ deleted: number }>("/api/v1/trash/empty", { method: "POST" }),
+    ...syncMutation("trash.empty"),
+    mutationFn: () =>
+      api<{ deleted: number }>("/api/v1/trash/empty", { method: "POST" }),
     onSuccess: ({ deleted }) => {
       invalidateAfterTrashChange(qc)
-      toast.success(`Permanently deleted ${deleted} item${deleted === 1 ? "" : "s"}`)
+      toast.success(
+        `Permanently deleted ${deleted} item${deleted === 1 ? "" : "s"}`
+      )
     },
     onError: (error) => toast.error(`Couldn't empty Trash: ${error.message}`),
   })
