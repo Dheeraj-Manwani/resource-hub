@@ -8,7 +8,7 @@ import {
 } from "lucide-react"
 import { useParams } from "next/navigation"
 import { useProjectOptions } from "@/components/projects/project-picker"
-import { Button } from "@/components/ui/button"
+import { AddMenu } from "@/components/add-menu"
 import { useShell } from "./shell-context"
 
 /** Global creation actions keep the current project, including nested projects. */
@@ -36,23 +36,29 @@ export function CreationActions() {
   const { openAddResource, openAddTask, openAddProject, openAddQuickNote } =
     useCreationActions()
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button size="sm" onClick={() => openAddResource()}>
-        <LinkIcon />
-        Add resource
-      </Button>
-      <Button size="sm" variant="outline" onClick={() => openAddTask()}>
-        <ListPlusIcon />
-        Add task
-      </Button>
-      <Button size="sm" variant="outline" onClick={() => openAddProject()}>
-        <FolderPlusIcon />
-        New project
-      </Button>
-      <Button size="sm" variant="outline" onClick={() => openAddQuickNote()}>
-        <NotebookPenIcon />
-        New quick note
-      </Button>
-    </div>
+    <AddMenu
+      items={[
+        {
+          label: "Add resource",
+          icon: <LinkIcon />,
+          onSelect: () => openAddResource(),
+        },
+        {
+          label: "Add task",
+          icon: <ListPlusIcon />,
+          onSelect: () => openAddTask(),
+        },
+        {
+          label: "New project",
+          icon: <FolderPlusIcon />,
+          onSelect: () => openAddProject(),
+        },
+        {
+          label: "New quick note",
+          icon: <NotebookPenIcon />,
+          onSelect: () => openAddQuickNote(),
+        },
+      ]}
+    />
   )
 }

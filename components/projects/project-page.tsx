@@ -1,5 +1,8 @@
 "use client"
 
+import { FilterPanel } from "@/components/filter-panel"
+import { AddMenu } from "@/components/add-menu"
+
 import { QueryFeedback } from "@/components/query-feedback"
 
 import {
@@ -197,7 +200,7 @@ export function ProjectPage({
   const projectQuery = useProject(projectId)
   const { data } = projectQuery
   const { data: tree } = useProjectTree()
-  const [includeDescendants, setIncludeDescendants] = useState(true)
+  const [includeDescendants, setIncludeDescendants] = useState(false)
   const [addingExisting, setAddingExisting] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
   const [tab, setTab] = useProjectTab()
@@ -253,6 +256,13 @@ export function ProjectPage({
           </Button>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <ProjectMenu projectId={projectId} />
+        </div>
+      </div>
+
+      {tab !== "resources" ? (
+                <FilterPanel activeCount={includeDescendants ? 1 : 0}>
+          {" "}
           <label className="flex items-center gap-2 text-xs text-text-muted">
             <Switch
               size="sm"
@@ -261,10 +271,8 @@ export function ProjectPage({
             />
             Include sub-projects
           </label>
-          <ProjectMenu projectId={projectId} />
-        </div>
-      </div>
-
+        </FilterPanel>
+      ) : null}
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
         <TabsList variant="pill" className="mb-3">
           <TabsIndicator />
@@ -290,22 +298,22 @@ export function ProjectPage({
         </TabsList>
 
         <TabsContent value="resources">
-          <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
-            <Button
-              variant="outline"
+          <div className="mb-2 flex justify-end">
+            <AddMenu
               size="xs"
-              onClick={() => setAddingExisting(true)}
-            >
-              <ListPlusIcon />
-              Add existing
-            </Button>
-            <Button
-              size="xs"
-              onClick={() => openAddResource(undefined, [projectId])}
-            >
-              <PlusIcon />
-              Add resource
-            </Button>
+              items={[
+                {
+                  label: "Add new resource",
+                  icon: <PlusIcon />,
+                  onSelect: () => openAddResource(undefined, [projectId]),
+                },
+                {
+                  label: "Add existing resources",
+                  icon: <ListPlusIcon />,
+                  onSelect: () => setAddingExisting(true),
+                },
+              ]}
+            />
           </div>
           <LibraryView
             title={project?.name ?? "Project"}
@@ -314,6 +322,17 @@ export function ProjectPage({
             emptyTitle="Nothing filed here yet"
             emptyDescription="Add a new resource here, add existing Inbox items, or drag a resource onto this project in the sidebar."
             hideHeader
+            extraFilters={
+              <label className="flex items-center gap-2 text-xs text-text-muted">
+                <Switch
+                  size="sm"
+                  checked={includeDescendants}
+                  onCheckedChange={setIncludeDescendants}
+                />
+                Include sub-projects
+              </label>
+            }
+                      extraActiveCount={includeDescendants ? 1 : 0}
           />
         </TabsContent>
 

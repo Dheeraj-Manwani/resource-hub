@@ -1,7 +1,7 @@
 "use client"
 
 import { useDraggable } from "@dnd-kit/core"
-import { Edit, ExternalLinkIcon, StarIcon } from "lucide-react"
+import { CheckCheckIcon, Edit, ExternalLinkIcon, StarIcon } from "lucide-react"
 import { memo } from "react"
 
 import { resourceDragId } from "@/components/projects/project-dnd"
@@ -138,7 +138,7 @@ export const ResourceCard = memo(function ResourceCard({
         </div>
       ) : null}
 
-      <div className="absolute top-2 left-2">
+      <div className="absolute top-2 left-2 flex items-center gap-1">
         {selectable ? (
           <Checkbox
             checked={!!selected}
@@ -152,6 +152,16 @@ export const ResourceCard = memo(function ResourceCard({
             className="pointer-events-none opacity-0 transition-opacity group-focus-within/card:opacity-100 group-hover/card:opacity-100"
           />
         )}
+        {resource.isReviewed ? (
+          <span
+            role="img"
+            aria-label="Verified"
+            title="Verified"
+            className="inline-flex size-7 items-center justify-center rounded-md bg-black/70 text-emerald-400 backdrop-blur"
+          >
+            <CheckCheckIcon aria-hidden="true" className="size-4" />
+          </span>
+        ) : null}
       </div>
       <div
         className={cn(

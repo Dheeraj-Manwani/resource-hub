@@ -1,4 +1,6 @@
 "use client"
+
+import { FilterPanel } from "@/components/filter-panel"
 import { useShell } from "@/components/shell/shell-context"
 import { QueryFeedback } from "@/components/query-feedback"
 
@@ -309,95 +311,6 @@ export function CalendarView({
               <PlusIcon />
               Add task
             </Button>
-            <Select
-              value={projectId ?? ALL}
-              onValueChange={(v: string | null) =>
-                setProjectId(!v || v === ALL ? undefined : v)
-              }
-            >
-              <SelectTrigger size="sm" aria-label="Filter by project">
-                <SelectValue>
-                  {(v: string) =>
-                    v === ALL
-                      ? "All projects"
-                      : (projectOptions.find((p) => p.id === v)?.name ??
-                        "Project")
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value={ALL}>All projects</SelectItem>
-                {projectOptions.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={tag ?? ALL}
-              onValueChange={(v: string | null) =>
-                setTag(!v || v === ALL ? undefined : v)
-              }
-            >
-              <SelectTrigger size="sm" aria-label="Filter by tag">
-                <SelectValue>
-                  {(v: string) =>
-                    v === ALL
-                      ? "All tags"
-                      : `#${tags.find((t) => t.id === v)?.name ?? "tag"}`
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value={ALL}>All tags</SelectItem>
-                {tags.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    #{t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={status ?? ALL}
-              onValueChange={(v: string | null) =>
-                setStatus(!v || v === ALL ? undefined : v)
-              }
-            >
-              <SelectTrigger size="sm" aria-label="Filter by status">
-                <SelectValue>
-                  {(v: string) =>
-                    v === ALL
-                      ? "All statuses"
-                      : TASK_STATUS_LABELS[v as keyof typeof TASK_STATUS_LABELS]
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value={ALL}>All statuses</SelectItem>
-                {TASK_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {TASK_STATUS_LABELS[s]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={colorMode}
-              onValueChange={(v: string | null) =>
-                v &&
-                updateSettings.mutate({ calendarColorMode: v as ColorMode })
-              }
-            >
-              <SelectTrigger size="sm" aria-label="Color by">
-                <SelectValue>{(v: string) => `Color: ${v}`}</SelectValue>
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value="project">Color: project</SelectItem>
-                <SelectItem value="priority">Color: priority</SelectItem>
-                <SelectItem value="status">Color: status</SelectItem>
-              </SelectContent>
-            </Select>
             <ToggleGroup
               value={[view]}
               onValueChange={(values: string[]) => {
@@ -422,6 +335,99 @@ export function CalendarView({
             </ToggleGroup>
           </div>
         </div>
+        <FilterPanel
+          activeCount={[projectId, tag, status].filter(Boolean).length}
+        >
+          {" "}
+          <Select
+            value={projectId ?? ALL}
+            onValueChange={(v: string | null) =>
+              setProjectId(!v || v === ALL ? undefined : v)
+            }
+          >
+            <SelectTrigger size="sm" aria-label="Filter by project">
+              <SelectValue>
+                {(v: string) =>
+                  v === ALL
+                    ? "All projects"
+                    : (projectOptions.find((p) => p.id === v)?.name ??
+                      "Project")
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value={ALL}>All projects</SelectItem>
+              {projectOptions.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={tag ?? ALL}
+            onValueChange={(v: string | null) =>
+              setTag(!v || v === ALL ? undefined : v)
+            }
+          >
+            <SelectTrigger size="sm" aria-label="Filter by tag">
+              <SelectValue>
+                {(v: string) =>
+                  v === ALL
+                    ? "All tags"
+                    : `#${tags.find((t) => t.id === v)?.name ?? "tag"}`
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value={ALL}>All tags</SelectItem>
+              {tags.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  #{t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={status ?? ALL}
+            onValueChange={(v: string | null) =>
+              setStatus(!v || v === ALL ? undefined : v)
+            }
+          >
+            <SelectTrigger size="sm" aria-label="Filter by status">
+              <SelectValue>
+                {(v: string) =>
+                  v === ALL
+                    ? "All statuses"
+                    : TASK_STATUS_LABELS[v as keyof typeof TASK_STATUS_LABELS]
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value={ALL}>All statuses</SelectItem>
+              {TASK_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {TASK_STATUS_LABELS[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={colorMode}
+            onValueChange={(v: string | null) =>
+              v && updateSettings.mutate({ calendarColorMode: v as ColorMode })
+            }
+          >
+            <SelectTrigger size="sm" aria-label="Color by">
+              <SelectValue>{(v: string) => `Color: ${v}`}</SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="project">Color: project</SelectItem>
+              <SelectItem value="priority">Color: priority</SelectItem>
+              <SelectItem value="status">Color: status</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterPanel>
         {range ? (
           <QueryFeedback
             query={calendarQuery}

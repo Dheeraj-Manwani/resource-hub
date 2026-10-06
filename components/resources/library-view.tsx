@@ -1,5 +1,7 @@
 "use client"
 
+import { FilterPanel } from "@/components/filter-panel"
+
 import { PendingCreations } from "@/components/pending-creations"
 
 import { QueryFeedback } from "@/components/query-feedback"
@@ -103,7 +105,11 @@ function FilterBar({
   setView,
   selectMode,
   onToggleSelectMode,
+  extraFilters,
+  extraActiveCount,
 }: {
+  extraFilters?: React.ReactNode
+  extraActiveCount?: number
   independentFilter?: boolean
   independentOnly: boolean
   setIndependentOnly: (v: boolean) => void
@@ -126,7 +132,67 @@ function FilterBar({
 }) {
   const { data: tags = [] } = useTagSearch("")
   return (
-    <div className="mb-5 flex flex-wrap items-center gap-2">
+    <FilterPanel
+      activeCount={
+        [
+          type,
+          tag,
+          favorite,
+          hasTasks,
+          reviewed !== "all",
+          independentFilter && independentOnly,
+        ].filter(Boolean).length + (extraActiveCount ?? 0)
+      }
+      actions={
+        <>
+          <Button
+            size="sm"
+            variant={selectMode ? "default" : "outline"}
+            aria-pressed={selectMode}
+            onClick={onToggleSelectMode}
+          >
+            <CheckSquareIcon />
+            Select
+          </Button>
+
+          <ToggleGroup
+            value={[view]}
+            onValueChange={(values: string[]) => {
+              const next = values[0] as View | undefined
+              if (next) setView(next)
+            }}
+            variant="outline"
+            size="sm"
+            aria-label="View"
+          >
+            {VIEWS.map(({ value, label, icon: Icon }) => (
+              <ToggleGroupItem
+                key={value}
+                value={value}
+                aria-label={label}
+                title={label}
+              >
+                <Icon />
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </>
+      }
+    >
+      {extraFilters}
+      <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+        <SelectTrigger size="sm" aria-label="Sort">
+          <SelectValue>{(v: string) => SORTS[v as SortKey].label}</SelectValue>
+        </SelectTrigger>
+        <SelectContent align="end">
+          {(Object.keys(SORTS) as SortKey[]).map((key) => (
+            <SelectItem key={key} value={key}>
+              {SORTS[key].label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
       {independentFilter ? (
         <ToggleGroup
           value={[independentOnly ? "independent" : "all"]}
@@ -246,54 +312,7 @@ function FilterBar({
         <ListChecksIcon />
         Has tasks
       </Button>
-
-      <div className="ml-auto flex items-center gap-2">
-        <Button
-          size="sm"
-          variant={selectMode ? "default" : "outline"}
-          aria-pressed={selectMode}
-          onClick={onToggleSelectMode}
-        >
-          <CheckSquareIcon />
-          Select
-        </Button>
-        <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-          <SelectTrigger size="sm" aria-label="Sort">
-            <SelectValue>
-              {(v: string) => SORTS[v as SortKey].label}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent align="end">
-            {(Object.keys(SORTS) as SortKey[]).map((key) => (
-              <SelectItem key={key} value={key}>
-                {SORTS[key].label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <ToggleGroup
-          value={[view]}
-          onValueChange={(values: string[]) => {
-            const next = values[0] as View | undefined
-            if (next) setView(next)
-          }}
-          variant="outline"
-          size="sm"
-          aria-label="View"
-        >
-          {VIEWS.map(({ value, label, icon: Icon }) => (
-            <ToggleGroupItem
-              key={value}
-              value={value}
-              aria-label={label}
-              title={label}
-            >
-              <Icon />
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </div>
-    </div>
+    </FilterPanel>
   )
 }
 
@@ -310,10 +329,14 @@ export function LibraryView({
   initialIndependent,
   emptyTitleIndependent,
   emptyDescriptionIndependent,
+  extraFilters,
+  extraActiveCount,
 }: {
   title: React.ReactNode
   description?: React.ReactNode
   initialSettings: SettingsDto
+  extraFilters?: React.ReactNode
+  extraActiveCount?: number
   baseFilters?: ResourceFilters
   emptyTitle: string
   emptyDescription: string
@@ -548,6 +571,8 @@ export function LibraryView({
         />
       )}
       <FilterBar
+        extraFilters={extraFilters}
+        extraActiveCount={extraActiveCount}
         independentFilter={independentFilter}
         independentOnly={independentOnly}
         setIndependentOnly={setIndependentOnly}

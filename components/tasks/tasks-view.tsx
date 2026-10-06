@@ -1,5 +1,7 @@
 "use client"
 
+import { FilterPanel } from "@/components/filter-panel"
+
 import { useShell } from "@/components/shell/shell-context"
 import { PageHeader } from "@/components/page-header"
 
@@ -93,6 +95,8 @@ export function TasksView() {
   const [sortKey, setSortKey] = useState<SortKey>("manual")
   const [status, setStatus] = useState<string | undefined>()
   const [priority, setPriority] = useState<string | undefined>()
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const focusTitleOnOpen = useRef(false)
   const [titleFilter, setTitleFilter] = useState("")
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -128,12 +132,23 @@ export function TasksView() {
     function onKey(e: KeyboardEvent) {
       if (e.key === "/" && !isTypingTarget(e.target)) {
         e.preventDefault()
-        searchRef.current?.focus()
+        if (filtersOpen) searchRef.current?.focus()
+        else {
+          focusTitleOnOpen.current = true
+          setFiltersOpen(true)
+        }
       }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [])
+  }, [filtersOpen])
+
+  useEffect(() => {
+    if (filtersOpen && focusTitleOnOpen.current) {
+      focusTitleOnOpen.current = false
+      searchRef.current?.focus()
+    }
+  }, [filtersOpen])
 
   function toggleSelected(id: string) {
     setSelected((prev) => {
@@ -213,7 +228,92 @@ export function TasksView() {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <FilterPanel
+        open={filtersOpen}
+        onOpenChange={setFiltersOpen}
+        activeCount={
+          [titleFilter.trim(), status, priority].filter(Boolean).length
+        }
+        actions={
+          <>
+            <Button
+              size="sm"
+              variant={selectMode ? "default" : "outline"}
+              aria-pressed={selectMode}
+              onClick={() => {
+                setSelectMode((v) => !v)
+                setSelected(new Set())
+              }}
+            >
+              <CheckSquareIcon />
+              Select
+            </Button>
+            <ToggleGroup
+              value={[view]}
+              onValueChange={(values: string[]) => {
+                const next = values[0] as View | undefined
+                if (next) setView(next)
+              }}
+              variant="outline"
+              size="sm"
+              aria-label="View"
+            >
+              <ToggleGroupItem value="list" aria-label="List" title="List">
+                <ListIcon />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="board" aria-label="Board" title="Board">
+                <KanbanSquareIcon />
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </>
+        }
+      >
+        {view === "list" ? (
+          <>
+            <Select
+              value={sortKey}
+              onValueChange={(v) => setSortKey(v as SortKey)}
+            >
+              <SelectTrigger size="sm" aria-label="Sort">
+                <SelectValue>
+                  {(v: string) => SORTS[v as SortKey].label}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent align="end">
+                {(Object.keys(SORTS) as SortKey[]).map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {SORTS[key].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={groupBy}
+              onValueChange={(v) => setGroupBy(v as TaskGroupBy)}
+            >
+              <SelectTrigger size="sm" aria-label="Group by">
+                <SelectValue>
+                  {(v: string) => `Group: ${v === "none" ? "none" : v}`}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent align="end">
+                {(
+                  [
+                    "none",
+                    "status",
+                    "project",
+                    "due",
+                    "priority",
+                  ] as TaskGroupBy[]
+                ).map((g) => (
+                  <SelectItem key={g} value={g}>
+                    {g === "none" ? "No grouping" : `By ${g}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        ) : null}
         <div className="relative">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-subtle" />
           <Input
@@ -274,85 +374,7 @@ export function TasksView() {
             ))}
           </SelectContent>
         </Select>
-
-        <div className="ml-auto flex items-center gap-2">
-          {view === "list" ? (
-            <>
-              <Select
-                value={sortKey}
-                onValueChange={(v) => setSortKey(v as SortKey)}
-              >
-                <SelectTrigger size="sm" aria-label="Sort">
-                  <SelectValue>
-                    {(v: string) => SORTS[v as SortKey].label}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {(Object.keys(SORTS) as SortKey[]).map((key) => (
-                    <SelectItem key={key} value={key}>
-                      {SORTS[key].label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={groupBy}
-                onValueChange={(v) => setGroupBy(v as TaskGroupBy)}
-              >
-                <SelectTrigger size="sm" aria-label="Group by">
-                  <SelectValue>
-                    {(v: string) => `Group: ${v === "none" ? "none" : v}`}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {(
-                    [
-                      "none",
-                      "status",
-                      "project",
-                      "due",
-                      "priority",
-                    ] as TaskGroupBy[]
-                  ).map((g) => (
-                    <SelectItem key={g} value={g}>
-                      {g === "none" ? "No grouping" : `By ${g}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
-          ) : null}
-          <Button
-            size="sm"
-            variant={selectMode ? "default" : "outline"}
-            aria-pressed={selectMode}
-            onClick={() => {
-              setSelectMode((v) => !v)
-              setSelected(new Set())
-            }}
-          >
-            <CheckSquareIcon />
-            Select
-          </Button>
-          <ToggleGroup
-            value={[view]}
-            onValueChange={(values: string[]) => {
-              const next = values[0] as View | undefined
-              if (next) setView(next)
-            }}
-            variant="outline"
-            size="sm"
-            aria-label="View"
-          >
-            <ToggleGroupItem value="list" aria-label="List" title="List">
-              <ListIcon />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="board" aria-label="Board" title="Board">
-              <KanbanSquareIcon />
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-      </div>
+      </FilterPanel>
 
       <QueryFeedback query={query} label="tasks" loading={false} />
       <PendingCreations entity="task" filters={filters} />

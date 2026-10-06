@@ -1,5 +1,7 @@
 "use client"
 
+import { AddMenu } from "@/components/add-menu"
+
 import { PendingCreations } from "@/components/pending-creations"
 
 import { QueryFeedback } from "@/components/query-feedback"
@@ -94,19 +96,18 @@ export function ProjectQuickNotesTab({
 
   return (
     <div>
-      <div className="mb-2 flex h-6 items-center justify-end gap-2">
-        <Button
-          variant="outline"
+      <div className="mb-2 flex justify-end">
+        <AddMenu
           size="xs"
-          onClick={() => setAddingExisting(true)}
-        >
-          <ListPlusIcon />
-          Add existing
-        </Button>
-        <Button size="xs" onClick={openNew}>
-          <PlusIcon />
-          New note
-        </Button>
+          items={[
+            { label: "Add new note", icon: <PlusIcon />, onSelect: openNew },
+            {
+              label: "Add existing notes",
+              icon: <ListPlusIcon />,
+              onSelect: () => setAddingExisting(true),
+            },
+          ]}
+        />
       </div>
 
       <QueryFeedback query={notesQuery} label="project notes" loading={false} />

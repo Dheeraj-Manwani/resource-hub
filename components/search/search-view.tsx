@@ -1,5 +1,7 @@
 "use client"
 
+import { FilterPanel } from "@/components/filter-panel"
+
 import { QueryFeedback } from "@/components/query-feedback"
 
 import {
@@ -119,7 +121,19 @@ export function SearchView() {
         />
       </div>
 
-      <div className="mb-6 flex flex-wrap items-center gap-2">
+      <FilterPanel
+        activeCount={
+          [
+            type !== ALL,
+            resourceType !== ALL,
+            tag !== ALL,
+            favorite,
+            linked,
+            from,
+            to,
+          ].filter(Boolean).length
+        }
+      >
         <Select value={type} onValueChange={(v) => setType(v ?? ALL)}>
           <SelectTrigger
             size="sm"
@@ -240,7 +254,7 @@ export function SearchView() {
           aria-label="To date"
           className="h-8 w-36 text-xs"
         />
-      </div>
+      </FilterPanel>
 
       {enabled ? <QueryFeedback query={search} label="search results" /> : null}
       {search.isError && !data ? null : !enabled ? (

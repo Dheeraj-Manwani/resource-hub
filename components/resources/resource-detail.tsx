@@ -1,4 +1,11 @@
 "use client"
+import { AddMenu } from "@/components/add-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useShell } from "@/components/shell/shell-context"
 import { QueryFeedback } from "@/components/query-feedback"
 import { ApiClientError } from "@/lib/api-client"
@@ -28,11 +35,6 @@ import { StatusIcon } from "@/components/tasks/task-status"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 import {
   Select,
   SelectContent,
@@ -306,18 +308,21 @@ function ProjectsField({ resource }: { resource: ResourceDto }) {
   )
 }
 
-/** Searchable popover to pick an existing task to link (title filter
+/** Searchable dialog to pick an existing task to link (title filter
  * client-side, same convention as `ProjectSinglePicker`'s project search —
  * full-text search across all tasks arrives in Phase 6). */
 
 function LinkTaskPicker({
   resourceId,
   excludeIds,
+  open,
+  onOpenChange,
 }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
   resourceId: string
   excludeIds: Set<string>
 }) {
-  const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const { data } = useTaskList({})
   const link = useLinkTaskResources()
@@ -335,20 +340,17 @@ function LinkTaskPicker({
     : items
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            aria-label="Link task"
-            className="flex h-6 items-center gap-1 rounded-full border border-dashed border-border-strong px-2 text-xs text-subtle hover:border-brand/50 hover:text-brand"
-          />
-        }
-      >
-        <PlusIcon className="size-3" />
-        Link task
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-64">
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange(next)
+        if (!next) setQuery("")
+      }}
+    >
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Link existing task</DialogTitle>
+        </DialogHeader>
         <div className="relative">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-subtle" />
           <Input
@@ -367,7 +369,7 @@ function LinkTaskPicker({
                 type="button"
                 onClick={() => {
                   link.mutate({ taskId: t.id, resourceIds: [resourceId] })
-                  setOpen(false)
+                  onOpenChange(false)
                   setQuery("")
                 }}
                 className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-white/[0.06]"
@@ -382,12 +384,13 @@ function LinkTaskPicker({
             </p>
           )}
         </div>
-      </PopoverContent>
-    </Popover>
+      </DialogContent>
+    </Dialog>
   )
 }
 
 function TasksField({ resource }: { resource: ResourceDto }) {
+  const [linking, setLinking] = useState(false)
   const { openAddTask } = useShell()
   const { data: tasks = [] } = useResourceTasks(resource.id)
   const unlink = useUnlinkTaskResources()
@@ -422,20 +425,31 @@ function TasksField({ resource }: { resource: ResourceDto }) {
             </button>
           </span>
         ))}
-        <LinkTaskPicker resourceId={resource.id} excludeIds={linkedIds} />
-        <Button
+        <AddMenu
           size="xs"
-          variant="outline"
-          onClick={() =>
-            openAddTask(undefined, {
-              defaultProject: resource.projects[0],
-              resourceIds: [resource.id],
-            })
-          }
-        >
-          <PlusIcon />
-          New task
-        </Button>
+          items={[
+            {
+              label: "Add new task",
+              icon: <PlusIcon />,
+              onSelect: () =>
+                openAddTask(undefined, {
+                  defaultProject: resource.projects[0],
+                  resourceIds: [resource.id],
+                }),
+            },
+            {
+              label: "Link existing task",
+              icon: <PlusIcon />,
+              onSelect: () => setLinking(true),
+            },
+          ]}
+        />
+        <LinkTaskPicker
+          resourceId={resource.id}
+          excludeIds={linkedIds}
+          open={linking}
+          onOpenChange={setLinking}
+        />
       </div>
     </Field>
   )

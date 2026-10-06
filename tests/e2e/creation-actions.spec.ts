@@ -7,9 +7,7 @@ test("creation buttons remain available across screens and open their modals", a
 }) => {
   await page.goto("/overview")
   await expect(
-    page
-      .locator("main")
-      .getByRole("button", { name: "Add resource", exact: true })
+    page.locator("main").getByRole("button", { name: "Add", exact: true })
   ).toBeVisible()
   for (const [path, label, title] of [
     ["/resources", "Add resource", "Add resource"],
@@ -20,11 +18,19 @@ test("creation buttons remain available across screens and open their modals", a
     ["/tags", "New tag", "New tag"],
   ]) {
     await page.goto(path!)
-    await page
-      .locator("main")
-      .getByRole("button", { name: label, exact: true })
-      .first()
-      .click()
+    if (path === "/search") {
+      await page
+        .locator("main")
+        .getByRole("button", { name: "Add", exact: true })
+        .click()
+      await page.getByRole("menuitem", { name: label, exact: true }).click()
+    } else {
+      await page
+        .locator("main")
+        .getByRole("button", { name: label, exact: true })
+        .first()
+        .click()
+    }
     await expect(
       page.getByRole("dialog", { name: title, exact: true })
     ).toBeVisible()
@@ -106,6 +112,10 @@ test("project creation defaults work on desktop, mobile and resource details", a
   await expect(noteDialog).toHaveCount(0)
   await page.goto("/calendar")
   await page
+    .locator("main")
+    .getByRole("button", { name: /^Filters/ })
+    .click()
+  await page
     .getByRole("combobox", { name: "Filter by project", exact: true })
     .click()
   await page.getByRole("option", { name: project.name, exact: true }).click()
@@ -128,7 +138,10 @@ test("project creation defaults work on desktop, mobile and resource details", a
   await page.goto(`/resources?r=${resource.id}`)
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "New task", exact: true })
+    .getByRole("button", { name: "Add", exact: true })
+    .click()
+  await page
+    .getByRole("menuitem", { name: "Add new task", exact: true })
     .click()
   dialog = page.getByRole("dialog", { name: "New task", exact: true })
   await dialog.locator("input").fill("Resource follow-up")
@@ -140,4 +153,21 @@ test("project creation defaults work on desktop, mobile and resource details", a
   expect(linked.resources.map((item: { id: string }) => item.id)).toContain(
     resource.id
   )
+  await expect(dialog).toHaveCount(0)
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Add", exact: true })
+    .click()
+  await page
+    .getByRole("menuitem", { name: "Link existing task", exact: true })
+    .click()
+  const picker = page.getByRole("dialog", {
+    name: "Link existing task",
+    exact: true,
+  })
+  const desktopTask = await created.json()
+  await write(page, "POST", `/tasks/${desktopTask.id}/resources`, () =>
+    picker.getByRole("button", { name: "Context task", exact: true }).click()
+  )
+  await expect(picker).toHaveCount(0)
 })
