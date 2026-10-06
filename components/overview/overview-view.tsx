@@ -12,6 +12,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
+import { CreationActions } from "@/components/shell/creation-actions"
+
 import { EmptyState } from "@/components/empty-state"
 import { TypeIcon } from "@/components/resources/type-icon"
 import { TaskRow } from "@/components/tasks/task-card"
@@ -158,6 +160,7 @@ function OverviewSkeleton() {
         <Skeleton className="mt-3 h-8 w-64" />
         <Skeleton className="mt-2 h-4 w-80" />
       </div>
+      <CreationActions />
       <div className="grid gap-4 lg:grid-cols-3">
         <Skeleton className="h-64 rounded-xl lg:col-span-2" />
         <Skeleton className="h-64 rounded-xl" />
@@ -200,6 +203,7 @@ export function OverviewView({ userName }: { userName: string }) {
         </p>
       </div>
 
+      <CreationActions />
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel className="lg:col-span-2">
           <PanelHeader

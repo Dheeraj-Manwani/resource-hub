@@ -9,6 +9,7 @@ import {
   InfoIcon,
   ListPlusIcon,
   MoreHorizontalIcon,
+  PlusIcon,
   Trash2Icon,
 } from "lucide-react"
 import Link from "next/link"
@@ -16,6 +17,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useMemo, useState } from "react"
 
 import { LibraryView } from "@/components/resources/library-view"
+import { useShell } from "@/components/shell/shell-context"
 import { ProjectTasksSection } from "@/components/tasks/project-tasks-section"
 import { useProjectTaskProgress } from "@/hooks/queries/tasks"
 import { useQuickNotes } from "@/hooks/queries/quick-notes"
@@ -191,6 +193,7 @@ export function ProjectPage({
   projectId: string
   initialSettings: SettingsDto
 }) {
+  const { openAddResource } = useShell()
   const projectQuery = useProject(projectId)
   const { data } = projectQuery
   const { data: tree } = useProjectTree()
@@ -287,7 +290,7 @@ export function ProjectPage({
         </TabsList>
 
         <TabsContent value="resources">
-          <div className="mb-2 flex h-6 items-center justify-end">
+          <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
             <Button
               variant="outline"
               size="xs"
@@ -296,13 +299,20 @@ export function ProjectPage({
               <ListPlusIcon />
               Add existing
             </Button>
+            <Button
+              size="xs"
+              onClick={() => openAddResource(undefined, [projectId])}
+            >
+              <PlusIcon />
+              Add resource
+            </Button>
           </div>
           <LibraryView
             title={project?.name ?? "Project"}
             initialSettings={initialSettings}
             baseFilters={baseFilters}
             emptyTitle="Nothing filed here yet"
-            emptyDescription="Drag a resource onto this project in the sidebar, use the bulk action bar, or add existing Inbox items."
+            emptyDescription="Add a new resource here, add existing Inbox items, or drag a resource onto this project in the sidebar."
             hideHeader
           />
         </TabsContent>

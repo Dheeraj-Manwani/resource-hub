@@ -50,7 +50,9 @@ export function QuickAddProjectDialog() {
     >
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>New project</DialogTitle>
+          <DialogTitle>
+            {addProject.parentId ? "New sub-project" : "New project"}
+          </DialogTitle>
         </DialogHeader>
         <Input
           autoFocus
@@ -67,7 +69,7 @@ export function QuickAddProjectDialog() {
             Cancel
           </Button>
           <Button onClick={submit} disabled={!name.trim() || create.isPending}>
-            {create.isPending ? "Creating…" : "Create"}
+            Create
           </Button>
         </DialogFooter>
       </DialogContent>

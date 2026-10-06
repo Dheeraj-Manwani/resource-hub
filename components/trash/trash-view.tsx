@@ -3,7 +3,6 @@
 import { QueryFeedback } from "@/components/query-feedback"
 
 import {
-  LoaderCircleIcon,
   FolderIcon,
   ListTodoIcon,
   RotateCcwIcon,
@@ -52,20 +51,13 @@ function Row({ item }: { item: TrashItem }) {
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label={restore.isPending ? "Restoring item" : "Restore"}
+        aria-label="Restore"
         disabled={restore.isPending || permanentlyDelete.isPending}
         onClick={() =>
           restore.mutate({ entityType: item.entityType, id: item.id })
         }
       >
-        {restore.isPending ? (
-          <LoaderCircleIcon
-            aria-hidden
-            className="animate-spin motion-reduce:animate-none"
-          />
-        ) : (
-          <RotateCcwIcon />
-        )}
+        <RotateCcwIcon />
       </Button>
       <Button
         variant="ghost"

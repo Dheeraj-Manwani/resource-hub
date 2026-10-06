@@ -17,7 +17,10 @@ import { toDateOnly } from "@/lib/tasks/recurrence"
 
 export type QuickCreateTarget = { date: Date; allDay: boolean } | null
 
-const timeFormatter = new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" })
+const timeFormatter = new Intl.DateTimeFormat("en", {
+  hour: "numeric",
+  minute: "2-digit",
+})
 
 /** Opened from clicking/dragging an empty calendar slot — the date/time is
  * already fixed by the click, so this is just a title field rather than
@@ -25,7 +28,9 @@ const timeFormatter = new Intl.DateTimeFormat("en", { hour: "numeric", minute: "
 export function QuickCreateDialog({
   target,
   onClose,
+  projectId,
 }: {
+  projectId?: string
   target: QuickCreateTarget
   onClose: () => void
 }) {
@@ -33,10 +38,11 @@ export function QuickCreateDialog({
   const create = useCreateTask()
 
   function submit() {
-    if (!target || !title.trim()) return
+    if (!target || !title.trim() || create.isPending) return
     create.mutate(
       {
         title: title.trim(),
+        projectId,
         dueAt: target.allDay ? null : target.date.toISOString(),
         dueDate: target.allDay ? toDateOnly(target.date) : null,
         allDay: target.allDay,

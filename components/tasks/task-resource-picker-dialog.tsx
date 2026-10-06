@@ -157,7 +157,6 @@ export function TaskResourcePickerDialog({
               )
             }
           >
-            {link.isPending ? <Loader2Icon className="animate-spin" /> : null}
             Add {selected.size || ""}
           </Button>
         </DialogFooter>

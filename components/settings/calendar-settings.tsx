@@ -1,6 +1,6 @@
 "use client"
 
-import { DownloadIcon, Loader2Icon, RefreshCwIcon } from "lucide-react"
+import { DownloadIcon, RefreshCwIcon } from "lucide-react"
 
 import { CopyButton } from "@/components/resources/cards/type-cards"
 import { Button } from "@/components/ui/button"
@@ -11,11 +11,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useRegenerateIcsToken, useSettings, useUpdateSettings } from "@/hooks/queries/settings"
+import {
+  useRegenerateIcsToken,
+  useSettings,
+  useUpdateSettings,
+} from "@/hooks/queries/settings"
 import type { SettingsDto } from "@/lib/server/dal/settings"
 
 const TIMEZONES =
-  typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : ["UTC"]
+  typeof Intl.supportedValuesOf === "function"
+    ? Intl.supportedValuesOf("timeZone")
+    : ["UTC"]
 
 export function CalendarSettings({
   appUrl,
@@ -28,7 +34,9 @@ export function CalendarSettings({
   const update = useUpdateSettings()
   const regenerate = useRegenerateIcsToken()
   const current = settings ?? initialSettings
-  const feedUrl = current.icsToken ? `${appUrl}/api/calendar/${current.icsToken}.ics` : null
+  const feedUrl = current.icsToken
+    ? `${appUrl}/api/calendar/${current.icsToken}.ics`
+    : null
 
   return (
     <div className="space-y-4 text-sm">
@@ -39,7 +47,10 @@ export function CalendarSettings({
             list="timezones"
             defaultValue={current.timezone}
             onBlur={(e) => {
-              if (TIMEZONES.includes(e.target.value) && e.target.value !== current.timezone) {
+              if (
+                TIMEZONES.includes(e.target.value) &&
+                e.target.value !== current.timezone
+              ) {
                 update.mutate({ timezone: e.target.value })
               }
             }}
@@ -56,10 +67,14 @@ export function CalendarSettings({
           <span className="text-text-muted">Week starts</span>
           <Select
             value={String(current.weekStart)}
-            onValueChange={(v: string | null) => v && update.mutate({ weekStart: Number(v) })}
+            onValueChange={(v: string | null) =>
+              v && update.mutate({ weekStart: Number(v) })
+            }
           >
             <SelectTrigger size="sm">
-              <SelectValue>{(v: string) => (v === "0" ? "Sunday" : "Monday")}</SelectValue>
+              <SelectValue>
+                {(v: string) => (v === "0" ? "Sunday" : "Monday")}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="0">Sunday</SelectItem>
@@ -79,7 +94,9 @@ export function CalendarSettings({
             <CopyButton text={feedUrl} />
           </div>
         ) : (
-          <p className="text-text-muted">No feed yet — generate one to get a subscribe link.</p>
+          <p className="text-text-muted">
+            No feed yet — generate one to get a subscribe link.
+          </p>
         )}
         <div className="flex flex-wrap gap-2 pt-1">
           <Button
@@ -88,14 +105,16 @@ export function CalendarSettings({
             disabled={regenerate.isPending}
             onClick={() => regenerate.mutate()}
           >
-            {regenerate.isPending ? <Loader2Icon className="animate-spin" /> : <RefreshCwIcon />}
+            <RefreshCwIcon />
             {feedUrl ? "Regenerate (revokes old link)" : "Generate feed"}
           </Button>
           <Button
             variant="outline"
             size="sm"
             nativeButton={false}
-            render={<a href="/api/v1/calendar/export.ics" download="tasks.ics" />}
+            render={
+              <a href="/api/v1/calendar/export.ics" download="tasks.ics" />
+            }
           >
             <DownloadIcon />
             Download .ics

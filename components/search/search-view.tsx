@@ -12,6 +12,8 @@ import {
 import { useRouter, useSearchParams } from "next/navigation"
 import { useMemo, useState } from "react"
 
+import { CreationActions } from "@/components/shell/creation-actions"
+
 import { EmptyState } from "@/components/empty-state"
 import { PageHeader } from "@/components/page-header"
 import { TypeIcon } from "@/components/resources/type-icon"
@@ -102,6 +104,7 @@ export function SearchView() {
     <>
       <PageHeader
         title="Search"
+        actions={<CreationActions />}
         description="Across resources, tasks, projects and tags, with full-text and fuzzy matching."
       />
 

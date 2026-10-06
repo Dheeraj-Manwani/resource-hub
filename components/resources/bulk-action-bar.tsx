@@ -3,7 +3,6 @@
 import {
   FolderMinusIcon,
   FolderPlusIcon,
-  Loader2Icon,
   StarIcon,
   StarOffIcon,
   Trash2Icon,
@@ -37,7 +36,12 @@ export function BulkActionBar({
         <ProjectSinglePicker
           value={null}
           onChange={(id) => {
-            if (id) bulk.mutate({ action: "link", resourceIds: selectedIds, projectId: id })
+            if (id)
+              bulk.mutate({
+                action: "link",
+                resourceIds: selectedIds,
+                projectId: id,
+              })
           }}
           render={<Button size="sm" variant="ghost" />}
         >
@@ -66,7 +70,11 @@ export function BulkActionBar({
           size="sm"
           variant="ghost"
           onClick={() =>
-            bulk.mutate({ action: "favorite", resourceIds: selectedIds, value: true })
+            bulk.mutate({
+              action: "favorite",
+              resourceIds: selectedIds,
+              value: true,
+            })
           }
         >
           <StarIcon />
@@ -76,7 +84,11 @@ export function BulkActionBar({
           size="sm"
           variant="ghost"
           onClick={() =>
-            bulk.mutate({ action: "favorite", resourceIds: selectedIds, value: false })
+            bulk.mutate({
+              action: "favorite",
+              resourceIds: selectedIds,
+              value: false,
+            })
           }
         >
           <StarOffIcon />
@@ -93,11 +105,16 @@ export function BulkActionBar({
             onClear()
           }}
         >
-          {bulk.isPending ? <Loader2Icon className="animate-spin" /> : <Trash2Icon />}
+          <Trash2Icon />
           Delete
         </Button>
 
-        <Button size="icon-sm" variant="ghost" aria-label="Clear selection" onClick={onClear}>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label="Clear selection"
+          onClick={onClear}
+        >
           <XIcon />
         </Button>
       </div>

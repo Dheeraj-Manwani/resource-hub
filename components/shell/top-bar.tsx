@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-import { useShell } from "./shell-context"
+import { useCreationActions } from "./creation-actions"
 import { UserMenu } from "./user-menu"
 
 export function TopBar() {
@@ -34,7 +34,7 @@ export function TopBar() {
     openAddQuickNote,
     setMobileNavOpen,
     setCommandPaletteOpen,
-  } = useShell()
+  } = useCreationActions()
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-3 backdrop-blur-md md:px-6">

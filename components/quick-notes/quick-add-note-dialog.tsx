@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { toast } from "react-hot-toast"
 
 import { useShell } from "@/components/shell/shell-context"
@@ -25,13 +26,20 @@ const EMPTY_DRAFT: QuickNoteDraft = {
 /** Shell-level "New quick note" dialog, opened from the top bar's Add
  * menu — the Quick Notes page itself still owns editing existing notes. */
 export function QuickAddNoteDialog() {
-  const { addQuickNote, closeAddQuickNote } = useShell()
+  const { addQuickNote, quickNoteProjectId, closeAddQuickNote } = useShell()
   const createNote = useCreateQuickNote()
   const updateNote = useUpdateQuickNote()
+  const draft = useMemo(
+    () =>
+      addQuickNote
+        ? { ...EMPTY_DRAFT, projectId: quickNoteProjectId ?? null }
+        : null,
+    [addQuickNote, quickNoteProjectId]
+  )
 
   return (
     <QuickNoteDialog
-      draft={addQuickNote ? EMPTY_DRAFT : null}
+      draft={draft}
       onOpenChange={(open) => !open && closeAddQuickNote()}
       saving={createNote.isPending || updateNote.isPending}
       onSave={(next, opts: SaveOpts) => {

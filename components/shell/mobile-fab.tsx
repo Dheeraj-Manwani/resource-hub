@@ -17,11 +17,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-import { useShell } from "./shell-context"
+import { useCreationActions } from "./creation-actions"
 
 export function MobileFab() {
   const { openAddResource, openAddTask, openAddProject, openAddQuickNote } =
-    useShell()
+    useCreationActions()
   return (
     <div className="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 md:hidden">
       <DropdownMenu>

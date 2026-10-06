@@ -74,15 +74,15 @@ export function QueryFeedback({
         </Button>
       </div>
     )
-  if (query.fetchStatus === "paused")
+  // Once content is visible, ordinary reads/refetches stay silent. Writes are
+  // represented by the shared sidebar SyncStatus, not page-level banners.
+  if (query.fetchStatus === "paused" && query.data === undefined)
     return (
-      <LoadingState
-        label={`Waiting for connection to ${query.data === undefined ? "load" : "update"} ${label}…`}
-      />
+      <p role="status" className="py-3 text-sm text-text-muted">
+        Connect to the internet to load {label}.
+      </p>
     )
   if (query.isPending && query.data === undefined && loading)
     return <LoadingState label={`Loading ${label}…`} />
-  if (query.isFetching && query.data !== undefined)
-    return <LoadingState label={`Updating ${label}…`} />
   return null
 }

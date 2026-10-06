@@ -5,7 +5,7 @@ import { QueryFeedback } from "@/components/query-feedback"
 import { syncMutation } from "@/lib/sync/mutations"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { KeyRoundIcon, Loader2Icon, Trash2Icon } from "lucide-react"
+import { KeyRoundIcon, Trash2Icon } from "lucide-react"
 import { useState } from "react"
 import { toast } from "react-hot-toast"
 
@@ -68,11 +68,7 @@ export function TokenSettings({ appUrl }: { appUrl: string }) {
           className="max-w-xs"
         />
         <Button type="submit" disabled={create.isPending || !name.trim()}>
-          {create.isPending ? (
-            <Loader2Icon className="animate-spin" />
-          ) : (
-            <KeyRoundIcon />
-          )}
+          <KeyRoundIcon />
           Create token
         </Button>
       </form>

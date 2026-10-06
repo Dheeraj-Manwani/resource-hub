@@ -163,9 +163,6 @@ export function useUploads() {
   const start = useCallback(
     async (files: File[], tags?: string[], projectIds?: string[]) => {
       if (!files.length) return
-      const toastId = toast.loading(
-        `Uploading ${files.length} file${files.length === 1 ? "" : "s"}…`
-      )
       let uploaded = 0
       const queued = files.map((file) => ({
         file,
@@ -206,13 +203,10 @@ export function useUploads() {
       const failed = files.length - uploaded
       if (failed) {
         toast.error(
-          `${uploaded ? `${uploaded} uploaded; ` : ""}${failed} file${failed === 1 ? "" : "s"} failed to upload. See file details for the error.`,
-          { id: toastId }
+          `${uploaded ? `${uploaded} uploaded; ` : ""}${failed} file${failed === 1 ? "" : "s"} failed to upload. See file details for the error.`
         )
       } else {
-        toast.success(`Uploaded ${uploaded} file${uploaded === 1 ? "" : "s"}`, {
-          id: toastId,
-        })
+        toast.success(`Uploaded ${uploaded} file${uploaded === 1 ? "" : "s"}`)
       }
       await invalidateResourceLists(qc)
     },

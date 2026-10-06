@@ -1,6 +1,6 @@
 "use client"
 
-import { CalendarIcon, HashIcon, Loader2Icon } from "lucide-react"
+import { CalendarIcon, FolderIcon, HashIcon } from "lucide-react"
 import { useMemo, useRef, useState } from "react"
 
 import { useProjectOptions } from "@/components/projects/project-picker"
@@ -46,7 +46,9 @@ export function QuickAddBar({
   onDone,
   autoFocus = true,
   defaultProject,
+  resourceIds,
 }: {
+  resourceIds?: string[]
   initialText?: string
   onDone?: () => void
   autoFocus?: boolean
@@ -64,8 +66,16 @@ export function QuickAddBar({
   const typedProject = parsed.projectQuery
     ? resolveProjectQuery(parsed.projectQuery, options)
     : null
-  const project =
-    typedProject ?? (parsed.projectQuery ? null : (defaultProject ?? null))
+  const selectedDefault = defaultProject
+    ? {
+        ...defaultProject,
+        name:
+          defaultProject.name ||
+          options.find((option) => option.id === defaultProject.id)?.name ||
+          "Project",
+      }
+    : null
+  const project = typedProject ?? (parsed.projectQuery ? null : selectedDefault)
 
   function submit() {
     if (!parsed.title.trim() || create.isPending) return
@@ -73,6 +83,7 @@ export function QuickAddBar({
     create.mutate(
       {
         title: parsed.title,
+        resourceIds,
         priority: parsed.priority ?? undefined,
         tags: parsed.tags.length ? parsed.tags : undefined,
         projectId: project?.id,
@@ -82,8 +93,10 @@ export function QuickAddBar({
         allDay: parsed.allDay,
       },
       {
-        onSuccess: () =>
-          setText((current) => (current === submitted ? "" : current)),
+        onSuccess: () => {
+          setText((current) => (current === submitted ? "" : current))
+          onDone?.()
+        },
       }
     )
   }
@@ -120,7 +133,6 @@ export function QuickAddBar({
           onClick={submit}
           disabled={!parsed.title.trim() || create.isPending}
         >
-          {create.isPending ? <Loader2Icon className="animate-spin" /> : null}
           Add
         </Button>
       </div>
@@ -138,22 +150,16 @@ export function QuickAddBar({
               {formatDate(parsed.dueAt ?? parsed.dueDate)}
             </span>
           ) : null}
-          {/* {project ? (
-            <span
-              className={cn(
-                "flex items-center gap-1 rounded-full px-2 py-0.5",
-                "bg-brand-soft text-brand"
-              )}
-            >
+          {project ? (
+            <span className="flex items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-brand">
               <FolderIcon className="size-3" />
               {project.name}
             </span>
           ) : parsed.projectQuery ? (
-            <span className="flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-subtle">
-              <FolderIcon className="size-3" />
-              no match for &quot;{parsed.projectQuery}&quot;
+            <span className="text-subtle">
+              No project matches &quot;{parsed.projectQuery}&quot;
             </span>
-          ) : null} */}
+          ) : null}
           {parsed.tags.map((tag) => (
             <span
               key={tag}

@@ -1,5 +1,5 @@
 "use client"
-import { LoadingState, QueryFeedback } from "@/components/query-feedback"
+import { QueryFeedback } from "@/components/query-feedback"
 
 import { useQuery } from "@tanstack/react-query"
 import { Command } from "cmdk"
@@ -21,7 +21,7 @@ import {
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 
-import { useShell } from "@/components/shell/shell-context"
+import { useCreationActions } from "@/components/shell/creation-actions"
 import { TypeIcon } from "@/components/resources/type-icon"
 import { useDetailDrawer } from "@/hooks/use-detail-drawer"
 import { api, toQueryString } from "@/lib/api-client"
@@ -48,7 +48,7 @@ export function CommandPalette() {
     openAddTask,
     openAddProject,
     openAddQuickNote,
-  } = useShell()
+  } = useCreationActions()
   const [query, setQuery] = useState("")
   const [debounced, setDebounced] = useState("")
   const router = useRouter()
@@ -116,9 +116,7 @@ export function CommandPalette() {
         />
       </div>
       <Command.List className="max-h-[60vh] overflow-y-auto p-2">
-        {hasQuery && typing ? (
-          <LoadingState label="Searching…" />
-        ) : hasQuery ? (
+        {hasQuery && !typing ? (
           <QueryFeedback query={results} label="search results" />
         ) : null}
         {hasQuery &&

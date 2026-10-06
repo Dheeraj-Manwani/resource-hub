@@ -495,7 +495,6 @@ export function LibraryView({
           onClick={() => loadDemo.mutate()}
           disabled={loadDemo.isPending}
         >
-          {loadDemo.isPending ? <Loader2Icon className="animate-spin" /> : null}
           Load demo data
         </Button>
       </EmptyState>
@@ -529,7 +528,23 @@ export function LibraryView({
         <PageHeader
           title={title}
           description={description}
-          actions={headerActions}
+          actions={
+            <>
+              {headerActions}
+              <Button
+                size="sm"
+                onClick={() =>
+                  openAddResource(
+                    undefined,
+                    baseFilters?.projectId ? [baseFilters.projectId] : undefined
+                  )
+                }
+              >
+                <PlusIcon />
+                Add resource
+              </Button>
+            </>
+          }
         />
       )}
       <FilterBar

@@ -10,19 +10,29 @@ import {
 
 import type { AppUser } from "@/lib/server/dal/session"
 
+export type TaskCreationOptions = {
+  defaultProject?: { id: string; name: string }
+  resourceIds?: string[]
+}
+
 type ShellContextValue = {
   user: AppUser
-  addResource: { open: boolean; initialText?: string; initialProjectIds?: string[] }
+  addResource: {
+    open: boolean
+    initialText?: string
+    initialProjectIds?: string[]
+  }
   openAddResource: (initialText?: string, initialProjectIds?: string[]) => void
   closeAddResource: () => void
-  addTask: { open: boolean; initialText?: string }
-  openAddTask: (initialText?: string) => void
+  addTask: { open: boolean; initialText?: string } & TaskCreationOptions
+  openAddTask: (initialText?: string, options?: TaskCreationOptions) => void
   closeAddTask: () => void
   addProject: { open: boolean; parentId?: string | null }
   openAddProject: (parentId?: string | null) => void
   closeAddProject: () => void
   addQuickNote: boolean
-  openAddQuickNote: () => void
+  quickNoteProjectId?: string
+  openAddQuickNote: (projectId?: string) => void
   closeAddQuickNote: () => void
   mobileNavOpen: boolean
   setMobileNavOpen: (open: boolean) => void
@@ -49,7 +59,9 @@ export function ShellProvider({
   }>({
     open: false,
   })
-  const [addTask, setAddTask] = useState<{ open: boolean; initialText?: string }>({
+  const [addTask, setAddTask] = useState<
+    { open: boolean; initialText?: string } & TaskCreationOptions
+  >({
     open: false,
   })
   const [addProject, setAddProject] = useState<{
@@ -57,6 +69,7 @@ export function ShellProvider({
     parentId?: string | null
   }>({ open: false })
   const [addQuickNote, setAddQuickNote] = useState(false)
+  const [quickNoteProjectId, setQuickNoteProjectId] = useState<string>()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [tourOpen, setTourOpen] = useState(false)
@@ -70,7 +83,8 @@ export function ShellProvider({
     []
   )
   const openAddTask = useCallback(
-    (initialText?: string) => setAddTask({ open: true, initialText }),
+    (initialText?: string, options?: TaskCreationOptions) =>
+      setAddTask({ open: true, initialText, ...options }),
     []
   )
   const closeAddTask = useCallback(() => setAddTask({ open: false }), [])
@@ -78,11 +92,11 @@ export function ShellProvider({
     (parentId?: string | null) => setAddProject({ open: true, parentId }),
     []
   )
-  const closeAddProject = useCallback(
-    () => setAddProject({ open: false }),
-    []
-  )
-  const openAddQuickNote = useCallback(() => setAddQuickNote(true), [])
+  const closeAddProject = useCallback(() => setAddProject({ open: false }), [])
+  const openAddQuickNote = useCallback((projectId?: string) => {
+    setQuickNoteProjectId(projectId)
+    setAddQuickNote(true)
+  }, [])
   const closeAddQuickNote = useCallback(() => setAddQuickNote(false), [])
   const openTour = useCallback(() => setTourOpen(true), [])
   const closeTour = useCallback(() => setTourOpen(false), [])
@@ -100,6 +114,7 @@ export function ShellProvider({
       openAddProject,
       closeAddProject,
       addQuickNote,
+      quickNoteProjectId,
       openAddQuickNote,
       closeAddQuickNote,
       mobileNavOpen,
@@ -122,6 +137,7 @@ export function ShellProvider({
       openAddProject,
       closeAddProject,
       addQuickNote,
+      quickNoteProjectId,
       openAddQuickNote,
       closeAddQuickNote,
       mobileNavOpen,

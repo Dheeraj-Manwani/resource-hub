@@ -1,7 +1,5 @@
 "use client"
 
-import { PendingCreations } from "@/components/pending-creations"
-
 import { QueryFeedback } from "@/components/query-feedback"
 
 import { NotebookPenIcon, PlusIcon } from "lucide-react"
@@ -92,8 +90,7 @@ export function QuickNotesView() {
         }
       />
 
-      {/* <QueryFeedback query={notesQuery} label="notes" loading={false} />
-      <PendingCreations entity="quick-note" /> */}
+      <QueryFeedback query={notesQuery} label="notes" loading={false} />
       {isPending ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (

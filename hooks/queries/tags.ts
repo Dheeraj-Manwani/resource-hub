@@ -46,6 +46,18 @@ function invalidateTags(qc: ReturnType<typeof useQueryClient>) {
   ).then(() => undefined)
 }
 
+export function useCreateTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    ...syncMutation("tag.create"),
+    mutationFn: (name: string) =>
+      api<TagDto>("/api/v1/tags", { method: "POST", body: { name } }),
+    onSuccess: () => toast.success("Tag created"),
+    onError: (error) => toast.error(`Couldn't create tag: ${error.message}`),
+    onSettled: () => invalidateTags(qc),
+  })
+}
+
 export function useRenameTag() {
   const qc = useQueryClient()
   return useMutation({

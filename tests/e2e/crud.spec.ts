@@ -77,9 +77,11 @@ test("real account: projects, resources, tasks, notes, tags, associations and tr
     await page
       .getByRole("button", { name: "New sub-project", exact: true })
       .click()
-    await page.getByPlaceholder("Sub-project name").fill("E2E child")
+    await page
+      .getByPlaceholder("Project name", { exact: true })
+      .fill("E2E child")
     const child = await write(page, "POST", "/projects", () =>
-      page.getByPlaceholder("Sub-project name").press("Enter")
+      page.getByPlaceholder("Project name", { exact: true }).press("Enter")
     )
     childId = (await child.json()).id
     await expect(

@@ -33,13 +33,11 @@ export function AsyncDialogFeedback({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {failed ? `Couldn't open ${label}` : `Opening ${label}…`}
-          </DialogTitle>
-          <DialogDescription>
+          <DialogTitle>{failed ? `Couldn't open ${label}` : label}</DialogTitle>
+          <DialogDescription className={failed ? undefined : "sr-only"}>
             {failed
               ? "The viewer could not be loaded. Reload the page to try again."
-              : "Preparing the viewer."}
+              : "Viewer"}
           </DialogDescription>
         </DialogHeader>
 

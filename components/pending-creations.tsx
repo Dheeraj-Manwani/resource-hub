@@ -1,7 +1,6 @@
 "use client"
 
 import { useMutationState, useQueryClient } from "@tanstack/react-query"
-import { LoaderCircleIcon } from "lucide-react"
 import { useSyncStore } from "@/components/sync-provider"
 import { inProject } from "@/lib/optimistic/lists"
 
@@ -78,18 +77,12 @@ export function PendingCreations({
   })
   if (!rows.length) return null
   return (
-    <ul aria-label="Pending creations" className="mb-3 space-y-2">
+    <ul aria-label="New items" className="mb-3 space-y-2">
       {rows.map(({ id, variables: vars }) => (
         <li
           key={id}
-          role="status"
-          aria-live="polite"
-          className="flex items-center gap-2 rounded-lg border border-dashed border-brand/40 bg-brand-soft p-3 text-sm"
+          className="rounded-lg border border-border bg-surface p-3 text-sm"
         >
-          <LoaderCircleIcon
-            aria-hidden
-            className="size-4 shrink-0 animate-spin motion-reduce:animate-none"
-          />
           <span className="min-w-0 truncate">
             {String(
               vars.title ||
@@ -102,9 +95,6 @@ export function PendingCreations({
                   ? `${vars.urls.length} links`
                   : "Untitled")
             )}
-            <span className="ml-2 text-xs text-text-muted">
-              Creating {entity === "quick-note" ? "note" : entity}…
-            </span>
           </span>
         </li>
       ))}

@@ -162,10 +162,7 @@ export function AddExistingQuickNoteDialog({
             disabled={!selected.size || linking}
             onClick={() => void submit()}
           >
-            {linking ? (
-              <Loader2Icon className="animate-spin motion-reduce:animate-none" />
-            ) : null}
-            {linking ? "Linking…" : `Add ${selected.size || ""}`}
+            {`Add ${selected.size || ""}`}
           </Button>
         </DialogFooter>
       </DialogContent>

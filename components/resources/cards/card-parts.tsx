@@ -1,6 +1,11 @@
 "use client"
 
-import { FolderIcon, ListChecksIcon, Loader2Icon, RefreshCwIcon, TriangleAlertIcon } from "lucide-react"
+import {
+  FolderIcon,
+  ListChecksIcon,
+  RefreshCwIcon,
+  TriangleAlertIcon,
+} from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 
@@ -120,7 +125,10 @@ export function ProjectChips({
           onClick={(e) => e.stopPropagation()}
           className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-text-muted hover:bg-white/[0.1] hover:text-foreground"
         >
-          <FolderIcon className="size-2.5" style={{ color: p.color ?? undefined }} />
+          <FolderIcon
+            className="size-2.5"
+            style={{ color: p.color ?? undefined }}
+          />
           {p.name}
         </Link>
       ))}
@@ -133,7 +141,13 @@ export function ProjectChips({
   )
 }
 
-export function TaskCountChip({ count, className }: { count: number; className?: string }) {
+export function TaskCountChip({
+  count,
+  className,
+}: {
+  count: number
+  className?: string
+}) {
   if (!count) return null
   return (
     <span
@@ -150,14 +164,6 @@ export function TaskCountChip({ count, className }: { count: number; className?:
 
 export function MetadataStatusNote({ resource }: { resource: ResourceDto }) {
   const refresh = useRefreshMetadata()
-  if (resource.metadataStatus === "pending") {
-    return (
-      <p className="flex items-center gap-1.5 text-xs text-subtle">
-        <Loader2Icon className="size-3 animate-spin" />
-        Fetching details…
-      </p>
-    )
-  }
   if (resource.metadataStatus === "failed") {
     return (
       <p className="flex items-center gap-1.5 text-xs text-amber-400/90">

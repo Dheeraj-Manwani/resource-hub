@@ -569,21 +569,13 @@ export default function NoteEditor({
             : "border border-border bg-surface focus-within:border-border-strong")
       )}
     >
-      {draftKey && draft ? (
+      {draftKey && draft?.phase === "failed" ? (
         <div
           className="flex items-center gap-2 border-b border-border px-3 py-1.5 text-xs text-text-muted"
           role="status"
           aria-live="polite"
         >
-          <span>
-            {draft.phase === "dirty"
-              ? "Unsaved changes"
-              : draft.phase === "saving"
-                ? "Saving…"
-                : draft.phase === "failed"
-                  ? "Couldn't save. Your draft is kept in this session."
-                  : "Saved"}
-          </span>
+          <span>Couldn&apos;t save. Your draft is kept in this session.</span>
           {draft.phase === "failed" ? (
             <>
               <Button

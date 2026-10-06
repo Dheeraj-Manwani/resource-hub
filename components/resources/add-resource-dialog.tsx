@@ -420,7 +420,6 @@ function DialogBody({
             onClick={() => void submit()}
             disabled={parsed.kind === "empty" || busy || !!duplicate}
           >
-            {busy ? <Loader2Icon className="animate-spin" /> : null}
             {parsed.kind === "urls" && parsed.items.length > 1
               ? `Save ${parsed.items.length} links`
               : "Save"}

@@ -1,5 +1,4 @@
 "use client"
-import { LoaderCircleIcon } from "lucide-react"
 import { useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -140,13 +139,7 @@ export function DeleteProjectDialog({
                 aria-busy={pending}
                 onClick={() => void confirm()}
               >
-                {pending ? (
-                  <LoaderCircleIcon
-                    aria-hidden
-                    className="animate-spin motion-reduce:animate-none"
-                  />
-                ) : null}
-                {pending ? "Deleting…" : "Delete"}
+                Delete
               </Button>
             </DialogFooter>
           </>

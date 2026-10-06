@@ -105,7 +105,7 @@ function UnsavedChangesDialog({
             Discard
           </Button>
           <Button onClick={onSaveAndExit} disabled={saving}>
-            {saving ? "Saving…" : "Save & Exit"}
+            Save & Exit
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -218,7 +218,7 @@ function DialogBody({
             Cancel
           </Button>
           <Button onClick={onSaveClick} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            Save
           </Button>
         </div>
       </div>

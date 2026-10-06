@@ -4,57 +4,15 @@ import { PendingCreations } from "@/components/pending-creations"
 
 import { FolderPlusIcon } from "lucide-react"
 import Link from "next/link"
-import { useMemo, useRef, useState } from "react"
+import { useMemo } from "react"
 
 import { EmptyState } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { useCreateProject, useProjectTree } from "@/hooks/queries/projects"
+import { useShell } from "@/components/shell/shell-context"
+import { useProjectTree } from "@/hooks/queries/projects"
 import { buildProjectTree, findNode, flattenTree } from "@/lib/projects/tree"
 
 import { ProjectIcon } from "./project-icon"
-
-function InlineCreate({
-  parentId,
-  onDone,
-}: {
-  parentId: string
-  onDone: () => void
-}) {
-  const [name, setName] = useState("")
-  const create = useCreateProject()
-  const submittedRef = useRef(false)
-
-  function submit() {
-    if (submittedRef.current) return
-    const trimmed = name.trim()
-    if (!trimmed) return onDone()
-    submittedRef.current = true
-    create.mutate(
-      { name: trimmed, parentId },
-      { onSuccess: onDone, onError: () => (submittedRef.current = false) }
-    )
-  }
-
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-border-strong bg-surface px-3 py-1.5">
-      <FolderPlusIcon className="size-4 shrink-0 text-subtle" />
-      <Input
-        autoFocus
-        disabled={create.isPending}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={submit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") submit()
-          if (e.key === "Escape" && !create.isPending) onDone()
-        }}
-        placeholder="Sub-project name"
-        className="h-7 border-none bg-transparent px-0 focus-visible:ring-0"
-      />
-    </div>
-  )
-}
 
 /** Direct children of this project, or (with "include sub-projects") every
  * descendant flattened with relative indentation. Reuses the sidebar's
@@ -68,7 +26,7 @@ export function ProjectSubprojectsTab({
   includeDescendants: boolean
 }) {
   const { data: flat } = useProjectTree()
-  const [creating, setCreating] = useState(false)
+  const { openAddProject } = useShell()
 
   const { node, rows } = useMemo(() => {
     if (!flat) return { node: null, rows: [] }
@@ -86,14 +44,14 @@ export function ProjectSubprojectsTab({
   if (!flat) return null
   const baseDepth = (node?.depth ?? 0) + 1
 
-  if (!rows.length && !creating) {
+  if (!rows.length) {
     return (
       <EmptyState
         icon={FolderPlusIcon}
         title="No sub-projects yet"
         description="Split this project into smaller pieces, each with its own resources and tasks."
       >
-        <Button onClick={() => setCreating(true)}>
+        <Button onClick={() => openAddProject(projectId)}>
           <FolderPlusIcon />
           New sub-project
         </Button>
@@ -104,12 +62,14 @@ export function ProjectSubprojectsTab({
   return (
     <div>
       <div className="mb-2 flex h-6 items-center justify-end">
-        {!creating ? (
-          <Button variant="outline" size="xs" onClick={() => setCreating(true)}>
-            <FolderPlusIcon />
-            New sub-project
-          </Button>
-        ) : null}
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => openAddProject(projectId)}
+        >
+          <FolderPlusIcon />
+          New sub-project
+        </Button>
       </div>
       <PendingCreations entity="project" filters={{ parentId: projectId }} />
       <div className="space-y-2">
@@ -129,12 +89,6 @@ export function ProjectSubprojectsTab({
             </span>
           </Link>
         ))}
-        {creating ? (
-          <InlineCreate
-            parentId={projectId}
-            onDone={() => setCreating(false)}
-          />
-        ) : null}
       </div>
     </div>
   )

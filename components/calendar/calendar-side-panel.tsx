@@ -32,7 +32,11 @@ function Section({
         {title}{" "}
         <span className="font-normal text-subtle/70">{items.length}</span>
       </h3>
-      <QueryFeedback query={query} label={title.toLowerCase() + " tasks"} />
+      <QueryFeedback
+        query={query}
+        label={title.toLowerCase() + " tasks"}
+        loading={false}
+      />
       {items.length ? (
         <ul className="space-y-1">
           {items.map((t) => (

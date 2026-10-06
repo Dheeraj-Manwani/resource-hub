@@ -2,14 +2,19 @@
 
 import { useEffect, useState } from "react"
 
-import { useShell } from "@/components/shell/shell-context"
+import { useCreationActions } from "@/components/shell/creation-actions"
 
 import { QuickAddDialog } from "./quick-add-dialog"
 import { ShortcutSheet } from "./shortcut-sheet"
 
 function isTypingTarget(el: EventTarget | null) {
   const node = el as HTMLElement | null
-  return !!node && (node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.isContentEditable)
+  return (
+    !!node &&
+    (node.tagName === "INPUT" ||
+      node.tagName === "TEXTAREA" ||
+      node.isContentEditable)
+  )
 }
 
 /** Global `Q` (quick-add) and `?` (shortcut sheet) shortcuts, mounted once
@@ -17,7 +22,7 @@ function isTypingTarget(el: EventTarget | null) {
  * (`components/search/command-palette.tsx`); `/` and `X` are scoped to the
  * Tasks page itself (search focus and per-row toggle respectively). */
 export function TaskShortcuts() {
-  const { openAddTask } = useShell()
+  const { openAddTask } = useCreationActions()
   const [sheetOpen, setSheetOpen] = useState(false)
 
   useEffect(() => {

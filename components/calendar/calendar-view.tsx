@@ -1,5 +1,6 @@
 "use client"
-import { QueryFeedback, LoadingState } from "@/components/query-feedback"
+import { useShell } from "@/components/shell/shell-context"
+import { QueryFeedback } from "@/components/query-feedback"
 
 import type {
   DateSelectArg,
@@ -23,6 +24,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ListIcon,
+  PlusIcon,
 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
@@ -116,6 +118,7 @@ export function CalendarView({
   const updateSettings = useUpdateSettings()
   const colorMode =
     settings?.calendarColorMode ?? initialSettings.calendarColorMode
+  const { openAddTask } = useShell()
   const { options: projectOptions } = useProjectOptions()
   const { data: tags = [] } = useTagSearch("")
 
@@ -293,6 +296,19 @@ export function CalendarView({
           <h2 className="px-1 text-base font-medium">{title}</h2>
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() =>
+                openAddTask(undefined, {
+                  defaultProject: projectOptions.find(
+                    (p) => p.id === projectId
+                  ),
+                })
+              }
+            >
+              <PlusIcon />
+              Add task
+            </Button>
             <Select
               value={projectId ?? ALL}
               onValueChange={(v: string | null) =>
@@ -407,12 +423,11 @@ export function CalendarView({
           </div>
         </div>
         {range ? (
-          <QueryFeedback query={calendarQuery} label="calendar" />
-        ) : (
-          <LoadingState label="Preparing calendar…" />
-        )}
-        {editOccurrence.isPending ? (
-          <LoadingState label="Updating event…" />
+          <QueryFeedback
+            query={calendarQuery}
+            label="calendar"
+            loading={false}
+          />
         ) : null}
 
         <FullCalendar
@@ -431,7 +446,7 @@ export function CalendarView({
           droppable={!editOccurrence.isPending}
           noEventsContent={
             calendarQuery.isPending
-              ? "Loading events…"
+              ? ""
               : calendarQuery.isError && !calendarQuery.data
                 ? "Events unavailable. Retry above."
                 : "No events in this range."
@@ -474,6 +489,7 @@ export function CalendarView({
 
       <CalendarSidePanel className="lg:order-first" />
       <QuickCreateDialog
+        projectId={projectId}
         target={quickCreate}
         onClose={() => setQuickCreate(null)}
       />

@@ -24,7 +24,14 @@ export function QuickAddDialog() {
         <DialogHeader>
           <DialogTitle>New task</DialogTitle>
         </DialogHeader>
-        <QuickAddBar initialText={addTask.initialText} onDone={closeAddTask} />
+        {addTask.open ? (
+          <QuickAddBar
+            initialText={addTask.initialText}
+            defaultProject={addTask.defaultProject}
+            resourceIds={addTask.resourceIds}
+            onDone={closeAddTask}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   )

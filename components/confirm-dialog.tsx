@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button"
 import { useRef, useState } from "react"
-import { LoaderCircleIcon } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -84,13 +83,7 @@ export function ConfirmDialog({
             aria-busy={pending}
             onClick={() => void confirm()}
           >
-            {pending ? (
-              <LoaderCircleIcon
-                aria-hidden
-                className="animate-spin motion-reduce:animate-none"
-              />
-            ) : null}
-            {pending ? "Working…" : confirmLabel}
+            {confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -34,6 +34,15 @@ test("link capture, bulk capture/delete, optimistic favorites and global syncing
     const writing = new Promise<void>((resolve) => {
       started = resolve
     })
+    let releaseRead!: () => void
+    const readGate = new Promise<void>((resolve) => {
+      releaseRead = resolve
+    })
+    const lists = /\/api\/v1\/resources(?:\?.*)?$/
+    await page.route(lists, async (route) => {
+      if (route.request().method() === "GET") await readGate
+      await route.continue()
+    })
     const path = `**/api/v1/resources/${id}`
     await page.route(path, async (route) => {
       if (route.request().method() === "PATCH") {
@@ -62,8 +71,26 @@ test("link capture, bulk capture/delete, optimistic favorites and global syncing
       await expect(
         page.locator("aside").getByRole("button", { name: /^Syncing/ })
       ).toBeVisible()
+      await expect(page.getByText(/^Updating resources/)).toHaveCount(0)
+      await expect(
+        page.getByText("Fetching details…", { exact: true })
+      ).toHaveCount(0)
+      const refreshing = page.waitForRequest(
+        (request) => request.method() === "GET" && lists.test(request.url())
+      )
+      release()
+      expect((await response).ok()).toBe(true)
+      await refreshing
+      // Cached content remains usable while the server read catches up.
+      await expect(card).toBeVisible()
+      await expect(page.getByText(/^Updating resources/)).toHaveCount(0)
+      await expect(
+        page.getByText("Loading resources…", { exact: true })
+      ).toHaveCount(0)
     } finally {
       release()
+      releaseRead()
+      await page.unroute(lists)
     }
     expect((await response).ok()).toBe(true)
     await page.unroute(path)

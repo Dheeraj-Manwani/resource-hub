@@ -1,7 +1,5 @@
 "use client"
 
-import { PendingCreations } from "@/components/pending-creations"
-
 import { QueryFeedback } from "@/components/query-feedback"
 
 import {
@@ -454,8 +452,7 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
         </Tooltip>
       </div>
 
-      {/* <PendingCreations entity="project" /> */}
-      {/* <QueryFeedback query={projectsQuery} label="projects" /> */}
+      <QueryFeedback query={projectsQuery} label="projects" loading={false} />
       {!isPending && !projectsQuery.isError && !visible.length && !creating ? (
         <button
           type="button"

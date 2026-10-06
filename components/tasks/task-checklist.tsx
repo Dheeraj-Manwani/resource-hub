@@ -13,12 +13,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import {
-  GripVerticalIcon,
-  LoaderCircleIcon,
-  PlusIcon,
-  Trash2Icon,
-} from "lucide-react"
+import { GripVerticalIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import { useRef, useState } from "react"
 
 import { Checkbox } from "@/components/ui/checkbox"
@@ -84,9 +79,7 @@ function ChecklistRowView({
       </button>
       <Checkbox
         disabled={pending}
-        aria-label={
-          pending ? "Creating checklist item" : `Complete ${item.title}`
-        }
+        aria-label={`Complete ${item.title}`}
         checked={item.done}
         onCheckedChange={(done) =>
           update.mutate({ taskId, itemId: item.id, patch: { done: !!done } })
@@ -116,16 +109,12 @@ function ChecklistRowView({
       />
       <button
         type="button"
-        aria-label={remove.isPending ? "Deleting item" : "Delete item"}
+        aria-label="Delete item"
         disabled={pending || remove.isPending}
         onClick={() => remove.mutate({ taskId, itemId: item.id })}
         className="flex size-6 shrink-0 items-center justify-center rounded text-subtle opacity-0 group-hover/item:opacity-100 hover:bg-white/10 hover:text-destructive"
       >
-        {pending || remove.isPending ? (
-          <LoaderCircleIcon className="size-3.5 animate-spin motion-reduce:animate-none" />
-        ) : (
-          <Trash2Icon className="size-3.5" />
-        )}
+        <Trash2Icon className="size-3.5" />
       </button>
     </li>
   )
@@ -178,14 +167,7 @@ function AddItemRow({ taskId }: { taskId: string }) {
 
   return (
     <div className="flex items-center gap-1.5 px-1">
-      {add.isPending ? (
-        <LoaderCircleIcon
-          aria-label="Adding item"
-          className="size-3.5 animate-spin motion-reduce:animate-none"
-        />
-      ) : (
-        <PlusIcon className="size-3.5 shrink-0 text-subtle" />
-      )}
+      <PlusIcon className="size-3.5 shrink-0 text-subtle" />
       <Input
         ref={ref}
         aria-label="Checklist item title"

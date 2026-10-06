@@ -1,8 +1,11 @@
 "use client"
 
+import { useShell } from "@/components/shell/shell-context"
+import { PageHeader } from "@/components/page-header"
+
 import { PendingCreations } from "@/components/pending-creations"
 
-import { QueryFeedback, LoadingState } from "@/components/query-feedback"
+import { QueryFeedback } from "@/components/query-feedback"
 
 import {
   CheckSquareIcon,
@@ -10,6 +13,7 @@ import {
   ListIcon,
   Loader2Icon,
   SearchIcon,
+  PlusIcon,
   FileExclamationPoint,
   XIcon,
 } from "lucide-react"
@@ -19,6 +23,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { EmptyState } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Select,
   SelectContent,
@@ -76,6 +81,7 @@ function isTypingTarget(el: EventTarget | null) {
 }
 
 export function TasksView() {
+  const { openAddTask } = useShell()
   const router = useRouter()
   const searchParams = useSearchParams()
   const smartFilter =
@@ -141,7 +147,11 @@ export function TasksView() {
   let body: React.ReactNode
   if (query.isPending) {
     body = (
-      <LoadingState label="Loading tasks…" className="justify-center py-16" />
+      <div className="space-y-3 py-4" aria-label="Loading tasks">
+        {[0, 1, 2].map((row) => (
+          <Skeleton key={row} className="h-14 w-full" />
+        ))}
+      </div>
     )
   } else if (query.isError && !query.data) {
     body = null
@@ -178,6 +188,15 @@ export function TasksView() {
 
   return (
     <div className="space-y-4">
+      <PageHeader
+        title="Tasks"
+        actions={
+          <Button size="sm" onClick={() => openAddTask()}>
+            <PlusIcon />
+            Add task
+          </Button>
+        }
+      />
       <QuickAddBar autoFocus={false} />
 
       {smartFilter ? (

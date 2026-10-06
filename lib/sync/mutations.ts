@@ -78,6 +78,7 @@ const operations = {
     entity: "settings",
     safeRetry: true,
   },
+  "tag.create": { label: "Creating tag", entity: "tag" },
   "tag.rename": { label: "Renaming tag", entity: "tag" },
   "tag.color": { label: "Saving tag color", entity: "tag", safeRetry: true },
   "tag.merge": { label: "Merging tags", entity: "tag" },

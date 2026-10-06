@@ -1,8 +1,10 @@
 "use client"
 import { QueryFeedback } from "@/components/query-feedback"
 
-import { TagIcon, Trash2Icon } from "lucide-react"
+import { PlusIcon, TagIcon, Trash2Icon } from "lucide-react"
 import { useState } from "react"
+
+import { AddTagDialog } from "./add-tag-dialog"
 
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { EmptyState } from "@/components/empty-state"
@@ -34,7 +36,7 @@ function ColorSwatch({ tag }: { tag: TagWithCounts }) {
         render={
           <button
             type="button"
-            aria-label={setColor.isPending ? "Saving color" : "Change color"}
+            aria-label="Change color"
             disabled={setColor.isPending}
             className="size-5 shrink-0 rounded-full ring-1 ring-black/20"
             style={{
@@ -86,7 +88,7 @@ function TagNameField({ tag }: { tag: TagWithCounts }) {
         onClick={() => setEditing(true)}
         className="truncate text-left text-sm font-medium hover:underline"
       >
-        {rename.isPending ? "Saving… " : ""}#{tag.name}
+        #{tag.name}
       </button>
     )
   }
@@ -109,6 +111,7 @@ function TagNameField({ tag }: { tag: TagWithCounts }) {
 }
 
 export function TagsView() {
+  const [adding, setAdding] = useState(false)
   const tagsQuery = useTagsWithCounts()
   const { data: tags = [], isPending } = tagsQuery
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -133,50 +136,53 @@ export function TagsView() {
         title="Tags"
         description="Rename, recolor, merge or delete tags used across resources and tasks."
         actions={
-          selectedTags.length >= 2 ? (
-            <Popover>
-              <PopoverTrigger render={<Button variant="outline" size="sm" />}>
-                Merge {selectedTags.length} tags…
-              </PopoverTrigger>
-              <PopoverContent>
-                <p className="mb-2 text-xs text-text-muted">
-                  Merge into which tag? The others are deleted; every resource
-                  and task keeps the tag.
-                </p>
-                <ul className="space-y-0.5">
-                  {selectedTags.map((t) => (
-                    <li key={t.id}>
-                      <button
-                        type="button"
-                        disabled={mergeTags.isPending}
-                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/[0.06]"
-                        onClick={() => {
-                          mergeTags.mutate(
-                            {
-                              sourceIds: selectedTags
-                                .filter((s) => s.id !== t.id)
-                                .map((s) => s.id),
-                              targetId: t.id,
-                            },
-                            { onSuccess: () => setSelected(new Set()) }
-                          )
-                        }}
-                      >
-                        <TagIcon className="size-3.5 text-subtle" />#{t.name}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </PopoverContent>
-            </Popover>
-          ) : undefined
+          <>
+            <Button size="sm" onClick={() => setAdding(true)}>
+              <PlusIcon />
+              New tag
+            </Button>
+            {selectedTags.length >= 2 ? (
+              <Popover>
+                <PopoverTrigger render={<Button variant="outline" size="sm" />}>
+                  Merge {selectedTags.length} tags…
+                </PopoverTrigger>
+                <PopoverContent>
+                  <p className="mb-2 text-xs text-text-muted">
+                    Merge into which tag? The others are deleted; every resource
+                    and task keeps the tag.
+                  </p>
+                  <ul className="space-y-0.5">
+                    {selectedTags.map((t) => (
+                      <li key={t.id}>
+                        <button
+                          type="button"
+                          disabled={mergeTags.isPending}
+                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/[0.06]"
+                          onClick={() => {
+                            mergeTags.mutate(
+                              {
+                                sourceIds: selectedTags
+                                  .filter((s) => s.id !== t.id)
+                                  .map((s) => s.id),
+                                targetId: t.id,
+                              },
+                              { onSuccess: () => setSelected(new Set()) }
+                            )
+                          }}
+                        >
+                          <TagIcon className="size-3.5 text-subtle" />#{t.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </PopoverContent>
+              </Popover>
+            ) : null}
+          </>
         }
       />
-      {mergeTags.isPending ? (
-        <p role="status" className="py-2 text-sm text-subtle">
-          Merging tags…
-        </p>
-      ) : null}
+      <AddTagDialog open={adding} onOpenChange={setAdding} />
+
       <QueryFeedback query={tagsQuery} label="tags" />
       {!isPending && !tagsQuery.isError && tags.length === 0 ? (
         <EmptyState

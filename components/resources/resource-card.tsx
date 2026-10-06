@@ -127,7 +127,7 @@ export const ResourceCard = memo(function ResourceCard({
       {resource.tags.length ||
       resource.projects.length ||
       resource.taskCount ||
-      resource.metadataStatus !== "ok" ? (
+      resource.metadataStatus === "failed" ? (
         <div className="space-y-2 px-3 pb-3">
           <MetadataStatusNote resource={resource} />
           <div className="flex flex-wrap gap-1">

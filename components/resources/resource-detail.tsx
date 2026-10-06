@@ -1,4 +1,5 @@
 "use client"
+import { useShell } from "@/components/shell/shell-context"
 import { QueryFeedback } from "@/components/query-feedback"
 import { ApiClientError } from "@/lib/api-client"
 
@@ -387,6 +388,7 @@ function LinkTaskPicker({
 }
 
 function TasksField({ resource }: { resource: ResourceDto }) {
+  const { openAddTask } = useShell()
   const { data: tasks = [] } = useResourceTasks(resource.id)
   const unlink = useUnlinkTaskResources()
   const { openTask } = useDetailDrawer()
@@ -421,6 +423,19 @@ function TasksField({ resource }: { resource: ResourceDto }) {
           </span>
         ))}
         <LinkTaskPicker resourceId={resource.id} excludeIds={linkedIds} />
+        <Button
+          size="xs"
+          variant="outline"
+          onClick={() =>
+            openAddTask(undefined, {
+              defaultProject: resource.projects[0],
+              resourceIds: [resource.id],
+            })
+          }
+        >
+          <PlusIcon />
+          New task
+        </Button>
       </div>
     </Field>
   )
@@ -512,13 +527,7 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
                   />
                 }
               >
-                <RefreshCwIcon
-                  className={cn(
-                    (refresh.isPending ||
-                      resource.metadataStatus === "pending") &&
-                      "animate-spin motion-reduce:animate-none"
-                  )}
-                />
+                <RefreshCwIcon />
               </TooltipTrigger>
               <TooltipContent>Refresh metadata</TooltipContent>
             </Tooltip>
@@ -553,7 +562,7 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
                 <Button
                   size="icon-sm"
                   variant="ghost"
-                  aria-label={remove.isPending ? "Deleting…" : "Delete"}
+                  aria-label="Delete"
                   disabled={remove.isPending}
                   className="hover:text-destructive"
                   onClick={() => {
@@ -562,11 +571,7 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
                 />
               }
             >
-              {remove.isPending ? (
-                <Loader2Icon className="animate-spin motion-reduce:animate-none" />
-              ) : (
-                <Trash2Icon />
-              )}
+              <Trash2Icon />
             </TooltipTrigger>
             <TooltipContent>Move to trash</TooltipContent>
           </Tooltip>
@@ -590,11 +595,6 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
               <TriangleAlertIcon className="size-3.5" />
               Couldn&apos;t fetch details
               {resource.metadata.error ? `: ${resource.metadata.error}` : ""}
-            </p>
-          ) : resource.metadataStatus === "pending" ? (
-            <p className="flex items-center gap-1.5 text-xs text-subtle">
-              <Loader2Icon className="size-3.5 animate-spin" /> Fetching
-              details…
             </p>
           ) : null}
         </div>

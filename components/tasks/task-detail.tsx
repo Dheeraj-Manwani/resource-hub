@@ -4,7 +4,6 @@ import { ApiClientError } from "@/lib/api-client"
 
 import {
   CopyIcon,
-  LoaderCircleIcon,
   ExternalLinkIcon,
   FolderIcon,
   PlusIcon,
@@ -208,19 +207,13 @@ function DetailContent({ task }: { task: TaskDto }) {
                 <Button
                   size="icon-sm"
                   variant="ghost"
-                  aria-label={
-                    duplicate.isPending ? "Duplicating…" : "Duplicate"
-                  }
+                  aria-label="Duplicate"
                   disabled={duplicate.isPending}
                   onClick={() => duplicate.mutate(task.id)}
                 />
               }
             >
-              {duplicate.isPending ? (
-                <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
-              ) : (
-                <CopyIcon />
-              )}
+              <CopyIcon />
             </TooltipTrigger>
             <TooltipContent>Duplicate</TooltipContent>
           </Tooltip>
@@ -230,7 +223,7 @@ function DetailContent({ task }: { task: TaskDto }) {
                 <Button
                   size="icon-sm"
                   variant="ghost"
-                  aria-label={remove.isPending ? "Deleting…" : "Delete"}
+                  aria-label="Delete"
                   disabled={remove.isPending}
                   className="hover:text-destructive"
                   onClick={() => {
@@ -239,11 +232,7 @@ function DetailContent({ task }: { task: TaskDto }) {
                 />
               }
             >
-              {remove.isPending ? (
-                <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
-              ) : (
-                <Trash2Icon />
-              )}
+              <Trash2Icon />
             </TooltipTrigger>
             <TooltipContent>Delete</TooltipContent>
           </Tooltip>
@@ -363,11 +352,7 @@ function DetailContent({ task }: { task: TaskDto }) {
             disabled={archive.isPending}
             onClick={() => archive.mutate(task.id)}
           >
-            {archive.isPending
-              ? "Saving…"
-              : task.archivedAt
-                ? "Unarchive"
-                : "Archive"}
+            {task.archivedAt ? "Unarchive" : "Archive"}
           </Button>
         </div>
       </div>
