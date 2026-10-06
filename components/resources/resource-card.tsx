@@ -1,7 +1,7 @@
 "use client"
 
 import { useDraggable } from "@dnd-kit/core"
-import { CheckCheckIcon, Edit, ExternalLinkIcon, StarIcon } from "lucide-react"
+import { CircleCheck, Edit, ExternalLinkIcon, StarIcon } from "lucide-react"
 import { memo } from "react"
 
 import { resourceDragId } from "@/components/projects/project-dnd"
@@ -127,14 +127,29 @@ export const ResourceCard = memo(function ResourceCard({
       {resource.tags.length ||
       resource.projects.length ||
       resource.taskCount ||
-      resource.metadataStatus === "failed" ? (
-        <div className="space-y-2 px-3 pb-3">
-          <MetadataStatusNote resource={resource} />
-          <div className="flex flex-wrap gap-1">
-            <ProjectChips projects={resource.projects} />
-            <TaskCountChip count={resource.taskCount} />
+      resource.metadataStatus === "failed" ||
+      resource.isReviewed ? (
+        <div className="flex items-end gap-2 px-3 pb-3">
+          <div className="min-w-0 flex-1 space-y-2">
+            <MetadataStatusNote resource={resource} />
+            {resource.projects.length || resource.taskCount ? (
+              <div className="flex flex-wrap gap-1">
+                <ProjectChips projects={resource.projects} />
+                <TaskCountChip count={resource.taskCount} />
+              </div>
+            ) : null}
+            <TagChips tags={resource.tags} />
           </div>
-          <TagChips tags={resource.tags} />
+          {resource.isReviewed ? (
+            <span
+              role="img"
+              aria-label="Verified"
+              title="Verified"
+              className="inline-flex size-5 shrink-0 items-center justify-center text-emerald-400"
+            >
+              <CircleCheck aria-hidden="true" className="size-4" />
+            </span>
+          ) : null}
         </div>
       ) : null}
 
@@ -152,16 +167,6 @@ export const ResourceCard = memo(function ResourceCard({
             className="pointer-events-none opacity-0 transition-opacity group-focus-within/card:opacity-100 group-hover/card:opacity-100"
           />
         )}
-        {resource.isReviewed ? (
-          <span
-            role="img"
-            aria-label="Verified"
-            title="Verified"
-            className="inline-flex size-7 items-center justify-center rounded-md bg-black/70 text-emerald-400 backdrop-blur"
-          >
-            <CheckCheckIcon aria-hidden="true" className="size-4" />
-          </span>
-        ) : null}
       </div>
       <div
         className={cn(
