@@ -68,7 +68,11 @@ export function QuickAddProjectDialog() {
           <Button variant="outline" disabled={create.isPending} onClick={close}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={!name.trim() || create.isPending}>
+          <Button
+            loading={create.isPending}
+            onClick={submit}
+            disabled={!name.trim() || create.isPending}
+          >
             Create
           </Button>
         </DialogFooter>

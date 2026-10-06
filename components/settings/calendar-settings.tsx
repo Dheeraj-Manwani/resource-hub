@@ -102,7 +102,7 @@ export function CalendarSettings({
           <Button
             variant="outline"
             size="sm"
-            disabled={regenerate.isPending}
+            loading={regenerate.isPending}
             onClick={() => regenerate.mutate()}
           >
             <RefreshCwIcon />

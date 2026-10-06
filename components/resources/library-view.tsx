@@ -516,7 +516,7 @@ export function LibraryView({
         <Button
           variant="outline"
           onClick={() => loadDemo.mutate()}
-          disabled={loadDemo.isPending}
+          loading={loadDemo.isPending}
         >
           Load demo data
         </Button>

@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils"
 export function SyncStatus({ className }: { className?: string }) {
   const controller = useSyncController()
   const state = useSyncStore((state) => state)
+  const [retrying, setRetrying] = useState<Set<string>>(new Set())
   const [now, setNow] = useState(() => Date.now())
   const summary = getSyncSummary(state, now)
   const spinning = summary.active.find(
@@ -123,13 +124,26 @@ export function SyncStatus({ className }: { className?: string }) {
                             ? "Saved; updating the view…"
                             : "Saving…")}
                   </p>
-                  {summary.failures.includes(operation) ? (
+                  {summary.failures.includes(operation) ||
+                  retrying.has(operation.id) ? (
                     <div className="flex items-center gap-2">
-                      {operation.canRetry ? (
+                      {operation.canRetry || retrying.has(operation.id) ? (
                         <Button
                           size="xs"
                           variant="outline"
-                          onClick={() => void controller.retry(operation.id)}
+                          loading={retrying.has(operation.id)}
+                          onClick={() => {
+                            setRetrying((prev) =>
+                              new Set(prev).add(operation.id)
+                            )
+                            void controller.retry(operation.id).finally(() => {
+                              setRetrying((prev) => {
+                                const next = new Set(prev)
+                                next.delete(operation.id)
+                                return next
+                              })
+                            })
+                          }}
                         >
                           Retry
                         </Button>
@@ -145,6 +159,7 @@ export function SyncStatus({ className }: { className?: string }) {
                       <Button
                         size="xs"
                         variant="ghost"
+                        disabled={retrying.has(operation.id)}
                         onClick={() => controller.dismiss(operation.id)}
                       >
                         Dismiss

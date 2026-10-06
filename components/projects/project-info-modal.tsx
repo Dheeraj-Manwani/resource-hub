@@ -12,7 +12,11 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { useProject, useProjectTree, useUpdateProject } from "@/hooks/queries/projects"
+import {
+  useProject,
+  useProjectTree,
+  useUpdateProject,
+} from "@/hooks/queries/projects"
 import { useProjectTaskProgress } from "@/hooks/queries/tasks"
 import { formatDate } from "@/lib/format"
 
@@ -37,7 +41,8 @@ export function ProjectInfoModal({
   const [description, setDescription] = useState("")
 
   const project = data?.project
-  const subProjectCount = tree?.filter((p) => p.parentId === projectId).length ?? 0
+  const subProjectCount =
+    tree?.filter((p) => p.parentId === projectId).length ?? 0
 
   function startEditing() {
     if (!project) return
@@ -50,12 +55,16 @@ export function ProjectInfoModal({
     const trimmed = name.trim()
     if (!trimmed || !project) return
     update.mutate(
-      { id: projectId, patch: { name: trimmed, description: description.trim() || null } },
+      {
+        id: projectId,
+        patch: { name: trimmed, description: description.trim() || null },
+      },
       { onSuccess: () => setEditing(false) }
     )
   }
 
   function handleOpenChange(next: boolean) {
+    if (update.isPending) return
     if (!next) setEditing(false)
     onOpenChange(next)
   }
@@ -79,7 +88,11 @@ export function ProjectInfoModal({
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   Name
                 </label>
-                <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} />
+                <Input
+                  autoFocus
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
@@ -94,10 +107,18 @@ export function ProjectInfoModal({
               </div>
             </div>
             <div className="flex items-center justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditing(false)}>
+              <Button
+                variant="outline"
+                disabled={update.isPending}
+                onClick={() => setEditing(false)}
+              >
                 Cancel
               </Button>
-              <Button onClick={save} disabled={!name.trim() || update.isPending}>
+              <Button
+                loading={update.isPending}
+                onClick={save}
+                disabled={!name.trim() || update.isPending}
+              >
                 Save
               </Button>
             </div>
@@ -105,7 +126,11 @@ export function ProjectInfoModal({
         ) : (
           <>
             <div className="flex items-start gap-3 pr-6">
-              <ProjectIcon icon={project.icon} color={project.color} size={28} />
+              <ProjectIcon
+                icon={project.icon}
+                color={project.color}
+                size={28}
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1">
                   <DialogTitle className="text-lg">{project.name}</DialogTitle>
@@ -126,19 +151,27 @@ export function ProjectInfoModal({
             </div>
             <div className="grid grid-cols-3 gap-2 rounded-lg border border-border bg-surface p-3 text-center">
               <div>
-                <p className="text-lg font-semibold tabular-nums">{project.directCount}</p>
+                <p className="text-lg font-semibold tabular-nums">
+                  {project.directCount}
+                </p>
                 <p className="text-xs text-subtle">Resources</p>
               </div>
               <div>
-                <p className="text-lg font-semibold tabular-nums">{progress?.total ?? 0}</p>
+                <p className="text-lg font-semibold tabular-nums">
+                  {progress?.total ?? 0}
+                </p>
                 <p className="text-xs text-subtle">Tasks</p>
               </div>
               <div>
-                <p className="text-lg font-semibold tabular-nums">{subProjectCount}</p>
+                <p className="text-lg font-semibold tabular-nums">
+                  {subProjectCount}
+                </p>
                 <p className="text-xs text-subtle">Sub-projects</p>
               </div>
             </div>
-            <p className="text-xs text-subtle">Created {formatDate(project.createdAt)}</p>
+            <p className="text-xs text-subtle">
+              Created {formatDate(project.createdAt)}
+            </p>
           </>
         )}
       </DialogContent>

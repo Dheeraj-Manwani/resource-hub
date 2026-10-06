@@ -18,17 +18,21 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { buildRrule, describeRrule, type RecurrenceFreq } from "@/lib/tasks/recurrence"
+import {
+  buildRrule,
+  describeRrule,
+  type RecurrenceFreq,
+} from "@/lib/tasks/recurrence"
 import { cn } from "@/lib/utils"
 
 const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"]
 
 function RecurrenceBuilder({
   onSave,
-  onClose,
+  saving,
 }: {
   onSave: (rrule: string) => void
-  onClose: () => void
+  saving: boolean
 }) {
   const [freq, setFreq] = useState<RecurrenceFreq>("weekly")
   const [interval, setInterval] = useState(1)
@@ -43,10 +47,17 @@ function RecurrenceBuilder({
           min={1}
           max={365}
           value={interval}
-          onChange={(e) => setInterval(Math.max(1, Number(e.target.value) || 1))}
+          onChange={(e) =>
+            setInterval(Math.max(1, Number(e.target.value) || 1))
+          }
           className="h-7 w-14 px-1.5 text-center"
         />
-        <Select value={freq} onValueChange={(v: string | null) => v && setFreq(v as RecurrenceFreq)}>
+        <Select
+          value={freq}
+          onValueChange={(v: string | null) =>
+            v && setFreq(v as RecurrenceFreq)
+          }
+        >
           <SelectTrigger size="sm">
             <SelectValue>
               {(v: string) => (interval > 1 ? `${v}s` : v)}
@@ -69,7 +80,12 @@ function RecurrenceBuilder({
           spacing={0}
         >
           {WEEKDAY_LABELS.map((label, i) => (
-            <ToggleGroupItem key={i} value={String(i)} aria-label={label} className="w-7">
+            <ToggleGroupItem
+              key={i}
+              value={String(i)}
+              aria-label={label}
+              className="w-7"
+            >
               {label}
             </ToggleGroupItem>
           ))}
@@ -79,9 +95,15 @@ function RecurrenceBuilder({
       <Button
         size="sm"
         className="w-full"
+        loading={saving}
         onClick={() => {
-          onSave(buildRrule({ freq, interval, byweekday: byweekday.length ? byweekday : undefined }))
-          onClose()
+          onSave(
+            buildRrule({
+              freq,
+              interval,
+              byweekday: byweekday.length ? byweekday : undefined,
+            })
+          )
         }}
       >
         Save
@@ -99,11 +121,24 @@ export function RecurrenceField({
   onChange,
 }: {
   rrule: string | null
-  onChange: (rrule: string | null) => void
+  onChange: (rrule: string | null) => Promise<unknown>
 }) {
   const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  async function save(next: string | null) {
+    if (saving) return
+    setSaving(true)
+    try {
+      await onChange(next)
+      setOpen(false)
+    } catch {
+      // The mutation reports the error; keep the builder open for retry.
+    } finally {
+      setSaving(false)
+    }
+  }
 
-  if (rrule) {
+  if (rrule && !open) {
     return (
       <div className="flex items-center gap-1.5">
         <span
@@ -114,7 +149,13 @@ export function RecurrenceField({
           <RepeatIcon className="size-3.5 text-brand" />
           {describeRrule(rrule)}
         </span>
-        <Button size="icon-sm" variant="ghost" aria-label="Stop repeating" onClick={() => onChange(null)}>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label="Stop repeating"
+          loading={saving}
+          onClick={() => void save(null)}
+        >
           <XIcon />
         </Button>
       </div>
@@ -122,11 +163,12 @@ export function RecurrenceField({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(next) => !saving && setOpen(next)}>
       <PopoverTrigger
         render={
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            loading={saving}
             className="flex items-center gap-1.5 rounded-lg border border-dashed border-border-strong px-2.5 py-1.5 text-sm text-subtle hover:border-brand/50 hover:text-brand"
           />
         }
@@ -135,7 +177,7 @@ export function RecurrenceField({
         Does not repeat
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64">
-        <RecurrenceBuilder onSave={onChange} onClose={() => setOpen(false)} />
+        <RecurrenceBuilder onSave={(next) => void save(next)} saving={saving} />
       </PopoverContent>
     </Popover>
   )

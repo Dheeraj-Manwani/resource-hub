@@ -58,6 +58,7 @@ export function AddTagDialog({
             Cancel
           </Button>
           <Button
+            loading={create.isPending}
             disabled={!name.trim().replace(/^#/, "").trim() || create.isPending}
             onClick={submit}
           >

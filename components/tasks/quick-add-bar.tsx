@@ -131,6 +131,7 @@ export function QuickAddBar({
         />
         <Button
           onClick={submit}
+          loading={create.isPending}
           disabled={!parsed.title.trim() || create.isPending}
         >
           Add

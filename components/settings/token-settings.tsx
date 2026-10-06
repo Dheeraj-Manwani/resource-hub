@@ -57,7 +57,7 @@ export function TokenSettings({ appUrl }: { appUrl: string }) {
         className="flex flex-wrap gap-2"
         onSubmit={(e) => {
           e.preventDefault()
-          if (name.trim()) create.mutate()
+          if (name.trim() && !create.isPending) create.mutate()
         }}
       >
         <Input
@@ -67,7 +67,11 @@ export function TokenSettings({ appUrl }: { appUrl: string }) {
           aria-label="Token name"
           className="max-w-xs"
         />
-        <Button type="submit" disabled={create.isPending || !name.trim()}>
+        <Button
+          loading={create.isPending}
+          type="submit"
+          disabled={create.isPending || !name.trim()}
+        >
           <KeyRoundIcon />
           Create token
         </Button>
@@ -116,6 +120,7 @@ export function TokenSettings({ appUrl }: { appUrl: string }) {
                 size="icon-sm"
                 variant="ghost"
                 aria-label={`Revoke ${t.name}`}
+                loading={revoke.isPending && revoke.variables === t.id}
                 className="hover:text-destructive"
                 onClick={() => revoke.mutate(t.id)}
               >

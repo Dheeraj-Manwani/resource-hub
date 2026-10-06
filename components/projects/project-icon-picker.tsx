@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { EmojiPicker } from "frimousse"
 import { useState } from "react"
 
@@ -38,8 +39,11 @@ export function ProjectIconColorFields({
       <EmojiPicker.Root
         className="flex h-64 flex-col"
         onEmojiSelect={({ emoji }) => {
-          update.mutate({ id: project.id, patch: { icon: emoji } })
-          onDone?.()
+          if (update.isPending) return
+          update.mutate(
+            { id: project.id, patch: { icon: emoji } },
+            { onSuccess: onDone }
+          )
         }}
       >
         <EmojiPicker.Search
@@ -47,7 +51,9 @@ export function ProjectIconColorFields({
           placeholder="Search emoji…"
           onKeyDown={(e) => e.stopPropagation()}
         />
-        <EmojiPicker.Viewport className={cn("mt-1.5 flex-1", EMOJI_LIST_STYLES)}>
+        <EmojiPicker.Viewport
+          className={cn("mt-1.5 flex-1", EMOJI_LIST_STYLES)}
+        >
           <EmojiPicker.Loading className="flex h-full items-center justify-center text-sm text-subtle">
             Loading…
           </EmojiPicker.Loading>
@@ -61,29 +67,42 @@ export function ProjectIconColorFields({
         <div className="mb-1.5 flex items-center justify-between">
           <p className="text-xs font-medium text-muted-foreground">Color</p>
           {project.icon ? (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="xs"
+              loading={
+                update.isPending && update.variables?.patch.icon === null
+              }
+              disabled={update.isPending}
               className="text-xs text-subtle hover:text-foreground"
               onClick={() => {
-                update.mutate({ id: project.id, patch: { icon: null } })
-                onDone?.()
+                update.mutate(
+                  { id: project.id, patch: { icon: null } },
+                  { onSuccess: onDone }
+                )
               }}
             >
               Remove icon
-            </button>
+            </Button>
           ) : null}
         </div>
         <div className="flex flex-wrap gap-1.5">
           {PROJECT_COLORS.map((c) => (
-            <button
+            <Button
               key={c}
-              type="button"
+              variant="ghost"
+              size="icon-xs"
+              loading={update.isPending && update.variables?.patch.color === c}
+              disabled={update.isPending}
               aria-label={`Color ${c}`}
-              onClick={() => update.mutate({ id: project.id, patch: { color: c } })}
+              onClick={() =>
+                update.mutate({ id: project.id, patch: { color: c } })
+              }
               style={{ backgroundColor: c }}
               className={cn(
                 "size-5 shrink-0 rounded-full ring-1 ring-black/20 transition-transform hover:scale-110",
-                project.color === c && "ring-2 ring-white ring-offset-1 ring-offset-popover"
+                project.color === c &&
+                  "ring-2 ring-white ring-offset-1 ring-offset-popover"
               )}
             />
           ))}
@@ -115,12 +134,18 @@ export function ProjectIconPicker({
           />
         }
       >
-        <span style={{ width: size + 12, height: size + 12 }} className="flex items-center justify-center">
+        <span
+          style={{ width: size + 12, height: size + 12 }}
+          className="flex items-center justify-center"
+        >
           <ProjectIcon icon={project.icon} color={project.color} size={size} />
         </span>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 overflow-hidden p-0">
-        <ProjectIconColorFields project={project} onDone={() => setOpen(false)} />
+        <ProjectIconColorFields
+          project={project}
+          onDone={() => setOpen(false)}
+        />
       </PopoverContent>
     </Popover>
   )

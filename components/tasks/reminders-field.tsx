@@ -30,7 +30,13 @@ function offsetLabel(minutes: number) {
   return `${minutes}m before`
 }
 
-export function RemindersField({ taskId, reminders }: { taskId: string; reminders: ReminderDto[] }) {
+export function RemindersField({
+  taskId,
+  reminders,
+}: {
+  taskId: string
+  reminders: ReminderDto[]
+}) {
   const add = useAddReminder()
   const remove = useDeleteReminder()
   const [adding, setAdding] = useState(false)
@@ -48,6 +54,7 @@ export function RemindersField({ taskId, reminders }: { taskId: string; reminder
             size="icon-sm"
             variant="ghost"
             aria-label="Remove reminder"
+            loading={remove.isPending && remove.variables?.reminderId === r.id}
             onClick={() => remove.mutate({ taskId, reminderId: r.id })}
           >
             <XIcon />
@@ -64,7 +71,11 @@ export function RemindersField({ taskId, reminders }: { taskId: string; reminder
           onOpenChange={(open) => !open && setAdding(false)}
           defaultOpen
         >
-          <SelectTrigger size="sm" className="w-full" aria-label="Reminder offset">
+          <SelectTrigger
+            size="sm"
+            className="w-full"
+            aria-label="Reminder offset"
+          >
             <SelectValue>{() => "Choose when…"}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -76,7 +87,12 @@ export function RemindersField({ taskId, reminders }: { taskId: string; reminder
           </SelectContent>
         </Select>
       ) : (
-        <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+        <Button
+          variant="outline"
+          size="sm"
+          loading={add.isPending}
+          onClick={() => setAdding(true)}
+        >
           <PlusIcon />
           Add reminder
         </Button>

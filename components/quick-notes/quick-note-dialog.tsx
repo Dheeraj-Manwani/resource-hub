@@ -104,7 +104,7 @@ function UnsavedChangesDialog({
           <Button variant="destructive" onClick={onDiscard} disabled={saving}>
             Discard
           </Button>
-          <Button onClick={onSaveAndExit} disabled={saving}>
+          <Button loading={saving} onClick={onSaveAndExit} disabled={saving}>
             Save & Exit
           </Button>
         </DialogFooter>
@@ -217,7 +217,7 @@ function DialogBody({
           <Button variant="outline" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={onSaveClick} disabled={saving}>
+          <Button loading={saving} onClick={onSaveClick} disabled={saving}>
             Save
           </Button>
         </div>
@@ -321,14 +321,14 @@ export function QuickNoteDialog({
   }
 
   function triggerSave(keepOpen = false) {
-    if (!draft) return
-    setConfirmOpen(false)
+    if (!draft || saving) return
     const snapshot: LiveDraft = { ...live.current }
     onSave(
       { id: savedId.current, ...snapshot },
       {
         keepOpen,
         onSaved: (id) => {
+          setConfirmOpen(false)
           savedId.current = id
           baseline.current = snapshot
           return !isDirty(snapshot, live.current)
@@ -364,7 +364,7 @@ export function QuickNoteDialog({
 
       <UnsavedChangesDialog
         open={confirmOpen}
-        onOpenChange={setConfirmOpen}
+        onOpenChange={(open) => !saving && setConfirmOpen(open)}
         onSaveAndExit={() => triggerSave(false)}
         onDiscard={() => {
           setConfirmOpen(false)

@@ -74,7 +74,10 @@ const STEPS: Step[] = [
 ]
 
 function isMobileViewport() {
-  return typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 767px)").matches
+  )
 }
 
 function findVisibleTarget(name: string): HTMLElement | null {
@@ -115,6 +118,7 @@ export function AppTour() {
   const { tourOpen, openTour, closeTour, setMobileNavOpen } = useShell()
   const { data: settings } = useSettings()
   const updateSettings = useUpdateSettings()
+  const [finishing, setFinishing] = useState<"done" | "skip" | null>(null)
   const [step, setStep] = useState(0)
   const [rect, setRect] = useState<DOMRect | null>(null)
   const frameRef = useRef<number | null>(null)
@@ -157,7 +161,8 @@ export function AppTour() {
         setRect(null)
       }
       frame++
-      if (frame <= totalFrames) frameRef.current = requestAnimationFrame(measure)
+      if (frame <= totalFrames)
+        frameRef.current = requestAnimationFrame(measure)
     }
     measure()
     return () => {
@@ -193,16 +198,27 @@ export function AppTour() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourOpen, step])
 
-  function finish() {
-    setMobileNavOpen(false)
-    closeTour()
-    if (settings && !settings.hasSeenOnboarding) {
-      updateSettings.mutate({ hasSeenOnboarding: true })
+  function finish(action: "done" | "skip" = "skip") {
+    if (finishing) return
+    const close = () => {
+      setMobileNavOpen(false)
+      closeTour()
+      setFinishing(null)
     }
+    if (settings && !settings.hasSeenOnboarding) {
+      setFinishing(action)
+      updateSettings.mutate(
+        { hasSeenOnboarding: true },
+        {
+          onSuccess: close,
+          onError: () => setFinishing(null),
+        }
+      )
+    } else close()
   }
 
   function next() {
-    if (step === STEPS.length - 1) finish()
+    if (step === STEPS.length - 1) finish("done")
     else setStep((s) => s + 1)
   }
 
@@ -227,7 +243,7 @@ export function AppTour() {
       <button
         type="button"
         aria-label="Close tour"
-        onClick={finish}
+        onClick={() => finish()}
         className={cn(
           "fixed inset-0 cursor-default transition-colors",
           !padded && "bg-black/70"
@@ -268,14 +284,17 @@ export function AppTour() {
       >
         <div className="flex items-start justify-between gap-2">
           <h2 className="font-medium text-foreground">{current.title}</h2>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            loading={finishing === "skip"}
+            disabled={!!finishing}
             aria-label="Skip tour"
-            onClick={finish}
+            onClick={() => finish()}
             className="-mt-1 -mr-1 flex size-6 shrink-0 items-center justify-center rounded-md text-subtle hover:bg-white/10 hover:text-foreground"
           >
             <XIcon className="size-4" />
-          </button>
+          </Button>
         </div>
         <p className="mt-1.5 text-text-muted">{current.body}</p>
 
@@ -293,11 +312,21 @@ export function AppTour() {
           </div>
           <div className="flex gap-2">
             {step > 0 ? (
-              <Button variant="ghost" size="sm" onClick={back}>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!!finishing}
+                onClick={back}
+              >
                 Back
               </Button>
             ) : null}
-            <Button size="sm" onClick={next}>
+            <Button
+              size="sm"
+              disabled={!!finishing}
+              loading={finishing === "done"}
+              onClick={next}
+            >
               {last ? "Done" : "Next"}
             </Button>
           </div>

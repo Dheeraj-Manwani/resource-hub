@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 
 import { useProjectOptions } from "@/components/projects/project-picker"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -10,12 +11,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useMoveResources } from "@/hooks/queries/projects"
-import { useResourceList, type ResourceFilters } from "@/hooks/queries/resources"
+import {
+  useResourceList,
+  type ResourceFilters,
+} from "@/hooks/queries/resources"
 import { displayTitle } from "@/lib/resources/dto"
 
 import { TypeIcon } from "./type-icon"
 
-const FILTERS: ResourceFilters = { unsorted: true, sort: "created", order: "desc" }
+const FILTERS: ResourceFilters = {
+  unsorted: true,
+  sort: "created",
+  order: "desc",
+}
 
 function isTypingTarget(el: EventTarget | null) {
   const node = el as HTMLElement | null
@@ -43,7 +51,7 @@ export function InboxTriageBar() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (isTypingTarget(e.target) || !items.length) return
+      if (isTypingTarget(e.target) || !items.length || move.isPending) return
       if (e.key === "j") {
         e.preventDefault()
         setIndex((i) => Math.min(i + 1, items.length - 1))
@@ -56,7 +64,11 @@ export function InboxTriageBar() {
       } else if (e.key === "Enter" && current) {
         e.preventDefault()
         if (lastProjectId) {
-          move.mutate({ resourceIds: [current.id], from: null, to: lastProjectId })
+          move.mutate({
+            resourceIds: [current.id],
+            from: null,
+            to: lastProjectId,
+          })
           setIndex((i) => Math.min(i + 1, items.length - 1))
         } else {
           setPickerOpen(true)
@@ -67,14 +79,19 @@ export function InboxTriageBar() {
     return () => window.removeEventListener("keydown", onKey)
   }, [current, items.length, lastProjectId, move])
 
-  if (!items.length) return null
+  if (!items.length && !pickerOpen) return null
 
   function fileCurrentIn(projectId: string) {
-    if (!current) return
-    move.mutate({ resourceIds: [current.id], from: null, to: projectId })
-    setLastProjectId(projectId)
-    setPickerOpen(false)
-    setIndex((i) => Math.min(i + 1, items.length - 1))
+    if (!current || move.isPending) return
+    move.mutate(
+      { resourceIds: [current.id], from: null, to: projectId },
+      {
+        onSuccess: () => {
+          setLastProjectId(projectId)
+          setPickerOpen(false)
+        },
+      }
+    )
   }
 
   return (
@@ -95,15 +112,16 @@ export function InboxTriageBar() {
             move
             <kbd className="rounded bg-white/10 px-1.5 py-0.5 font-sans">P</kbd>
             file
-            <kbd className="rounded bg-white/10 px-1.5 py-0.5 font-sans">
-              ↵
-            </kbd>
+            <kbd className="rounded bg-white/10 px-1.5 py-0.5 font-sans">↵</kbd>
             {lastProjectId ? "file & next" : "pick"}
           </span>
         </div>
       </div>
 
-      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+      <Dialog
+        open={pickerOpen}
+        onOpenChange={(open) => !move.isPending && setPickerOpen(open)}
+      >
         <DialogContent className="sm:max-w-xs">
           <DialogHeader>
             <DialogTitle className="truncate">
@@ -113,15 +131,17 @@ export function InboxTriageBar() {
           <div className="max-h-72 space-y-0.5 overflow-y-auto">
             {options.length ? (
               options.map((o) => (
-                <button
+                <Button
                   key={o.id}
-                  type="button"
+                  variant="ghost"
+                  disabled={move.isPending}
+                  loading={move.isPending && move.variables?.to === o.id}
                   onClick={() => fileCurrentIn(o.id)}
                   style={{ paddingLeft: `${o.depth * 16 + 8}px` }}
                   className="flex h-8 w-full items-center gap-2 rounded-md pr-2 text-left text-sm hover:bg-white/[0.06]"
                 >
                   {o.name}
-                </button>
+                </Button>
               ))
             ) : (
               <p className="px-2 py-4 text-center text-sm text-subtle">

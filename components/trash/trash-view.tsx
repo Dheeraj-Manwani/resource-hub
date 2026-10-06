@@ -53,6 +53,7 @@ function Row({ item }: { item: TrashItem }) {
         size="icon-sm"
         aria-label="Restore"
         disabled={restore.isPending || permanentlyDelete.isPending}
+        loading={restore.isPending}
         onClick={() =>
           restore.mutate({ entityType: item.entityType, id: item.id })
         }

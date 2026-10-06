@@ -119,7 +119,11 @@ test("real account: projects, resources, tasks, notes, tags, associations and tr
       .getByLabel("Notes", { exact: true })
       .fill("Resource notes survive reload.")
     await write(page, "PATCH", `/resources/${resourceId}`, () =>
-      drawer.getByRole("button", { name: "Save", exact: true }).click()
+      drawer
+        .getByLabel("Notes", { exact: true })
+        .locator("..")
+        .getByRole("button", { name: "Save", exact: true })
+        .click()
     )
     await drawer
       .getByRole("button", { name: "Add to project", exact: true })

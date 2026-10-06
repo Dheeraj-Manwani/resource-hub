@@ -361,6 +361,7 @@ function DialogBody({
           <Button
             size="xs"
             variant="ghost"
+            loading={busy}
             onClick={() => void submit(true)}
             disabled={busy}
           >
@@ -408,7 +409,11 @@ function DialogBody({
             e.target.value = ""
           }}
         />
-        <Button variant="ghost" onClick={() => fileInput.current?.click()}>
+        <Button
+          variant="ghost"
+          loading={uploading}
+          onClick={() => fileInput.current?.click()}
+        >
           <PaperclipIcon />
           Upload files
         </Button>
@@ -417,6 +422,7 @@ function DialogBody({
             {uploads.items.length && !uploading ? "Done" : "Cancel"}
           </Button>
           <Button
+            loading={busy && !duplicate}
             onClick={() => void submit()}
             disabled={parsed.kind === "empty" || busy || !!duplicate}
           >

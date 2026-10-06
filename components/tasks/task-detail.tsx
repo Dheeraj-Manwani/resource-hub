@@ -164,6 +164,9 @@ function ResourcesField({ task }: { task: TaskDto }) {
               size="icon-sm"
               variant="ghost"
               aria-label="Unlink resource"
+              loading={
+                unlink.isPending && unlink.variables?.resourceIds.includes(r.id)
+              }
               onClick={() =>
                 unlink.mutate({ taskId: task.id, resourceIds: [r.id] })
               }
@@ -208,7 +211,7 @@ function DetailContent({ task }: { task: TaskDto }) {
                   size="icon-sm"
                   variant="ghost"
                   aria-label="Duplicate"
-                  disabled={duplicate.isPending}
+                  loading={duplicate.isPending}
                   onClick={() => duplicate.mutate(task.id)}
                 />
               }
@@ -224,7 +227,7 @@ function DetailContent({ task }: { task: TaskDto }) {
                   size="icon-sm"
                   variant="ghost"
                   aria-label="Delete"
-                  disabled={remove.isPending}
+                  loading={remove.isPending}
                   className="hover:text-destructive"
                   onClick={() => {
                     remove.mutate(task.id, { onSuccess: close })
@@ -272,7 +275,9 @@ function DetailContent({ task }: { task: TaskDto }) {
           <Field label="Repeat">
             <RecurrenceField
               rrule={task.rrule}
-              onChange={(rrule) => save({ rrule })}
+              onChange={(rrule) =>
+                update.mutateAsync({ id: task.id, patch: { rrule } })
+              }
             />
           </Field>
         )}
@@ -349,7 +354,7 @@ function DetailContent({ task }: { task: TaskDto }) {
           <Button
             variant="outline"
             size="sm"
-            disabled={archive.isPending}
+            loading={archive.isPending}
             onClick={() => archive.mutate(task.id)}
           >
             {task.archivedAt ? "Unarchive" : "Archive"}

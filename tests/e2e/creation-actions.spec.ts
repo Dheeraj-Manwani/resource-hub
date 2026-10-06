@@ -38,6 +38,7 @@ test("creation buttons remain available across screens and open their modals", a
     await expect(page.getByRole("dialog")).toHaveCount(0)
   }
   await page.goto("/tags")
+  await expect(page.getByText("No tags yet", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "New tag", exact: true }).click()
   await page.getByLabel("Tag name", { exact: true }).fill("creation-test")
   await write(page, "POST", "/tags", () =>

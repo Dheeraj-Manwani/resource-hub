@@ -18,7 +18,11 @@ import type { DueReminder } from "@/lib/server/dal/reminders"
 import { cn } from "@/lib/utils"
 
 function requestNotificationPermission() {
-  if (typeof Notification === "undefined" || Notification.permission !== "default") return
+  if (
+    typeof Notification === "undefined" ||
+    Notification.permission !== "default"
+  )
+    return
   void Notification.requestPermission()
 }
 
@@ -27,8 +31,14 @@ function notify(reminder: DueReminder) {
     description: "Reminder",
     icon: <ClockIcon className="size-4" />,
   })
-  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-    new Notification(reminder.title, { body: "Task reminder", tag: reminder.reminderId })
+  if (
+    typeof Notification !== "undefined" &&
+    Notification.permission === "granted"
+  ) {
+    new Notification(reminder.title, {
+      body: "Task reminder",
+      tag: reminder.reminderId,
+    })
   }
 }
 
@@ -57,7 +67,9 @@ export function RemindersBell() {
     }
   }, [due, snoozed])
 
-  const visible = due.filter((r) => !snoozed.has(`${r.reminderId}:${r.occurrenceAt}`))
+  const visible = due.filter(
+    (r) => !snoozed.has(`${r.reminderId}:${r.occurrenceAt}`)
+  )
 
   function snooze(reminder: DueReminder, minutes: number) {
     const key = `${reminder.reminderId}:${reminder.occurrenceAt}`
@@ -76,7 +88,12 @@ export function RemindersBell() {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="ghost" size="icon" aria-label={`${visible.length} reminders`} className="relative" />
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`${visible.length} reminders`}
+            className="relative"
+          />
         }
       >
         {visible.length ? <BellRingIcon /> : <BellIcon />}
@@ -99,7 +116,9 @@ export function RemindersBell() {
                   className="min-w-0 flex-1 text-left"
                 >
                   <p className="truncate text-sm">{r.title}</p>
-                  <p className="text-xs text-subtle">{formatRelative(r.occurrenceAt)}</p>
+                  <p className="text-xs text-subtle">
+                    {formatRelative(r.occurrenceAt)}
+                  </p>
                 </button>
                 <div className="flex shrink-0 items-center gap-0.5">
                   <Button
@@ -115,7 +134,17 @@ export function RemindersBell() {
                     size="icon-xs"
                     variant="ghost"
                     aria-label="Dismiss"
-                    onClick={() => dismiss.mutate({ reminderId: r.reminderId, occurrenceAt: r.occurrenceAt })}
+                    loading={
+                      dismiss.isPending &&
+                      dismiss.variables?.reminderId === r.reminderId &&
+                      dismiss.variables.occurrenceAt === r.occurrenceAt
+                    }
+                    onClick={() =>
+                      dismiss.mutate({
+                        reminderId: r.reminderId,
+                        occurrenceAt: r.occurrenceAt,
+                      })
+                    }
                   >
                     <CheckIcon />
                   </Button>
@@ -123,7 +152,9 @@ export function RemindersBell() {
               </div>
             ))
           ) : (
-            <p className={cn("px-3 py-6 text-center text-sm text-subtle")}>No reminders due</p>
+            <p className={cn("px-3 py-6 text-center text-sm text-subtle")}>
+              No reminders due
+            </p>
           )}
         </div>
       </DropdownMenuContent>

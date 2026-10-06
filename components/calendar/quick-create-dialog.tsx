@@ -57,7 +57,10 @@ export function QuickCreateDialog({
   }
 
   return (
-    <Dialog open={!!target} onOpenChange={(open) => !open && onClose()}>
+    <Dialog
+      open={!!target}
+      onOpenChange={(open) => !open && !create.isPending && onClose()}
+    >
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>
@@ -74,7 +77,11 @@ export function QuickCreateDialog({
           placeholder="Task title"
         />
         <DialogFooter>
-          <Button onClick={submit} disabled={!title.trim() || create.isPending}>
+          <Button
+            loading={create.isPending}
+            onClick={submit}
+            disabled={!title.trim() || create.isPending}
+          >
             Create
           </Button>
         </DialogFooter>

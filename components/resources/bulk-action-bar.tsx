@@ -43,7 +43,14 @@ export function BulkActionBar({
                 projectId: id,
               })
           }}
-          render={<Button size="sm" variant="ghost" />}
+          render={
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={bulk.isPending}
+              loading={bulk.isPending && bulk.variables?.action === "link"}
+            />
+          }
         >
           <FolderPlusIcon />
           Add to project
@@ -51,6 +58,8 @@ export function BulkActionBar({
 
         {currentProjectId ? (
           <Button
+            disabled={bulk.isPending}
+            loading={bulk.isPending && bulk.variables?.action === "unlink"}
             size="sm"
             variant="ghost"
             onClick={() =>
@@ -67,6 +76,12 @@ export function BulkActionBar({
         ) : null}
 
         <Button
+          disabled={bulk.isPending}
+          loading={
+            bulk.isPending &&
+            bulk.variables?.action === "favorite" &&
+            bulk.variables.value === true
+          }
           size="sm"
           variant="ghost"
           onClick={() =>
@@ -81,6 +96,12 @@ export function BulkActionBar({
           Favorite
         </Button>
         <Button
+          disabled={bulk.isPending}
+          loading={
+            bulk.isPending &&
+            bulk.variables?.action === "favorite" &&
+            bulk.variables.value === false
+          }
           size="sm"
           variant="ghost"
           onClick={() =>
@@ -100,9 +121,12 @@ export function BulkActionBar({
           variant="ghost"
           className="text-destructive hover:bg-destructive/10"
           disabled={bulk.isPending}
+          loading={bulk.isPending && bulk.variables?.action === "delete"}
           onClick={() => {
-            bulk.mutate({ action: "delete", resourceIds: selectedIds })
-            onClear()
+            bulk.mutate(
+              { action: "delete", resourceIds: selectedIds },
+              { onSuccess: onClear }
+            )
           }}
         >
           <Trash2Icon />
@@ -113,6 +137,7 @@ export function BulkActionBar({
           size="icon-sm"
           variant="ghost"
           aria-label="Clear selection"
+          disabled={bulk.isPending}
           onClick={onClear}
         >
           <XIcon />

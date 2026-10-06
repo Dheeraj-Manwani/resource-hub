@@ -136,7 +136,7 @@ export function DeleteProjectDialog({
               <Button
                 variant="destructive"
                 disabled={pending}
-                aria-busy={pending}
+                loading={pending}
                 onClick={() => void confirm()}
               >
                 Delete

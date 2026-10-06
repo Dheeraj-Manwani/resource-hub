@@ -18,7 +18,7 @@ import {
   ListOrderedIcon,
   TypeIcon,
 } from "lucide-react"
-import { useEffect, useId, useRef, useSyncExternalStore } from "react"
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react"
 import { useSyncController } from "@/components/sync-provider"
 import { toast } from "react-hot-toast"
 
@@ -384,16 +384,18 @@ export default function NoteEditor({
     onLinkPreviewRef.current = onLinkPreview
   })
 
+  const [retrying, setRetrying] = useState(false)
   const saveDraft = (key: string) => {
     const save = callbacks.current.get(key)
     if (!save) return
-    void sync.drafts
+    const saving = sync.drafts
       .save(key, (doc, text) => Promise.resolve(save(doc, text)))
       .then(() => {
         if (sync.drafts.get(key)?.phase === "saved") sync.resolveDraft(key)
       })
       .catch(() => {}) // Hooks and the recoverable draft status explain errors.
     sync.finish(`autosave:${key}`)
+    return saving
   }
   const saveDraftRef = useRef(saveDraft)
   useEffect(() => {
@@ -569,25 +571,32 @@ export default function NoteEditor({
             : "border border-border bg-surface focus-within:border-border-strong")
       )}
     >
-      {draftKey && draft?.phase === "failed" ? (
+      {draftKey && (draft?.phase === "failed" || retrying) ? (
         <div
           className="flex items-center gap-2 border-b border-border px-3 py-1.5 text-xs text-text-muted"
           role="status"
           aria-live="polite"
         >
           <span>Couldn&apos;t save. Your draft is kept in this session.</span>
-          {draft.phase === "failed" ? (
+          {draft?.phase === "failed" || retrying ? (
             <>
               <Button
                 size="xs"
                 variant="outline"
-                onClick={() => saveDraft(draftKey)}
+                loading={retrying}
+                onClick={() => {
+                  setRetrying(true)
+                  void Promise.resolve(saveDraft(draftKey)).finally(() =>
+                    setRetrying(false)
+                  )
+                }}
               >
                 Retry save
               </Button>
               <Button
                 size="xs"
                 variant="ghost"
+                disabled={retrying}
                 onClick={() => {
                   sync.drafts.discard(draftKey)
                   sync.resolveDraft(draftKey)

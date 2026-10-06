@@ -1,8 +1,15 @@
 "use client"
 
-import { CheckIcon, FolderIcon, InboxIcon, PlusIcon, SearchIcon } from "lucide-react"
+import {
+  CheckIcon,
+  FolderIcon,
+  InboxIcon,
+  PlusIcon,
+  SearchIcon,
+} from "lucide-react"
 import { useMemo, useState } from "react"
 
+import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import {
@@ -72,8 +79,9 @@ function QuickCreate({
   const create = useCreateProject()
   if (!query.trim()) return null
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      loading={create.isPending}
       disabled={create.isPending}
       onClick={() =>
         create.mutate(
@@ -85,7 +93,7 @@ function QuickCreate({
     >
       <PlusIcon className="size-3.5 shrink-0" />
       <span className="truncate">Create &quot;{query.trim()}&quot;</span>
-    </button>
+    </Button>
   )
 }
 
@@ -209,9 +217,7 @@ export function ProjectMultiPicker({
   )
 
   function toggle(id: string) {
-    onChange(
-      selected.has(id) ? value.filter((v) => v !== id) : [...value, id]
-    )
+    onChange(selected.has(id) ? value.filter((v) => v !== id) : [...value, id])
   }
 
   return (
@@ -236,7 +242,13 @@ export function ProjectMultiPicker({
               <span className="min-w-0 flex-1 truncate">{o.name}</span>
             </label>
           ))}
-          <QuickCreate query={query} onCreated={(id) => { toggle(id); setQuery("") }} />
+          <QuickCreate
+            query={query}
+            onCreated={(id) => {
+              toggle(id)
+              setQuery("")
+            }}
+          />
           {!filtered.length && !query.trim() ? (
             <p className="flex items-center justify-center gap-1.5 px-2 py-3 text-center text-xs text-subtle">
               <InboxIcon className="size-3.5" /> No projects yet — it&apos;ll
@@ -248,4 +260,3 @@ export function ProjectMultiPicker({
     </Popover>
   )
 }
-

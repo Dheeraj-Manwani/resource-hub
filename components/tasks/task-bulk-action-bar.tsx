@@ -36,6 +36,12 @@ export function TaskBulkActionBar({
           {TASK_STATUSES.map((status) => (
             <Button
               key={status}
+              disabled={bulk.isPending}
+              loading={
+                bulk.isPending &&
+                bulk.variables?.action === "status" &&
+                bulk.variables.status === status
+              }
               size="icon-sm"
               variant="ghost"
               aria-label={TASK_STATUS_LABELS[status]}
@@ -53,6 +59,12 @@ export function TaskBulkActionBar({
           {TASK_PRIORITIES.map((priority) => (
             <Button
               key={priority}
+              disabled={bulk.isPending}
+              loading={
+                bulk.isPending &&
+                bulk.variables?.action === "priority" &&
+                bulk.variables.priority === priority
+              }
               size="icon-sm"
               variant="ghost"
               aria-label={TASK_PRIORITY_LABELS[priority]}
@@ -75,7 +87,14 @@ export function TaskBulkActionBar({
           onChange={(projectId) =>
             bulk.mutate({ action: "project", taskIds: selectedIds, projectId })
           }
-          render={<Button size="sm" variant="ghost" />}
+          render={
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={bulk.isPending}
+              loading={bulk.isPending && bulk.variables?.action === "project"}
+            />
+          }
         >
           Move to project
         </ProjectSinglePicker>
@@ -85,9 +104,12 @@ export function TaskBulkActionBar({
           variant="ghost"
           className="text-destructive hover:bg-destructive/10"
           disabled={bulk.isPending}
+          loading={bulk.isPending && bulk.variables?.action === "delete"}
           onClick={() => {
-            bulk.mutate({ action: "delete", taskIds: selectedIds })
-            onClear()
+            bulk.mutate(
+              { action: "delete", taskIds: selectedIds },
+              { onSuccess: onClear }
+            )
           }}
         >
           <Trash2Icon />
@@ -98,6 +120,7 @@ export function TaskBulkActionBar({
           size="icon-sm"
           variant="ghost"
           aria-label="Clear selection"
+          disabled={bulk.isPending}
           onClick={onClear}
         >
           <XIcon />

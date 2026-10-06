@@ -16,7 +16,6 @@ import {
   ExternalLinkIcon,
   FolderIcon,
   ImageUpIcon,
-  Loader2Icon,
   PlusIcon,
   RefreshCwIcon,
   SearchIcon,
@@ -132,18 +131,27 @@ function InlineText({
   value: string
   placeholder?: string
   multiline?: boolean
-  onSave: (value: string) => void
+  onSave: (value: string) => Promise<unknown>
   className?: string
 }) {
   const [draft, setDraft] = useState(value)
   const [prevValue, setPrevValue] = useState(value)
+  const [saving, setSaving] = useState(false)
   if (value !== prevValue) {
     setPrevValue(value)
     setDraft(value)
   }
   const dirty = draft !== value
-  const save = () => {
-    if (dirty) onSave(draft)
+  const save = async () => {
+    if (!dirty || saving) return
+    setSaving(true)
+    try {
+      await onSave(draft)
+    } catch {
+      // The mutation reports the error; keep the field available for retry.
+    } finally {
+      setSaving(false)
+    }
   }
   const cancel = () => setDraft(value)
   const onKeyDown = (
@@ -154,7 +162,7 @@ function InlineText({
       ;(e.target as HTMLElement).blur()
     }
     if (!multiline && e.key === "Enter") {
-      save()
+      void save()
       ;(e.target as HTMLElement).blur()
     }
   }
@@ -181,12 +189,12 @@ function InlineText({
           className={className}
         />
       )}
-      {dirty ? (
+      {dirty || saving ? (
         <div className="flex justify-end gap-1.5">
-          <Button size="sm" variant="ghost" onClick={cancel}>
+          <Button size="sm" variant="ghost" disabled={saving} onClick={cancel}>
             Cancel
           </Button>
-          <Button size="sm" onClick={save}>
+          <Button size="sm" loading={saving} onClick={() => void save()}>
             Save
           </Button>
         </div>
@@ -241,10 +249,10 @@ function CustomThumbnailButton({ resource }: { resource: ResourceDto }) {
       <Button
         size="sm"
         variant="outline"
-        disabled={busy}
+        loading={busy}
         onClick={() => input.current?.click()}
       >
-        {busy ? <Loader2Icon className="animate-spin" /> : <ImageUpIcon />}
+        <ImageUpIcon />
         Upload thumbnail
       </Button>
     </>
@@ -274,8 +282,10 @@ function ProjectsField({ resource }: { resource: ResourceDto }) {
               />
               {p.name}
             </Link>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              loading={unlink.isPending && unlink.variables?.projectId === p.id}
               aria-label={`Remove from ${p.name}`}
               onClick={() =>
                 unlink.mutate({ projectId: p.id, resourceIds: [resource.id] })
@@ -283,7 +293,7 @@ function ProjectsField({ resource }: { resource: ResourceDto }) {
               className="rounded-full p-0.5 text-text-muted hover:bg-white/10 hover:text-foreground"
             >
               <XIcon className="size-3" />
-            </button>
+            </Button>
           </span>
         ))}
         <ProjectSinglePicker
@@ -293,8 +303,10 @@ function ProjectsField({ resource }: { resource: ResourceDto }) {
             if (id) link.mutate({ projectId: id, resourceIds: [resource.id] })
           }}
           render={
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="xs"
+              loading={link.isPending}
               aria-label="Add to project"
               className="flex h-6 items-center gap-1 rounded-full border border-dashed border-border-strong px-2 text-xs text-subtle hover:border-brand/50 hover:text-brand"
             />
@@ -343,6 +355,7 @@ function LinkTaskPicker({
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        if (link.isPending) return
         onOpenChange(next)
         if (!next) setQuery("")
       }}
@@ -364,19 +377,27 @@ function LinkTaskPicker({
         <div className="mt-2 max-h-64 space-y-0.5 overflow-y-auto">
           {filtered.length ? (
             filtered.map((t) => (
-              <button
+              <Button
                 key={t.id}
-                type="button"
+                variant="ghost"
+                disabled={link.isPending}
+                loading={link.isPending && link.variables?.taskId === t.id}
                 onClick={() => {
-                  link.mutate({ taskId: t.id, resourceIds: [resourceId] })
-                  onOpenChange(false)
-                  setQuery("")
+                  link.mutate(
+                    { taskId: t.id, resourceIds: [resourceId] },
+                    {
+                      onSuccess: () => {
+                        onOpenChange(false)
+                        setQuery("")
+                      },
+                    }
+                  )
                 }}
                 className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-white/[0.06]"
               >
                 <StatusIcon status={t.status} className="size-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 truncate">{t.title}</span>
-              </button>
+              </Button>
             ))
           ) : (
             <p className="px-2 py-3 text-center text-xs text-subtle">
@@ -413,8 +434,10 @@ function TasksField({ resource }: { resource: ResourceDto }) {
               <StatusIcon status={t.status} className="size-3" />
               {t.title}
             </button>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              loading={unlink.isPending && unlink.variables?.taskId === t.id}
               aria-label={`Unlink ${t.title}`}
               onClick={() =>
                 unlink.mutate({ taskId: t.id, resourceIds: [resource.id] })
@@ -422,7 +445,7 @@ function TasksField({ resource }: { resource: ResourceDto }) {
               className="rounded-full p-0.5 text-text-muted hover:bg-white/10 hover:text-foreground"
             >
               <XIcon className="size-3" />
-            </button>
+            </Button>
           </span>
         ))}
         <AddMenu
@@ -469,7 +492,12 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
     value: string
   ) => {
     const next = { ...override, [key]: value.trim() || undefined }
-    save({ metadataOverride: Object.values(next).some(Boolean) ? next : null })
+    return update.mutateAsync({
+      id: resource.id,
+      patch: {
+        metadataOverride: Object.values(next).some(Boolean) ? next : null,
+      },
+    })
   }
   const canRefresh = !!resource.url && URL_TYPES.includes(resource.type)
 
@@ -490,6 +518,10 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
                       : "Add to favorites"
                   }
                   aria-pressed={resource.isFavorite}
+                  loading={
+                    update.isPending &&
+                    update.variables?.patch.isFavorite !== undefined
+                  }
                   onClick={() => save({ isFavorite: !resource.isFavorite })}
                 />
               }
@@ -512,6 +544,10 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
                       : "Mark as reviewed"
                   }
                   aria-pressed={resource.isReviewed}
+                  loading={
+                    update.isPending &&
+                    update.variables?.patch.isReviewed !== undefined
+                  }
                   onClick={() => save({ isReviewed: !resource.isReviewed })}
                 />
               }
@@ -534,6 +570,7 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
                     size="icon-sm"
                     variant="ghost"
                     aria-label="Refresh metadata"
+                    loading={refresh.isPending}
                     disabled={
                       refresh.isPending || resource.metadataStatus === "pending"
                     }
@@ -577,7 +614,7 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
                   size="icon-sm"
                   variant="ghost"
                   aria-label="Delete"
-                  disabled={remove.isPending}
+                  loading={remove.isPending}
                   className="hover:text-destructive"
                   onClick={() => {
                     remove.mutate(resource.id, { onSuccess: close })
@@ -601,7 +638,12 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
           <InlineText
             value={resource.title ?? ""}
             placeholder={displayTitle(resource)}
-            onSave={(title) => save({ title: title || null })}
+            onSave={(title) =>
+              update.mutateAsync({
+                id: resource.id,
+                patch: { title: title || null },
+              })
+            }
             className="h-auto border-transparent bg-transparent px-0 text-lg font-semibold shadow-none hover:border-border focus-visible:border-border-strong focus-visible:px-2 md:text-lg dark:bg-transparent"
           />
           {resource.metadataStatus === "failed" ? (
@@ -624,7 +666,12 @@ function DetailContent({ resource }: { resource: ResourceDto }) {
             multiline
             value={resource.notes ?? ""}
             placeholder="Why did you save this?"
-            onSave={(notes) => save({ notes: notes || null })}
+            onSave={(notes) =>
+              update.mutateAsync({
+                id: resource.id,
+                patch: { notes: notes || null },
+              })
+            }
           />
         </Field>
 

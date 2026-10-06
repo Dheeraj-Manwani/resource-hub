@@ -16,6 +16,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { GripVerticalIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import { useRef, useState } from "react"
 
+import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import {
@@ -107,15 +108,17 @@ function ChecklistRowView({
           item.done && "text-text-muted line-through"
         )}
       />
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        loading={remove.isPending}
         aria-label="Delete item"
         disabled={pending || remove.isPending}
         onClick={() => remove.mutate({ taskId, itemId: item.id })}
         className="flex size-6 shrink-0 items-center justify-center rounded text-subtle opacity-0 group-hover/item:opacity-100 hover:bg-white/10 hover:text-destructive"
       >
         <Trash2Icon className="size-3.5" />
-      </button>
+      </Button>
     </li>
   )
 }
@@ -167,7 +170,16 @@ function AddItemRow({ taskId }: { taskId: string }) {
 
   return (
     <div className="flex items-center gap-1.5 px-1">
-      <PlusIcon className="size-3.5 shrink-0 text-subtle" />
+      <Button
+        size="icon-xs"
+        variant="ghost"
+        aria-label="Add checklist item"
+        loading={add.isPending}
+        disabled={!title.trim()}
+        onClick={submit}
+      >
+        <PlusIcon className="size-3.5 shrink-0 text-subtle" />
+      </Button>
       <Input
         ref={ref}
         aria-label="Checklist item title"

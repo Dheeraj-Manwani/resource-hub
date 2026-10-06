@@ -159,6 +159,7 @@ export function AddExistingQuickNoteDialog({
             Cancel
           </Button>
           <Button
+            loading={linking}
             disabled={!selected.size || linking}
             onClick={() => void submit()}
           >

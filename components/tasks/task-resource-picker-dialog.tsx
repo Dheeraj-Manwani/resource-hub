@@ -149,6 +149,7 @@ export function TaskResourcePickerDialog({
             Cancel
           </Button>
           <Button
+            loading={link.isPending}
             disabled={!selected.size || link.isPending}
             onClick={() =>
               link.mutate(

@@ -143,6 +143,7 @@ export function AddExistingDialog({
             Cancel
           </Button>
           <Button
+            loading={link.isPending}
             disabled={!selected.size || link.isPending}
             onClick={() =>
               link.mutate(

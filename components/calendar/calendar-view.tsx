@@ -508,9 +508,9 @@ export function CalendarView({
             setPendingMove(null)
           }
         }}
-        onChoose={(scope: OccurrenceScope) => {
+        onChoose={async (scope: OccurrenceScope) => {
           if (!pendingMove) return
-          editOccurrence.mutate(
+          await editOccurrence.mutateAsync(
             {
               taskId: pendingMove.occ.taskId,
               input: {

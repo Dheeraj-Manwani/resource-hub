@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { LibraryView } from "@/components/resources/library-view"
 import { useShell } from "@/components/shell/shell-context"
@@ -199,6 +199,11 @@ export function ProjectPage({
   const { openAddResource } = useShell()
   const projectQuery = useProject(projectId)
   const { data } = projectQuery
+  const projectName = data?.project.name
+  // Follow optimistic renames (and rollbacks) without waiting for navigation.
+  useEffect(() => {
+    if (projectName) document.title = `${projectName} | RH`
+  }, [projectName])
   const { data: tree } = useProjectTree()
   const [includeDescendants, setIncludeDescendants] = useState(false)
   const [addingExisting, setAddingExisting] = useState(false)

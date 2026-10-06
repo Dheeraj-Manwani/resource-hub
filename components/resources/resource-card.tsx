@@ -176,6 +176,9 @@ export const ResourceCard = memo(function ResourceCard({
             resource.isFavorite ? "Remove from favorites" : "Add to favorites"
           }
           aria-pressed={resource.isFavorite}
+          loading={
+            update.isPending && update.variables?.patch.isFavorite !== undefined
+          }
           className="bg-black/70 backdrop-blur hover:bg-black/90"
           onClick={() =>
             update.mutate({

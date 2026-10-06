@@ -80,7 +80,7 @@ export function ConfirmDialog({
           <Button
             variant={destructive ? "destructive" : "default"}
             disabled={pending}
-            aria-busy={pending}
+            loading={pending}
             onClick={() => void confirm()}
           >
             {confirmLabel}

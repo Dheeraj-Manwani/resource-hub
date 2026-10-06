@@ -1,6 +1,5 @@
 "use client"
 
-import { Loader2Icon } from "lucide-react"
 import { useState } from "react"
 import { toast } from "react-hot-toast"
 
@@ -59,10 +58,10 @@ export function SignInButton({
     <Button
       size="lg"
       onClick={onClick}
-      disabled={pending}
+      loading={pending}
       className={cn("h-11 gap-2 text-[15px] hover:shadow-glow", className)}
     >
-      {pending ? <Loader2Icon className="animate-spin" /> : <GoogleIcon />}
+      <GoogleIcon />
       Continue with Google
     </Button>
   )

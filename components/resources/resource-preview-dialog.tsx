@@ -109,6 +109,10 @@ export function ResourcePreviewDialog({
                             : "Add to favorites"
                         }
                         aria-pressed={resource.isFavorite}
+                        loading={
+                          update.isPending &&
+                          update.variables?.patch.isFavorite !== undefined
+                        }
                         onClick={() =>
                           update.mutate({
                             id: resource.id,
@@ -138,6 +142,10 @@ export function ResourcePreviewDialog({
                             : "Mark as reviewed"
                         }
                         aria-pressed={resource.isReviewed}
+                        loading={
+                          update.isPending &&
+                          update.variables?.patch.isReviewed !== undefined
+                        }
                         onClick={() =>
                           update.mutate({
                             id: resource.id,

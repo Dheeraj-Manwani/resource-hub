@@ -48,9 +48,11 @@ function ColorSwatch({ tag }: { tag: TagWithCounts }) {
       <PopoverContent className="w-auto">
         <div className="flex items-center gap-1 p-0.5">
           {PROJECT_COLORS.map((c) => (
-            <button
+            <Button
               key={c}
-              type="button"
+              variant="ghost"
+              size="icon-xs"
+              loading={setColor.isPending && setColor.variables?.color === c}
               aria-label={`Color ${c}`}
               disabled={setColor.isPending}
               onClick={() => setColor.mutate({ id: tag.id, color: c })}
@@ -154,8 +156,12 @@ export function TagsView() {
                   <ul className="space-y-0.5">
                     {selectedTags.map((t) => (
                       <li key={t.id}>
-                        <button
-                          type="button"
+                        <Button
+                          variant="ghost"
+                          loading={
+                            mergeTags.isPending &&
+                            mergeTags.variables?.targetId === t.id
+                          }
                           disabled={mergeTags.isPending}
                           className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/[0.06]"
                           onClick={() => {
@@ -171,7 +177,7 @@ export function TagsView() {
                           }}
                         >
                           <TagIcon className="size-3.5 text-subtle" />#{t.name}
-                        </button>
+                        </Button>
                       </li>
                     ))}
                   </ul>

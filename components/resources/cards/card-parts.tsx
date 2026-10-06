@@ -9,6 +9,7 @@ import {
 import Link from "next/link"
 import { useState } from "react"
 
+import { Button } from "@/components/ui/button"
 import { useRefreshMetadata } from "@/hooks/queries/resources"
 import { formatDate } from "@/lib/format"
 import type { ProjectChipDto, ResourceDto, TagDto } from "@/lib/resources/dto"
@@ -169,14 +170,16 @@ export function MetadataStatusNote({ resource }: { resource: ResourceDto }) {
       <p className="flex items-center gap-1.5 text-xs text-amber-400/90">
         <TriangleAlertIcon className="size-3" />
         Couldn&apos;t fetch details
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
+          loading={refresh.isPending}
           onClick={() => refresh.mutate(resource.id)}
           className="ml-1 inline-flex items-center gap-1 rounded text-text-muted underline-offset-2 hover:text-foreground hover:underline"
         >
           <RefreshCwIcon className="size-3" />
           Retry
-        </button>
+        </Button>
       </p>
     )
   }
