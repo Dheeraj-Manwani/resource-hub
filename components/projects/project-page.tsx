@@ -346,45 +346,31 @@ export function ProjectPage({
                   },
                 ]}
               />
-              <button
-                type="button"
-                role="switch"
-                aria-checked={checklistData?.enabled ?? false}
-                disabled={!checklistData || checklist.mutation.isPending}
-                onClick={() =>
-                  checklist.mutation.mutate({
-                    action: "mode",
-                    enabled: !checklistData?.enabled,
-                  })
-                }
-                className="inline-flex items-center gap-2 rounded-md py-1 text-xs text-text-muted outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
-              >
-                <span
-                  aria-hidden
-                  className={cn(
-                    "flex size-4 items-center justify-center rounded-full border",
-                    checklistData?.enabled
-                      ? "border-brand"
-                      : "border-text-muted"
-                  )}
-                >
-                  {checklistData?.enabled ? (
-                    <span className="size-2 rounded-full bg-brand" />
-                  ) : null}
-                </span>
+              <label className="flex items-center gap-2 text-xs text-text-muted">
+                <Switch
+                  size="sm"
+                  checked={checklistData?.enabled ?? false}
+                  disabled={!checklistData || checklist.mutation.isPending}
+                  onCheckedChange={(enabled) =>
+                    checklist.mutation.mutate({ action: "mode", enabled })
+                  }
+                />
                 Checklist mode
-              </button>
+              </label>
               {checklistData?.enabled ? (
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="xs"
+                  aria-label="Reset checklist"
+                  title="Reset checklist"
+                  className="text-text-muted hover:text-foreground"
                   disabled={
                     checklist.mutation.isPending ||
                     !checklistData.checkedResourceIds.length
                   }
                   onClick={() => checklist.mutation.mutate({ action: "reset" })}
                 >
-                  <RotateCcwIcon /> Reset checklist
+                  <RotateCcwIcon /> Reset
                 </Button>
               ) : null}
             </div>
