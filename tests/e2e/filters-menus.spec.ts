@@ -96,8 +96,10 @@ test("filters hide without clearing results and project Add menus keep both path
     tab.getByRole("button", { name: "Child filter note", exact: true })
   ).toHaveCount(0)
   await toggle.click()
-  await expect(page.getByRole("switch")).not.toBeChecked()
-  await page.getByRole("switch").click()
+  await expect(
+    page.getByRole("switch", { name: "Include sub-projects" })
+  ).not.toBeChecked()
+  await page.getByRole("switch", { name: "Include sub-projects" }).click()
   await expect(
     tab.getByRole("button", { name: "Child filter note", exact: true })
   ).toBeVisible()
@@ -107,7 +109,7 @@ test("filters hide without clearing results and project Add menus keep both path
     tab.getByRole("button", { name: "Child filter note", exact: true })
   ).toBeVisible()
   await toggle.click()
-  await page.getByRole("switch").click()
+  await page.getByRole("switch", { name: "Include sub-projects" }).click()
   await toggle.click()
   await expect(
     tab.getByRole("button", { name: "Parent filter note", exact: true })
@@ -115,9 +117,7 @@ test("filters hide without clearing results and project Add menus keep both path
   await expect(
     tab.getByRole("button", { name: "Child filter note", exact: true })
   ).toHaveCount(0)
-  await tab
-    .getByRole("button", { name: "Resource options", exact: true })
-    .click()
+  await tab.getByRole("button", { name: "Add", exact: true }).click()
   await page
     .getByRole("menuitem", { name: "Add existing resources", exact: true })
     .click()
@@ -164,7 +164,11 @@ test("filters hide without clearing results and project Add menus keep both path
   await page.keyboard.press("Escape")
   await page.setViewportSize({ width: 390, height: 844 })
   await toggle.click()
-  await expect(page.getByRole("switch")).toBeVisible()
+  await expect(
+    page.getByRole("switch", { name: "Include sub-projects" })
+  ).toBeVisible()
   await toggle.click()
-  await expect(page.getByRole("switch")).toHaveCount(0)
+  await expect(
+    page.getByRole("switch", { name: "Include sub-projects" })
+  ).toHaveCount(0)
 })

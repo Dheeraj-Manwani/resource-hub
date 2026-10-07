@@ -25,9 +25,7 @@ test("add resources directly to a project and a populated sub-project", async ({
     await page.goto(`/projects/${projectId}`)
     const tab = page.getByRole("tabpanel")
     for (const title of titles) {
-      await tab
-        .getByRole("button", { name: "Resource options", exact: true })
-        .click()
+      await tab.getByRole("button", { name: "Add", exact: true }).click()
       await page
         .getByRole("menuitem", { name: "Add new resource", exact: true })
         .click()

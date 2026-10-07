@@ -1,6 +1,7 @@
 "use client"
 
 import { FilterPanel } from "@/components/filter-panel"
+import { AddMenu } from "@/components/add-menu"
 
 import { QueryFeedback } from "@/components/query-feedback"
 
@@ -30,7 +31,6 @@ import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuCheckboxItem,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -330,53 +330,64 @@ export function ProjectPage({
                 ? `${checklistData.checkedResourceIds.length} of ${checklistData.resourceIds.length} done`
                 : null}
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    aria-label="Resource options"
-                  />
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <AddMenu
+                size="xs"
+                items={[
+                  {
+                    label: "Add new resource",
+                    icon: <PlusIcon />,
+                    onSelect: () => openAddResource(undefined, [projectId]),
+                  },
+                  {
+                    label: "Add existing resources",
+                    icon: <ListPlusIcon />,
+                    onSelect: () => setAddingExisting(true),
+                  },
+                ]}
+              />
+              <button
+                type="button"
+                role="switch"
+                aria-checked={checklistData?.enabled ?? false}
+                disabled={!checklistData || checklist.mutation.isPending}
+                onClick={() =>
+                  checklist.mutation.mutate({
+                    action: "mode",
+                    enabled: !checklistData?.enabled,
+                  })
                 }
+                className="inline-flex items-center gap-2 rounded-md py-1 text-xs text-text-muted outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
               >
-                <MoreHorizontalIcon />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => openAddResource(undefined, [projectId])}
+                <span
+                  aria-hidden
+                  className={cn(
+                    "flex size-4 items-center justify-center rounded-full border",
+                    checklistData?.enabled
+                      ? "border-brand"
+                      : "border-text-muted"
+                  )}
                 >
-                  <PlusIcon /> Add new resource
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setAddingExisting(true)}>
-                  <ListPlusIcon /> Add existing resources
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
-                  closeOnClick
-                  checked={checklistData?.enabled ?? false}
-                  disabled={!checklistData || checklist.mutation.isPending}
-                  onCheckedChange={(enabled) =>
-                    checklist.mutation.mutate({ action: "mode", enabled })
+                  {checklistData?.enabled ? (
+                    <span className="size-2 rounded-full bg-brand" />
+                  ) : null}
+                </span>
+                Checklist mode
+              </button>
+              {checklistData?.enabled ? (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  disabled={
+                    checklist.mutation.isPending ||
+                    !checklistData.checkedResourceIds.length
                   }
+                  onClick={() => checklist.mutation.mutate({ action: "reset" })}
                 >
-                  Checklist mode
-                </DropdownMenuCheckboxItem>
-                {checklistData?.enabled ? (
-                  <DropdownMenuItem
-                    disabled={
-                      checklist.mutation.isPending ||
-                      !checklistData.checkedResourceIds.length
-                    }
-                    onClick={() =>
-                      checklist.mutation.mutate({ action: "reset" })
-                    }
-                  >
-                    <RotateCcwIcon /> Reset checklist
-                  </DropdownMenuItem>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <RotateCcwIcon /> Reset checklist
+                </Button>
+              ) : null}
+            </div>
           </div>
           <QueryFeedback
             query={checklist.query}

@@ -37,19 +37,30 @@ test("project resource checklist persists, hides, and resets repeatedly without 
   expect(rejected.status()).toBe(404)
 
   await page.goto(`/projects/${project.id}`)
-  const menu = page.getByRole("button", {
-    name: "Resource options",
-    exact: true,
-  })
-  await menu.click()
+  const mode = page.getByRole("switch", { name: "Checklist mode", exact: true })
+  await expect(
+    page.getByRole("button", { name: "Reset checklist" })
+  ).toHaveCount(0)
+  await page
+    .getByRole("tabpanel")
+    .getByRole("button", { name: "Add", exact: true })
+    .click()
+  await expect(page.getByRole("menuitem")).toHaveCount(2)
+  await expect(
+    page.getByRole("menuitem", { name: "Add new resource" })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("menuitem", { name: "Add existing resources" })
+  ).toBeVisible()
+  await page.keyboard.press("Escape")
   await write(page, "PATCH", `/projects/${project.id}/checklist`, () =>
-    page.getByRole("menuitemcheckbox", { name: "Checklist mode" }).click()
+    mode.click()
   )
   const checkbox = () =>
     page.getByRole("checkbox", { name: /Mark Portal one as/ })
   await expect(checkbox()).not.toBeChecked()
   await write(page, "PATCH", `/projects/${project.id}/checklist`, () =>
-    checkbox().check()
+    checkbox().click()
   )
   await expect(
     page.getByRole("status").filter({ hasText: "1 of 1 done" })
@@ -58,18 +69,17 @@ test("project resource checklist persists, hides, and resets repeatedly without 
   await expect(checkbox()).toBeChecked()
 
   // Mode changes preserve progress, independently of the current view.
-  await menu.click()
   await write(page, "PATCH", `/projects/${project.id}/checklist`, () =>
-    page.getByRole("menuitemcheckbox", { name: "Checklist mode" }).click()
+    mode.click()
   )
   await expect(checkbox()).toHaveCount(0)
-  await page.reload()
-  await menu.click()
   await expect(
-    page.getByRole("menuitemcheckbox", { name: "Checklist mode" })
-  ).not.toBeChecked()
+    page.getByRole("button", { name: "Reset checklist" })
+  ).toHaveCount(0)
+  await page.reload()
+  await expect(mode).not.toBeChecked()
   await write(page, "PATCH", `/projects/${project.id}/checklist`, () =>
-    page.getByRole("menuitemcheckbox", { name: "Checklist mode" }).click()
+    mode.click()
   )
   await expect(checkbox()).toBeChecked()
 
@@ -79,13 +89,13 @@ test("project resource checklist persists, hides, and resets repeatedly without 
   await expect(checkbox()).toBeChecked()
 
   for (let pass = 0; pass < 2; pass++) {
-    await menu.click()
     await write(page, "PATCH", `/projects/${project.id}/checklist`, () =>
-      page.getByRole("menuitem", { name: "Reset checklist" }).click()
+      page.getByRole("button", { name: "Reset checklist" }).click()
     )
     await expect(checkbox()).not.toBeChecked()
+    await expect(checkbox()).toBeEnabled()
     await write(page, "PATCH", `/projects/${project.id}/checklist`, () =>
-      checkbox().check()
+      checkbox().click()
     )
     await expect(checkbox()).toBeChecked()
   }
