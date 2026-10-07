@@ -97,9 +97,9 @@ export function AddExistingQuickNoteDialog({
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add existing notes</DialogTitle>
+          <DialogTitle>Add existing docs</DialogTitle>
           <DialogDescription>
-            Link quick notes you already wrote into this project.
+            Link existing text docs and spreadsheets to this project.
           </DialogDescription>
         </DialogHeader>
 
@@ -115,7 +115,7 @@ export function AddExistingQuickNoteDialog({
         </div>
 
         <div className="max-h-80 space-y-1 overflow-y-auto rounded-lg border border-border p-1.5">
-          <QueryFeedback query={notesQuery} label="notes" loading={false} />
+          <QueryFeedback query={notesQuery} label="docs" loading={false} />
           {isPending ? (
             <div className="flex justify-center py-8">
               <Loader2Icon className="size-5 animate-spin text-subtle" />
@@ -150,7 +150,7 @@ export function AddExistingQuickNoteDialog({
 
         {failed ? (
           <p role="alert" className="text-sm text-destructive">
-            Some notes could not be linked. Failed selections are kept; try
+            Some docs could not be linked. Failed selections are kept; try
             again.
           </p>
         ) : null}

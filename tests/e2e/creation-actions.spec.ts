@@ -13,7 +13,7 @@ test("creation buttons remain available across screens and open their modals", a
     ["/resources", "Add resource", "Add resource"],
     ["/tasks", "Add task", "New task"],
     ["/calendar", "Add task", "New task"],
-    ["/quick-notes", "New note", "New quick note"],
+    ["/quick-notes", "New doc", "New doc"],
     ["/search", "New project", "New project"],
     ["/tags", "New tag", "New tag"],
   ]) {
@@ -98,9 +98,12 @@ test("project creation defaults work on desktop, mobile and resource details", a
   expect((await mobileTask.json()).projectId).toBe(project.id)
   await expect(dialog).toHaveCount(0)
   await page.setViewportSize({ width: 1440, height: 900 })
-  await addMenu(page, "New quick note")
+  await addMenu(page, "New doc")
+  await page
+    .getByRole("button", { name: "Text — write freely, add images and links" })
+    .click()
   const noteDialog = page.getByRole("dialog", {
-    name: "New quick note",
+    name: "New doc",
     exact: true,
   })
   await noteDialog

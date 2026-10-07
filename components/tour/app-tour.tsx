@@ -50,8 +50,8 @@ const STEPS: Step[] = [
   },
   {
     target: "tour-nav-quick-notes",
-    title: "Quick Notes",
-    body: "A scratchpad for loose ideas — jot things down now, shape them into a resource or task later.",
+    title: "Docs",
+    body: "Keep text docs and editable spreadsheets together. Start a job tracker, import Excel files, or write down ideas.",
     inSidebar: true,
   },
   {

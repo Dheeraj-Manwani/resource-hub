@@ -359,7 +359,7 @@ export default function NoteEditor({
    * to read right before an explicit Save action. */
   debounceMs?: number
   /** Swaps the bordered-card look for a sunken background instead, for a
-   * host (the Quick Notes modal) that already provides its own chrome but
+   * host (the Docs modal) that already provides its own chrome but
    * still wants the editable area visually set apart from it. */
   bare?: boolean
 }) {

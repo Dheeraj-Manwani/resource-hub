@@ -319,9 +319,14 @@ test("real account: projects, resources, tasks, notes, tags, associations and tr
 
   await test.step("Add, edit and delete a rich-text quick note", async () => {
     await page.goto("/quick-notes")
-    await addMenu(page, "New quick note")
+    await addMenu(page, "New doc")
+    await page
+      .getByRole("button", {
+        name: "Text — write freely, add images and links",
+      })
+      .click()
     const dialog = page.getByRole("dialog", {
-      name: "New quick note",
+      name: "New doc",
       exact: true,
     })
     await dialog
@@ -338,7 +343,7 @@ test("real account: projects, resources, tasks, notes, tags, associations and tr
       .getByRole("heading", { name: "E2E quick note", exact: true })
       .click()
     const edit = page.getByRole("dialog", {
-      name: "Edit quick note",
+      name: "Edit text doc",
       exact: true,
     })
     await edit
@@ -360,7 +365,9 @@ test("real account: projects, resources, tasks, notes, tags, associations and tr
       page.getByText("Edited rich-text content.", { exact: true })
     ).toBeVisible()
     await page.getByRole("button", { name: /E2E quick note edited/ }).hover()
-    await page.getByRole("button", { name: "Delete note", exact: true }).click()
+    await page
+      .getByRole("button", { name: "Move doc to Trash", exact: true })
+      .click()
     await write(page, "DELETE", `/quick-notes/${id}`, () =>
       page
         .getByRole("dialog")

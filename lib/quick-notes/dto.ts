@@ -12,6 +12,8 @@ export type QuickNoteDto = {
   projectId: string | null
   project: QuickNoteProjectDto | null
   title: string | null
+  kind: "text" | "spreadsheet"
+  revision: number
   bodyJson: unknown
   bodyText: string | null
   createdAt: string
@@ -27,6 +29,8 @@ export function toQuickNoteDto(
     projectId: row.projectId,
     project: row.projectId ? project : null,
     title: row.title,
+    kind: row.kind,
+    revision: row.revision,
     bodyJson: row.bodyJson,
     bodyText: row.bodyText,
     createdAt: row.createdAt.toISOString(),

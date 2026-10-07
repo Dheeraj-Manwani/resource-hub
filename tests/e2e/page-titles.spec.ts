@@ -22,7 +22,7 @@ test("public and app pages use descriptive RH tab titles", async ({
     ["/resources", "Resources"],
     ["/tasks", "Tasks"],
     ["/calendar", "Calendar"],
-    ["/quick-notes", "Quick Notes"],
+    ["/docs", "Docs"],
     ["/tags", "Tags"],
     ["/search", "Search"],
     ["/settings", "Settings"],

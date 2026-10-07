@@ -93,7 +93,7 @@ export function TopBar() {
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openAddQuickNote()}>
               <NotebookPenIcon />
-              New quick note
+              New doc
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

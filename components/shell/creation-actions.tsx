@@ -54,7 +54,7 @@ export function CreationActions() {
           onSelect: () => openAddProject(),
         },
         {
-          label: "New quick note",
+          label: "New doc",
           icon: <NotebookPenIcon />,
           onSelect: () => openAddQuickNote(),
         },

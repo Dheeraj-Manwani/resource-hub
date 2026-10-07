@@ -67,13 +67,13 @@ const operations = {
   },
   "project.move-resources": { label: "Moving resources", entity: "resource" },
   "project.bulk-resources": { label: "Updating resources", entity: "resource" },
-  "quick-note.create": { label: "Creating note", entity: "quick-note" },
+  "quick-note.create": { label: "Creating doc", entity: "quick-note" },
   "quick-note.update": {
-    label: "Saving note",
+    label: "Saving doc",
     entity: "quick-note",
     safeRetry: true,
   },
-  "quick-note.delete": { label: "Deleting note", entity: "quick-note" },
+  "quick-note.delete": { label: "Moving doc to Trash", entity: "quick-note" },
   "reminder.add": { label: "Adding reminder", entity: "task" },
   "reminder.delete": { label: "Removing reminder", entity: "task" },
   "reminder.dismiss": { label: "Dismissing reminder", entity: "reminder" },
@@ -153,7 +153,7 @@ export function describeMutation(meta: SyncMutationMeta, variables: unknown) {
             ? `/projects/${id}`
             : "/overview"
           : entity === "quick-note"
-            ? "/quick-notes"
+            ? "/docs"
             : entity === "tag"
               ? "/tags"
               : entity === "reminder"

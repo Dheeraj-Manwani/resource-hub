@@ -48,6 +48,9 @@ export const quickNoteKeys = {
 }
 
 type QuickNoteInput = {
+  clientId?: string
+  kind?: "text" | "spreadsheet"
+  expectedRevision?: number
   projectId?: string | null
   title?: string | null
   bodyJson?: unknown
@@ -91,7 +94,7 @@ export function useCreateQuickNote() {
       )
       invalidateFilteredLists(qc)
     },
-    onError: (error) => toast.error(`Couldn't create note: ${error.message}`),
+    onError: (error) => toast.error(`Couldn't create doc: ${error.message}`),
   })
 }
 
@@ -137,7 +140,7 @@ export function useUpdateQuickNote() {
       quickNoteCache.settle(qc, id, context?.token, note),
     onError: (error, { id }, context) => {
       quickNoteCache.settle(qc, id, context?.token)
-      toast.error(`Couldn't save note: ${error.message}`)
+      toast.error(`Couldn't save doc: ${error.message}`)
     },
     onSettled: () => invalidateFilteredLists(qc),
   })
@@ -154,7 +157,7 @@ export function useDeleteQuickNote() {
         d ? { items: d.items.filter((n) => n.id !== id) } : d
       )
       invalidateFilteredLists(qc)
-      toast.success("Note deleted")
+      toast.success("Doc moved to Trash")
     },
     onError: (error) => toast.error(`Couldn't delete: ${error.message}`),
   })
@@ -185,7 +188,7 @@ export async function uploadQuickNoteImage(
       label: "Uploading note image",
       source: "upload",
       entityKeys: ["quick-note:all"],
-      href: "/quick-notes",
+      href: "/docs",
     },
     async (saved) => {
       const start = await api<StartImageResponse>(

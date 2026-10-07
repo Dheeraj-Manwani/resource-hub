@@ -152,7 +152,7 @@ export function CommandPalette() {
               </PaletteItem>
               <PaletteItem onSelect={() => go(() => openAddQuickNote())}>
                 <NotebookPenIcon className="size-4 text-brand" />
-                New quick note
+                New doc
               </PaletteItem>
             </Command.Group>
             <Command.Group

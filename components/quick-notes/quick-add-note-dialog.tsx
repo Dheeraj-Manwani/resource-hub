@@ -23,8 +23,8 @@ const EMPTY_DRAFT: QuickNoteDraft = {
   bodyText: null,
 }
 
-/** Shell-level "New quick note" dialog, opened from the top bar's Add
- * menu — the Quick Notes page itself still owns editing existing notes. */
+/** Shell-level "New doc" dialog, opened from the top bar's Add
+ * menu — the Docs page itself still owns editing existing notes. */
 export function QuickAddNoteDialog() {
   const { addQuickNote, quickNoteProjectId, closeAddQuickNote } = useShell()
   const createNote = useCreateQuickNote()
@@ -45,13 +45,15 @@ export function QuickAddNoteDialog() {
       onSave={(next, opts: SaveOpts) => {
         const payload = {
           projectId: next.projectId,
+          kind: next.kind,
+          expectedRevision: next.revision,
           title: next.title || null,
           bodyJson: next.bodyJson,
           bodyText: next.bodyText,
         }
-        const onSuccess = (note: { id: string }) => {
-          const currentSaved = opts.onSaved(note.id)
-          toast.success("Note saved")
+        const onSuccess = (note: { id: string; revision: number }) => {
+          const currentSaved = opts.onSaved(note.id, note.revision)
+          toast.success("Doc saved")
           if (currentSaved && !opts.keepOpen) closeAddQuickNote()
         }
         // Ctrl/Cmd+S may have already created this note on an earlier

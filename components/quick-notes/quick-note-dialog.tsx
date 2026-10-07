@@ -27,6 +27,8 @@ import {
   uploadQuickNoteImage,
 } from "@/hooks/queries/quick-notes"
 import type { QuickNoteProjectDto } from "@/lib/quick-notes/dto"
+import { createWorkbook } from "@/lib/docs/workbook"
+import { SpreadsheetDialog } from "@/components/docs/spreadsheet-dialog"
 
 const NoteEditor = dynamic(
   () => import("@/components/resources/full-view/note-editor"),
@@ -34,6 +36,8 @@ const NoteEditor = dynamic(
 )
 
 export type QuickNoteDraft = {
+  kind?: "text" | "spreadsheet"
+  revision?: number
   id: string | null
   projectId: string | null
   project?: QuickNoteProjectDto | null
@@ -57,7 +61,7 @@ export type SaveOpts = {
   /** The caller reports the id the backend assigned (or kept) for this
    * save, so a later save in the same session updates that note instead
    * of creating another one. */
-  onSaved: (id: string) => boolean
+  onSaved: (id: string, revision?: number) => boolean
 }
 
 function isDirty(baseline: LiveDraft, live: LiveDraft) {
@@ -139,7 +143,7 @@ function DialogBody({
       <DialogHeader className="shrink-0 flex-row items-center gap-2 border-b border-border py-4 pr-4 pl-6">
         <div className="flex min-w-0 flex-1 flex-col gap-0">
           <DialogTitle className="sr-only">
-            {draft.id ? "Edit quick note" : "New quick note"}
+            {draft.id ? "Edit text doc" : "New doc"}
           </DialogTitle>
           <DialogDescription className="sr-only">
             An optional title and a rich-text body you can paste images and
@@ -231,7 +235,7 @@ function DialogBody({
  * Closing it any other way (Cancel, Esc, backdrop click, the × button, or
  * even closing the browser tab) is guarded: with unsaved changes, it asks
  * whether to save or discard them instead of silently losing them. */
-export function QuickNoteDialog({
+function TextNoteDialog({
   draft,
   onOpenChange,
   onSave,
@@ -254,6 +258,7 @@ export function QuickNoteDialog({
   // so a later save in the same session updates it instead of creating a
   // second one.
   const savedId = useRef<string | null>(draft?.id ?? null)
+  const savedRevision = useRef<number | undefined>(draft?.revision)
   // What the dirty check compares against — the last-persisted content.
   // Re-seeded from `draft` on open, and advanced to the just-saved snapshot
   // after every successful save (including a keep-open Ctrl/Cmd+S), so
@@ -270,6 +275,7 @@ export function QuickNoteDialog({
   // is opened, so the dirty check always compares against the right note.
   useEffect(() => {
     savedId.current = draft?.id ?? null
+    savedRevision.current = draft?.revision
     live.current = draft
       ? {
           projectId: draft.projectId,
@@ -324,12 +330,18 @@ export function QuickNoteDialog({
     if (!draft || saving) return
     const snapshot: LiveDraft = { ...live.current }
     onSave(
-      { id: savedId.current, ...snapshot },
+      {
+        id: savedId.current,
+        kind: "text",
+        revision: savedRevision.current,
+        ...snapshot,
+      },
       {
         keepOpen,
-        onSaved: (id) => {
+        onSaved: (id, revision) => {
           setConfirmOpen(false)
           savedId.current = id
+          savedRevision.current = revision
           baseline.current = snapshot
           return !isDirty(snapshot, live.current)
         },
@@ -374,4 +386,77 @@ export function QuickNoteDialog({
       />
     </>
   )
+}
+
+type DocDialogProps = {
+  draft: QuickNoteDraft | null
+  onOpenChange: (open: boolean) => void
+  onSave: (next: QuickNoteDraft, opts: SaveOpts) => void
+  saving: boolean
+}
+
+/** Keep the existing text editor; choose a type only when creating a doc. */
+export function QuickNoteDialog(props: DocDialogProps) {
+  if (!props.draft) return null
+  return (
+    <DocSession key={props.draft.id ?? "new"} {...props} draft={props.draft} />
+  )
+}
+
+function DocSession(props: DocDialogProps & { draft: QuickNoteDraft }) {
+  const [selected, setSelected] = useState<QuickNoteDraft | null>(() =>
+    props.draft.kind || props.draft.id ? props.draft : null
+  )
+  if (!selected)
+    return (
+      <Dialog open onOpenChange={props.onOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>New doc</DialogTitle>
+            <DialogDescription>
+              Choose a text doc or an editable spreadsheet.
+            </DialogDescription>
+          </DialogHeader>
+          <Button
+            variant="outline"
+            onClick={() => setSelected({ ...props.draft, kind: "text" })}
+          >
+            Text — write freely, add images and links
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() =>
+              setSelected({
+                ...props.draft,
+                kind: "spreadsheet",
+                bodyJson: createWorkbook(),
+              })
+            }
+          >
+            Spreadsheet — start with a blank sheet
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() =>
+              setSelected({
+                ...props.draft,
+                kind: "spreadsheet",
+                title: "Job tracker",
+                bodyJson: createWorkbook(true),
+              })
+            }
+          >
+            Job tracker — start with application columns
+          </Button>
+        </DialogContent>
+      </Dialog>
+    )
+  if (selected.kind === "spreadsheet")
+    return (
+      <SpreadsheetDialog
+        draft={selected}
+        onClose={() => props.onOpenChange(false)}
+      />
+    )
+  return <TextNoteDialog {...props} draft={selected} />
 }

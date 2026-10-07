@@ -135,17 +135,18 @@ test("filters hide without clearing results and project Add menus keep both path
     tab.getByRole("button", { name: "Existing filter note", exact: true })
   ).toBeVisible()
 
-  await page.getByRole("tab", { name: /^Notes/ }).click()
-  await expect(page.getByRole("tab", { name: /^Notes/ })).toHaveAttribute(
+  await page.getByRole("tab", { name: /^Docs/ }).click()
+  await expect(page.getByRole("tab", { name: /^Docs/ })).toHaveAttribute(
     "aria-selected",
     "true"
   )
   await tab.getByRole("button", { name: "Add", exact: true }).click()
+  await page.getByRole("menuitem", { name: "Add new doc", exact: true }).click()
   await page
-    .getByRole("menuitem", { name: "Add new note", exact: true })
+    .getByRole("button", { name: "Text — write freely, add images and links" })
     .click()
   const newNote = page.getByRole("dialog", {
-    name: "New quick note",
+    name: "New doc",
     exact: true,
   })
   await newNote.getByPlaceholder("Untitled", { exact: true }).fill("Menu note")
@@ -156,10 +157,10 @@ test("filters hide without clearing results and project Add menus keep both path
   await expect(newNote).toHaveCount(0)
   await tab.getByRole("button", { name: "Add", exact: true }).click()
   await page
-    .getByRole("menuitem", { name: "Add existing notes", exact: true })
+    .getByRole("menuitem", { name: "Add existing docs", exact: true })
     .click()
   await expect(
-    page.getByRole("dialog", { name: "Add existing notes", exact: true })
+    page.getByRole("dialog", { name: "Add existing docs", exact: true })
   ).toBeVisible()
   await page.keyboard.press("Escape")
   await page.setViewportSize({ width: 390, height: 844 })

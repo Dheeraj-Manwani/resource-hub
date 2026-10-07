@@ -7,10 +7,12 @@ import { getProjectTree } from "./projects"
 import { listResources } from "./resources"
 import { listTagsWithCounts } from "./tags"
 import { listTasks } from "./tasks"
+import { listQuickNotes } from "./quick-notes"
 
 export type ExportDocument = {
   exportedAt: string
   version: 1
+  docs: Awaited<ReturnType<typeof listQuickNotes>>
   projects: Awaited<ReturnType<typeof getProjectTree>>
   resources: ResourceDto[]
   tasks: TaskDto[]
@@ -58,6 +60,7 @@ export async function buildExport(userId: string): Promise<ExportDocument> {
   return {
     exportedAt: new Date().toISOString(),
     version: 1,
+    docs: await listQuickNotes(userId),
     projects,
     resources,
     tasks,

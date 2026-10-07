@@ -64,6 +64,13 @@
       "when": 1791345760294,
       "tag": "0008_elite_sersi",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791363857454,
+      "tag": "0009_new_sue_storm",
+      "breakpoints": true
     }
   ]
 }

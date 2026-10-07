@@ -1,6 +1,6 @@
 "use client"
 
-import { FolderIcon, Trash2Icon } from "lucide-react"
+import { FolderIcon, Trash2Icon, FileTextIcon, SheetIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { formatRelative } from "@/lib/format"
@@ -34,7 +34,7 @@ export function QuickNoteCard({
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label="Delete note"
+        aria-label="Move doc to Trash"
         onClick={(e) => {
           e.stopPropagation()
           onDelete()
@@ -50,14 +50,20 @@ export function QuickNoteCard({
           !note.title && "text-subtle"
         )}
       >
+        {note.kind === "spreadsheet" ? (
+          <SheetIcon className="mr-1 inline size-4" />
+        ) : (
+          <FileTextIcon className="mr-1 inline size-4" />
+        )}
         {note.title || "Untitled"}
       </h3>
 
       <p className="mt-1.5 flex-1 overflow-hidden text-sm whitespace-pre-line text-text-muted">
-        {preview || <span className="text-subtle italic">Empty note</span>}
+        {preview || <span className="text-subtle italic">Empty doc</span>}
       </p>
 
       <div className="mt-2 flex items-center gap-1.5 text-xs text-subtle">
+        <span>{note.kind === "spreadsheet" ? "Spreadsheet" : "Text"} ·</span>
         <span>{formatRelative(note.updatedAt)}</span>
         {!hideProject && note.project ? (
           <span className="flex min-w-0 items-center gap-1 truncate rounded-full bg-white/[0.06] px-1.5 py-0.5">

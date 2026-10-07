@@ -32,7 +32,7 @@ import { AddExistingQuickNoteDialog } from "./add-existing-quick-note-dialog"
 
 /** Project page's "Notes" tab: quick notes linked to this project (and its
  * sub-projects when "Include sub-projects" is on), with the same card grid
- * as the standalone Quick Notes page. */
+ * as the standalone Docs page. */
 export function ProjectQuickNotesTab({
   projectId,
   includeDescendants,
@@ -67,6 +67,8 @@ export function ProjectQuickNotesTab({
   function openExisting(note: QuickNoteDto) {
     setDraft({
       id: note.id,
+      kind: note.kind,
+      revision: note.revision,
       projectId: note.projectId,
       project: note.project,
       title: note.title ?? "",
@@ -78,13 +80,15 @@ export function ProjectQuickNotesTab({
   function handleSave(next: QuickNoteDraft, opts: SaveOpts) {
     const payload = {
       projectId: next.projectId,
+      kind: next.kind,
+      expectedRevision: next.revision,
       title: next.title || null,
       bodyJson: next.bodyJson,
       bodyText: next.bodyText,
     }
     const onSuccess = (note: QuickNoteDto) => {
-      const currentSaved = opts.onSaved(note.id)
-      toast.success("Note saved")
+      const currentSaved = opts.onSaved(note.id, note.revision)
+      toast.success("Doc saved")
       if (currentSaved && !opts.keepOpen) setDraft(null)
     }
     if (next.id) {
@@ -100,9 +104,9 @@ export function ProjectQuickNotesTab({
         <AddMenu
           size="xs"
           items={[
-            { label: "Add new note", icon: <PlusIcon />, onSelect: openNew },
+            { label: "Add new doc", icon: <PlusIcon />, onSelect: openNew },
             {
-              label: "Add existing notes",
+              label: "Add existing docs",
               icon: <ListPlusIcon />,
               onSelect: () => setAddingExisting(true),
             },
@@ -124,12 +128,12 @@ export function ProjectQuickNotesTab({
       ) : notesQuery.isError && !notesQuery.data ? null : notes.length === 0 ? (
         <EmptyState
           icon={NotebookPenIcon}
-          title="No quick notes linked"
-          description="Jot a new note scoped to this project, or link one you already wrote."
+          title="No docs linked"
+          description="Create a text doc or spreadsheet, or link an existing doc."
         >
           <Button size="sm" onClick={openNew}>
             <PlusIcon />
-            New note
+            New doc
           </Button>
         </EmptyState>
       ) : (
@@ -163,7 +167,7 @@ export function ProjectQuickNotesTab({
         open={!!deleting}
         onOpenChange={(open) => !open && setDeleting(null)}
         title={`Delete "${deleting?.title || "Untitled"}"?`}
-        description="This note is permanently deleted. This can't be undone."
+        description="This doc will move to Docs Trash. You can restore it later."
         confirmLabel="Delete"
         onConfirm={async () => {
           if (!deleting) return

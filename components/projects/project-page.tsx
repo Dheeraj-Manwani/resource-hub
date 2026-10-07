@@ -318,7 +318,7 @@ export function ProjectPage({
             <TabCount value={subProjectCount} active={tab === "subprojects"} />
           </TabsTrigger>
           <TabsTrigger value="notes">
-            Notes
+            Docs
             <TabCount value={notes?.length} active={tab === "notes"} />
           </TabsTrigger>
         </TabsList>

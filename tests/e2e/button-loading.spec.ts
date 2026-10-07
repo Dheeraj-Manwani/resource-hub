@@ -133,11 +133,14 @@ test("create buttons show loading, preserve dialogs and allow retry after errors
   await page.goto("/quick-notes")
   await page
     .locator("main")
-    .getByRole("button", { name: "New note", exact: true })
+    .getByRole("button", { name: "New doc", exact: true })
     .first()
     .click()
+  await page
+    .getByRole("button", { name: "Text — write freely, add images and links" })
+    .click()
   const noteDialog = page.getByRole("dialog", {
-    name: "New quick note",
+    name: "New doc",
     exact: true,
   })
   await noteDialog
