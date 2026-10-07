@@ -25,58 +25,60 @@ export function SidebarContent({
     pathname === href || pathname.startsWith(`${href}/`)
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex h-14 items-center px-4">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="flex h-14 shrink-0 items-center px-4">
         <Link href="/overview" onClick={onNavigate} className="rounded-md">
           <Logo />
         </Link>
       </div>
 
-      <nav aria-label="Main" className="px-2 pt-2">
-        <ul className="flex flex-col gap-0.5">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const active = isActive(href)
-            return (
-              <li key={href}>
-                <Link
-                  href={href}
-                  onClick={onNavigate}
-                  aria-current={active ? "page" : undefined}
-                  data-tour={`tour-nav-${href.slice(1)}`}
-                  className={cn(
-                    "group relative flex h-9 items-center gap-3 rounded-lg px-3 text-sm text-text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground",
-                    active &&
-                      "bg-brand-soft text-foreground hover:bg-brand-soft"
-                  )}
-                >
-                  {active ? (
-                    <span
-                      aria-hidden
-                      className="absolute top-2 bottom-2 left-0 w-0.5 rounded-full bg-brand"
-                    />
-                  ) : null}
-                  <Icon
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <nav aria-label="Main" className="px-2 pt-2">
+          <ul className="flex flex-col gap-0.5">
+            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+              const active = isActive(href)
+              return (
+                <li key={href}>
+                  <Link
+                    href={href}
+                    onClick={onNavigate}
+                    aria-current={active ? "page" : undefined}
+                    data-tour={`tour-nav-${href.slice(1)}`}
                     className={cn(
-                      "size-4",
-                      active
-                        ? "text-brand"
-                        : "text-subtle group-hover:text-text-muted"
+                      "group relative flex h-9 items-center gap-3 rounded-lg px-3 text-sm text-text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground",
+                      active &&
+                        "bg-brand-soft text-foreground hover:bg-brand-soft"
                     )}
-                  />
-                  {label}
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
-      </nav>
+                  >
+                    {active ? (
+                      <span
+                        aria-hidden
+                        className="absolute top-2 bottom-2 left-0 w-0.5 rounded-full bg-brand"
+                      />
+                    ) : null}
+                    <Icon
+                      className={cn(
+                        "size-4",
+                        active
+                          ? "text-brand"
+                          : "text-subtle group-hover:text-text-muted"
+                      )}
+                    />
+                    {label}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
 
-      <Suspense fallback={null}>
-        <TasksSmartFiltersSection />
-      </Suspense>
-      <ProjectsSidebarSection draggable={draggable} />
+        <Suspense fallback={null}>
+          <TasksSmartFiltersSection />
+        </Suspense>
+        <ProjectsSidebarSection draggable={draggable} />
+      </div>
 
-      <div className="mt-auto flex flex-col gap-0.5 p-2">
+      <div className="flex shrink-0 flex-col gap-0.5 p-2">
         <SyncStatus />
         <div className="mt-auto flex flex-col gap-0.5 border-t border-sidebar-border p-2">
           <Link

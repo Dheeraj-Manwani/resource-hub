@@ -30,6 +30,7 @@ import {
   YoutubeCardBody,
 } from "./cards/type-cards"
 import { ResourceContextMenu } from "./resource-context-menu"
+import { ResourceChecklistCheckbox } from "./resource-checklist"
 import { TypeBadge } from "./type-icon"
 
 type CardProps = {
@@ -123,6 +124,9 @@ export const ResourceCard = memo(function ResourceCard({
       }
     >
       <CardBody resource={resource} onOpenImage={onOpenImage} />
+      <div className="px-3 empty:hidden [&:has(label)]:pb-3">
+        <ResourceChecklistCheckbox resource={resource} />
+      </div>
 
       {resource.tags.length ||
       resource.projects.length ||

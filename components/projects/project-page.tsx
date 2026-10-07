@@ -1,7 +1,6 @@
 "use client"
 
 import { FilterPanel } from "@/components/filter-panel"
-import { AddMenu } from "@/components/add-menu"
 
 import { QueryFeedback } from "@/components/query-feedback"
 
@@ -13,6 +12,7 @@ import {
   ListPlusIcon,
   MoreHorizontalIcon,
   PlusIcon,
+  RotateCcwIcon,
   Trash2Icon,
 } from "lucide-react"
 import Link from "next/link"
@@ -20,6 +20,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { LibraryView } from "@/components/resources/library-view"
+import { ResourceChecklistContext } from "@/components/resources/resource-checklist"
+import { useResourceChecklist } from "@/hooks/queries/resource-checklists"
 import { useShell } from "@/components/shell/shell-context"
 import { ProjectTasksSection } from "@/components/tasks/project-tasks-section"
 import { useProjectTaskProgress } from "@/hooks/queries/tasks"
@@ -28,6 +30,7 @@ import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuCheckboxItem,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -209,6 +212,24 @@ export function ProjectPage({
   const [addingExisting, setAddingExisting] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
   const [tab, setTab] = useProjectTab()
+  const checklist = useResourceChecklist(projectId, includeDescendants)
+  const checklistData = checklist.query.data
+  const checklistContext = useMemo(
+    () =>
+      checklistData?.enabled
+        ? {
+            checkedIds: new Set(checklistData.checkedResourceIds),
+            pending: checklist.mutation.isPending,
+            onCheck: (resourceId: string, checked: boolean) =>
+              checklist.mutation.mutate({
+                action: "check",
+                resourceId,
+                checked,
+              }),
+          }
+        : null,
+    [checklistData, checklist.mutation]
+  )
 
   // Lightweight counts only (not the full lists) so the tab badges stay
   // accurate without loading an inactive tab's content.
@@ -266,7 +287,7 @@ export function ProjectPage({
       </div>
 
       {tab !== "resources" ? (
-                <FilterPanel activeCount={includeDescendants ? 1 : 0}>
+        <FilterPanel activeCount={includeDescendants ? 1 : 0}>
           {" "}
           <label className="flex items-center gap-2 text-xs text-text-muted">
             <Switch
@@ -303,42 +324,92 @@ export function ProjectPage({
         </TabsList>
 
         <TabsContent value="resources">
-          <div className="mb-2 flex justify-end">
-            <AddMenu
-              size="xs"
-              items={[
-                {
-                  label: "Add new resource",
-                  icon: <PlusIcon />,
-                  onSelect: () => openAddResource(undefined, [projectId]),
-                },
-                {
-                  label: "Add existing resources",
-                  icon: <ListPlusIcon />,
-                  onSelect: () => setAddingExisting(true),
-                },
-              ]}
-            />
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="text-sm text-text-muted" role="status">
+              {checklistData?.enabled
+                ? `${checklistData.checkedResourceIds.length} of ${checklistData.resourceIds.length} done`
+                : null}
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label="Resource options"
+                  />
+                }
+              >
+                <MoreHorizontalIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => openAddResource(undefined, [projectId])}
+                >
+                  <PlusIcon /> Add new resource
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setAddingExisting(true)}>
+                  <ListPlusIcon /> Add existing resources
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  closeOnClick
+                  checked={checklistData?.enabled ?? false}
+                  disabled={!checklistData || checklist.mutation.isPending}
+                  onCheckedChange={(enabled) =>
+                    checklist.mutation.mutate({ action: "mode", enabled })
+                  }
+                >
+                  Checklist mode
+                </DropdownMenuCheckboxItem>
+                {checklistData?.enabled ? (
+                  <DropdownMenuItem
+                    disabled={
+                      checklist.mutation.isPending ||
+                      !checklistData.checkedResourceIds.length
+                    }
+                    onClick={() =>
+                      checklist.mutation.mutate({ action: "reset" })
+                    }
+                  >
+                    <RotateCcwIcon /> Reset checklist
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          <LibraryView
-            title={project?.name ?? "Project"}
-            initialSettings={initialSettings}
-            baseFilters={baseFilters}
-            emptyTitle="Nothing filed here yet"
-            emptyDescription="Add a new resource here, add existing Inbox items, or drag a resource onto this project in the sidebar."
-            hideHeader
-            extraFilters={
-              <label className="flex items-center gap-2 text-xs text-text-muted">
-                <Switch
-                  size="sm"
-                  checked={includeDescendants}
-                  onCheckedChange={setIncludeDescendants}
-                />
-                Include sub-projects
-              </label>
-            }
-                      extraActiveCount={includeDescendants ? 1 : 0}
+          <QueryFeedback
+            query={checklist.query}
+            label="resource checklist"
+            loading={false}
           />
+          {checklistData?.enabled ? (
+            <p className="mb-3 text-xs text-subtle">
+              Check off resources as you finish. Reset the checklist whenever
+              you want to start again.
+            </p>
+          ) : null}
+          <ResourceChecklistContext.Provider value={checklistContext}>
+            <LibraryView
+              title={project?.name ?? "Project"}
+              initialSettings={initialSettings}
+              baseFilters={baseFilters}
+              emptyTitle="Nothing filed here yet"
+              emptyDescription="Add a new resource here, add existing Inbox items, or drag a resource onto this project in the sidebar."
+              hideHeader
+              extraFilters={
+                <label className="flex items-center gap-2 text-xs text-text-muted">
+                  <Switch
+                    size="sm"
+                    checked={includeDescendants}
+                    onCheckedChange={setIncludeDescendants}
+                  />
+                  Include sub-projects
+                </label>
+              }
+              extraActiveCount={includeDescendants ? 1 : 0}
+            />
+          </ResourceChecklistContext.Provider>
         </TabsContent>
 
         <TabsContent value="tasks">

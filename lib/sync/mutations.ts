@@ -54,6 +54,11 @@ const operations = {
     safeRetry: true,
   },
   "project.move": { label: "Moving project", entity: "project" },
+  "project.checklist": {
+    label: "Saving resource checklist",
+    entity: "project",
+    safeRetry: true,
+  },
   "project.delete": { label: "Deleting project", entity: "project" },
   "project.link": { label: "Adding resources to project", entity: "project" },
   "project.unlink": {

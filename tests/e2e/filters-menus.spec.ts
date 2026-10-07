@@ -115,7 +115,9 @@ test("filters hide without clearing results and project Add menus keep both path
   await expect(
     tab.getByRole("button", { name: "Child filter note", exact: true })
   ).toHaveCount(0)
-  await tab.getByRole("button", { name: "Add", exact: true }).click()
+  await tab
+    .getByRole("button", { name: "Resource options", exact: true })
+    .click()
   await page
     .getByRole("menuitem", { name: "Add existing resources", exact: true })
     .click()

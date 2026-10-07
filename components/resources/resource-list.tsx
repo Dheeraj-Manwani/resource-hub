@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 import { TagChips } from "./cards/card-parts"
 import { ResourceImage } from "./embeds/resource-image"
 import { ResourceContextMenu } from "./resource-context-menu"
+import { ResourceChecklistCheckbox } from "./resource-checklist"
 import { TypeIcon } from "./type-icon"
 
 /** Compact, virtualized list (window scrolling). */
@@ -60,11 +61,24 @@ export function ResourceList({
             onPreview={onPreview}
             onEdit={onOpen}
             trigger={
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 data-index={row.index}
                 ref={virtualizer.measureElement}
-                onClick={() => onPreview(r.id)}
+                onClick={(e) => {
+                  if (!(e.target as HTMLElement).closest("[data-interactive]"))
+                    onPreview(r.id)
+                }}
+                onKeyDown={(e) => {
+                  if (
+                    e.target === e.currentTarget &&
+                    (e.key === "Enter" || e.key === " ")
+                  ) {
+                    e.preventDefault()
+                    onPreview(r.id)
+                  }
+                }}
                 className={cn(
                   "absolute inset-x-0 flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-white/[0.03] focus-visible:bg-brand-soft focus-visible:outline-none",
                   row.index > 0 && "border-t border-border"
@@ -104,6 +118,7 @@ export function ResourceList({
             <span className="hidden shrink-0 text-xs text-subtle sm:block">
               {formatDate(r.createdAt)}
             </span>
+            <ResourceChecklistCheckbox resource={r} />
           </ResourceContextMenu>
         )
       })}

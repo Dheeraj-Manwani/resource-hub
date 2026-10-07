@@ -14,6 +14,7 @@ import { displayTitle } from "@/lib/resources/dto"
 import { MetaLine, TagChips } from "./cards/card-parts"
 import { ResourceFullView } from "./full-view/resource-full-view"
 import { TypeBadge } from "./type-icon"
+import { ResourceChecklistCheckbox } from "./resource-checklist"
 
 /** One resource at a time, large; ←/→ to move through the current list. */
 export function FocusView({
@@ -92,6 +93,7 @@ export function FocusView({
           </Button>
         </div>
         <ResourceFullView resource={resource} onOpenImage={onOpenImage} />
+        <ResourceChecklistCheckbox resource={resource} />
         {resource.notes ? (
           <p className="text-sm whitespace-pre-line text-text-muted">
             {resource.notes}
