@@ -40,6 +40,7 @@ export default function SheetEditor({
     host.style.height = "100%"
     container.current.appendChild(host)
     const { univer, univerAPI } = createUniver({
+      darkMode: true,
       locale: LocaleType.EN_US,
       locales: {
         [LocaleType.EN_US]: mergeLocales(

@@ -357,7 +357,7 @@ export function SpreadsheetDialog({
             images, macros and advanced Excel features are not preserved. Backup
             keeps the full in-app workbook.
           </p>
-          <div className="min-h-0 flex-1 bg-white text-black">
+          <div className="min-h-0 flex-1 bg-[#18181b] text-[#f4f4f5]">
             <SheetEditor
               key={editorKey}
               initial={initial}
