@@ -129,7 +129,7 @@ export function ProjectQuickNotesTab({
         <EmptyState
           icon={NotebookPenIcon}
           title="No docs linked"
-          description="Create a text doc or spreadsheet, or link an existing doc."
+          description="Create a text doc, spreadsheet, or drawing, or link an existing doc."
         >
           <Button size="sm" onClick={openNew}>
             <PlusIcon />

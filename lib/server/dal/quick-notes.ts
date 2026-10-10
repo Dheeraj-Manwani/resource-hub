@@ -6,6 +6,7 @@ import { uuidv7 } from "uuidv7"
 import { db } from "@/lib/db"
 import { files, projects, quickNotes, docVersions } from "@/lib/db/schema"
 import { workbookSchema, workbookText } from "@/lib/docs/workbook"
+import { drawingSchema, drawingText } from "@/lib/docs/drawing"
 import {
   toQuickNoteDto,
   type QuickNoteDto,
@@ -23,7 +24,7 @@ import {
 
 type QuickNoteInput = {
   clientId?: string
-  kind?: "text" | "spreadsheet"
+  kind?: "text" | "spreadsheet" | "drawing"
   expectedRevision?: number
   projectId?: string | null
   title?: string | null
@@ -100,6 +101,8 @@ export async function createQuickNote(
   if (input.kind === "spreadsheet" && input.bodyJson === undefined) {
     throw badRequest("A spreadsheet needs a workbook.")
   }
+  if (input.kind === "drawing" && input.bodyJson === undefined)
+    throw badRequest("A drawing needs a scene.")
   if (
     input.projectId &&
     !(await assertProjectOwnership(userId, input.projectId))
@@ -151,11 +154,11 @@ export async function updateQuickNote(
     if (input.kind && input.kind !== current.kind)
       throw badRequest("A doc's type cannot be changed.")
     if (
-      current.kind === "spreadsheet" &&
+      (current.kind === "spreadsheet" || current.kind === "drawing") &&
       input.bodyJson !== undefined &&
       input.expectedRevision === undefined
     )
-      throw badRequest("Spreadsheet saves require a revision.")
+      throw badRequest("Spreadsheet and drawing saves require a revision.")
     if (
       input.expectedRevision !== undefined &&
       input.expectedRevision !== current.revision
@@ -201,13 +204,21 @@ export async function deleteQuickNote(
   return result.length > 0
 }
 
-function documentValues(input: QuickNoteInput, kind: "text" | "spreadsheet") {
+function documentValues(
+  input: QuickNoteInput,
+  kind: "text" | "spreadsheet" | "drawing"
+) {
   const values = { ...input }
   delete values.expectedRevision
   delete values.clientId
   if (kind === "spreadsheet" && values.bodyJson !== undefined) {
     values.bodyJson = workbookSchema.parse(values.bodyJson)
     values.bodyText = workbookText(values.bodyJson)
+  }
+  if (kind === "drawing" && values.bodyJson !== undefined) {
+    const drawing = drawingSchema.parse(values.bodyJson)
+    values.bodyJson = drawing
+    values.bodyText = drawingText(drawing)
   }
   return values
 }

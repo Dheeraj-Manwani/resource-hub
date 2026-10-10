@@ -15,7 +15,7 @@ export const updateQuickNoteSchema = z.object({
   title: z.string().trim().max(200).nullable().optional(),
   bodyJson: z.unknown().optional(),
   bodyText: z.string().nullable().optional(),
-  kind: z.enum(["text", "spreadsheet"]).optional(),
+  kind: z.enum(["text", "spreadsheet", "drawing"]).optional(),
   expectedRevision: z.number().int().nonnegative().optional(),
 })
 

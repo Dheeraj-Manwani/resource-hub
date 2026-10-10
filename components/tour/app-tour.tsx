@@ -51,7 +51,7 @@ const STEPS: Step[] = [
   {
     target: "tour-nav-quick-notes",
     title: "Docs",
-    body: "Keep text docs and editable spreadsheets together. Start a job tracker, import Excel files, or write down ideas.",
+    body: "Keep text docs, editable spreadsheets, and drawings together. Start a job tracker, import Excel files, or sketch ideas with Excalidraw.",
     inSidebar: true,
   },
   {

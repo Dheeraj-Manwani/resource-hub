@@ -29,6 +29,8 @@ import {
 import type { QuickNoteProjectDto } from "@/lib/quick-notes/dto"
 import { createWorkbook } from "@/lib/docs/workbook"
 import { SpreadsheetDialog } from "@/components/docs/spreadsheet-dialog"
+import { DrawingDialog } from "@/components/docs/drawing-dialog"
+import { createDrawing } from "@/lib/docs/drawing"
 
 const NoteEditor = dynamic(
   () => import("@/components/resources/full-view/note-editor"),
@@ -36,7 +38,7 @@ const NoteEditor = dynamic(
 )
 
 export type QuickNoteDraft = {
-  kind?: "text" | "spreadsheet"
+  kind?: "text" | "spreadsheet" | "drawing"
   revision?: number
   id: string | null
   projectId: string | null
@@ -414,7 +416,7 @@ function DocSession(props: DocDialogProps & { draft: QuickNoteDraft }) {
           <DialogHeader>
             <DialogTitle>New doc</DialogTitle>
             <DialogDescription>
-              Choose a text doc or an editable spreadsheet.
+              Choose a text doc, spreadsheet, or freehand drawing.
             </DialogDescription>
           </DialogHeader>
           <Button
@@ -448,12 +450,31 @@ function DocSession(props: DocDialogProps & { draft: QuickNoteDraft }) {
           >
             Job tracker — start with application columns
           </Button>
+          <Button
+            variant="outline"
+            onClick={() =>
+              setSelected({
+                ...props.draft,
+                kind: "drawing",
+                bodyJson: createDrawing(),
+              })
+            }
+          >
+            Drawing — sketch freely with Excalidraw
+          </Button>
         </DialogContent>
       </Dialog>
     )
   if (selected.kind === "spreadsheet")
     return (
       <SpreadsheetDialog
+        draft={selected}
+        onClose={() => props.onOpenChange(false)}
+      />
+    )
+  if (selected.kind === "drawing")
+    return (
+      <DrawingDialog
         draft={selected}
         onClose={() => props.onOpenChange(false)}
       />

@@ -120,7 +120,7 @@ export function QuickNotesView() {
     <>
       <PageHeader
         title="Docs"
-        description="Text docs and spreadsheets for your ideas, plans, and trackers."
+        description="Text docs, spreadsheets, and drawings for your ideas, plans, and trackers."
         actions={
           <Button size="sm" onClick={openNew}>
             <PlusIcon />
@@ -134,6 +134,7 @@ export function QuickNotesView() {
           ["all", "All"],
           ["text", "Text"],
           ["spreadsheet", "Spreadsheets"],
+          ["drawing", "Drawings"],
           ["trash", "Trash"],
         ].map(([value, label]) => (
           <Button

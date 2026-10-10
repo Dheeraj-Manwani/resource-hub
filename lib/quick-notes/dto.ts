@@ -12,7 +12,7 @@ export type QuickNoteDto = {
   projectId: string | null
   project: QuickNoteProjectDto | null
   title: string | null
-  kind: "text" | "spreadsheet"
+  kind: "text" | "spreadsheet" | "drawing"
   revision: number
   bodyJson: unknown
   bodyText: string | null

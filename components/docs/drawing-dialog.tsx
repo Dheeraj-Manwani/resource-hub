@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic"
 import { useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import type { IWorkbookData } from "@univerjs/presets"
+import type { DrawingData } from "@/lib/docs/drawing"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -20,19 +20,20 @@ import {
 import type { QuickNoteDraft } from "@/components/quick-notes/quick-note-dialog"
 import type { QuickNoteDto } from "@/lib/quick-notes/dto"
 import {
-  createWorkbook,
-  workbookSchema,
-  workbookText,
-} from "@/lib/docs/workbook"
+  createDrawing,
+  drawingSchema,
+  drawingText,
+  MAX_DRAWING_BYTES,
+} from "@/lib/docs/drawing"
 import { api } from "@/lib/api-client"
 
-const SheetEditor = dynamic(() => import("./sheet-editor"), {
+const DrawingEditor = dynamic(() => import("./drawing-editor"), {
   ssr: false,
-  loading: () => <p className="p-6">Loading spreadsheet…</p>,
+  loading: () => <p className="p-6">Loading drawing…</p>,
 })
 type Version = { revision: number; title: string | null; createdAt: string }
 
-export function SpreadsheetDialog({
+export function DrawingDialog({
   draft,
   onClose,
 }: {
@@ -40,7 +41,7 @@ export function SpreadsheetDialog({
   onClose: () => void
 }) {
   const [initial, setInitial] = useState(
-    () => (draft.bodyJson ?? createWorkbook()) as Partial<IWorkbookData>
+    () => (draft.bodyJson ?? createDrawing()) as DrawingData
   )
   const [editorKey, setEditorKey] = useState(0)
   const [title, setTitle] = useState(draft.title)
@@ -53,7 +54,9 @@ export function SpreadsheetDialog({
   const [history, setHistory] = useState<Version[] | null>(null)
   const [closing, setClosing] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
-  const getSnapshot = useRef<(() => Promise<IWorkbookData>) | null>(null)
+  const getSnapshot = useRef<
+    ((commitEditing?: boolean) => Promise<DrawingData>) | null
+  >(null)
   const live = useRef({
     title: draft.title,
     projectId: draft.projectId,
@@ -87,8 +90,8 @@ export function SpreadsheetDialog({
     setStatus(dirty.current ? "Unsaved changes" : "Saved")
     setChanges((v) => v + 1)
   }
-  function replaceWorkbook(value: Partial<IWorkbookData>, saved = false) {
-    workbookSchema.parse(value)
+  function replaceDrawing(value: DrawingData, saved = false) {
+    drawingSchema.parse(value)
     live.current.bodyJson = value
     normalizeBaseline.current = saved
     getSnapshot.current = null
@@ -102,7 +105,6 @@ export function SpreadsheetDialog({
     saving.current = true
     setBusy(true)
     try {
-      // Commit the active cell before checking; its mutation callback is delayed.
       live.current.bodyJson = await getSnapshot.current()
       dirty.current = lastSaved.current !== JSON.stringify(live.current)
       if (dirty.current) setClosing(true)
@@ -117,15 +119,15 @@ export function SpreadsheetDialog({
       setBusy(false)
     }
   }
-  async function save() {
+  async function save(commitEditing = true) {
     if (saving.current || !getSnapshot.current) return false
     saving.current = true
     setBusy(true)
     setError("")
     setStatus("Saving…")
     try {
-      const bodyJson = await getSnapshot.current()
-      workbookSchema.parse(bodyJson)
+      const bodyJson = await getSnapshot.current(commitEditing)
+      drawingSchema.parse(bodyJson)
       live.current.bodyJson = bodyJson
       const savedSerial = serial.current
       const contents = JSON.stringify(live.current)
@@ -137,9 +139,9 @@ export function SpreadsheetDialog({
       }
       const payload = {
         ...live.current,
-        kind: "spreadsheet" as const,
+        kind: "drawing" as const,
         bodyJson,
-        bodyText: workbookText(bodyJson),
+        bodyText: drawingText(bodyJson),
         expectedRevision: revision.current,
       }
       const doc = id.current
@@ -170,14 +172,15 @@ export function SpreadsheetDialog({
   // Serialize saves; failed/conflicting writes require an explicit retry.
   useEffect(() => {
     if (!ready || busy || closing || !dirty.current || failure.current) return
-    const timer = setTimeout(() => void save(), 1800)
+    const timer = setTimeout(() => void save(false), 1800)
     return () => clearTimeout(timer)
-    // save reads the live refs, never a stale workbook or revision.
+    // save reads the live refs, never a stale drawing or revision.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [changes, ready, busy, closing])
   useEffect(() => {
     function beforeUnload(e: BeforeUnloadEvent) {
-      // An active cell may not yet have committed into the workbook snapshot.
+      // Warn only when edits are pending or a save is in flight.
+      if (!dirty.current && !saving.current) return
       e.preventDefault()
       e.returnValue = ""
     }
@@ -196,23 +199,19 @@ export function SpreadsheetDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function download(backup: boolean) {
+  async function download() {
     try {
       const value = await getSnapshot.current?.()
       if (!value) return
-      const { downloadFile, exportExcel } = await import("@/lib/docs/excel")
-      if (backup)
-        downloadFile(
-          JSON.stringify(value),
-          `${live.current.title || "Spreadsheet"}.json`,
-          "application/json"
-        )
-      else
-        downloadFile(
-          await exportExcel(value),
-          `${live.current.title || "Spreadsheet"}.xlsx`,
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+      const blob = new Blob([JSON.stringify(value)], {
+        type: "application/json",
+      })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement("a")
+      anchor.href = url
+      anchor.download = `${live.current.title || "Drawing"}.excalidraw`
+      anchor.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Export failed")
     }
@@ -222,14 +221,10 @@ export function SpreadsheetDialog({
     saving.current = true
     setBusy(true)
     try {
-      if (file.size > 10_000_000)
-        throw new Error("Choose a file smaller than 10 MB.")
-      const value = file.name.toLowerCase().endsWith(".json")
-        ? workbookSchema.parse(JSON.parse(await file.text()))
-        : await (
-            await import("@/lib/docs/excel")
-          ).importExcel(await file.arrayBuffer())
-      replaceWorkbook(value as Partial<IWorkbookData>)
+      if (file.size > MAX_DRAWING_BYTES)
+        throw new Error("Choose a drawing smaller than 3 MB.")
+      const value = drawingSchema.parse(JSON.parse(await file.text()))
+      replaceDrawing(value as DrawingData)
       setImportOpen(false)
       setError("")
     } catch (e) {
@@ -269,7 +264,7 @@ export function SpreadsheetDialog({
       revision.current = doc.revision
       live.current.title = doc.title ?? ""
       setTitle(doc.title ?? "")
-      replaceWorkbook(doc.bodyJson as Partial<IWorkbookData>, true)
+      replaceDrawing(doc.bodyJson as DrawingData, true)
       lastSaved.current = JSON.stringify(live.current)
       dirty.current = false
       setStatus("Saved")
@@ -290,15 +285,16 @@ export function SpreadsheetDialog({
           showCloseButton={false}
           className="flex h-[100dvh] max-h-none w-screen max-w-none flex-col gap-0 rounded-none p-0 sm:max-w-none"
         >
-          <DialogTitle className="sr-only">Spreadsheet doc</DialogTitle>
+          <DialogTitle className="sr-only">Drawing doc</DialogTitle>
           <DialogDescription className="sr-only">
-            An editable workbook with autosave, Excel import and export.
+            A freehand canvas with autosave, shapes, text, and Excalidraw import
+            and export.
           </DialogDescription>
           <div className="flex flex-wrap items-center gap-2 border-b p-3">
             <Input
               aria-label="Document title"
               maxLength={200}
-              placeholder="Untitled spreadsheet"
+              placeholder="Untitled drawing"
               value={title}
               className="min-w-44 flex-1"
               onChange={(e) => {
@@ -332,18 +328,11 @@ export function SpreadsheetDialog({
               size="sm"
               variant="outline"
               disabled={!ready || busy}
-              onClick={() => void download(false)}
+              onClick={() => void download()}
             >
-              Export Excel
+              Export drawing
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!ready || busy}
-              onClick={() => void download(true)}
-            >
-              Backup
-            </Button>
+
             <Button
               size="sm"
               variant="outline"
@@ -369,18 +358,14 @@ export function SpreadsheetDialog({
               Close
             </Button>
           </div>
-          {error && (
+          {error && !importOpen && !closing && history === null && (
             <p role="alert" className="px-4 py-2 text-sm text-destructive">
               {error}
             </p>
           )}
-          <p className="px-4 py-1 text-xs text-text-muted">
-            Excel export includes cells, formulas and basic formatting. Charts,
-            images, macros and advanced Excel features are not preserved. Backup
-            keeps the full in-app workbook.
-          </p>
+
           <div className="min-h-0 flex-1 bg-[#18181b] text-[#f4f4f5]">
-            <SheetEditor
+            <DrawingEditor
               key={editorKey}
               initial={initial}
               onReady={(getter, baseline) => {
@@ -413,7 +398,7 @@ export function SpreadsheetDialog({
       </Dialog>
       <Dialog open={closing} onOpenChange={setClosing}>
         <DialogContent>
-          <DialogTitle>Close spreadsheet?</DialogTitle>
+          <DialogTitle>Close drawing?</DialogTitle>
           <DialogDescription>
             Save your latest edits before closing.
           </DialogDescription>
@@ -447,18 +432,21 @@ export function SpreadsheetDialog({
         onOpenChange={(open) => !busy && setImportOpen(open)}
       >
         <DialogContent>
-          <DialogTitle>Import spreadsheet</DialogTitle>
+          <DialogTitle>Import drawing</DialogTitle>
           <DialogDescription>
-            Replace the current sheet with an .xlsx file or a Resource Hub JSON
-            backup. Excel import keeps cell values, formulas and basic
-            formatting; keep your original file for advanced features. Save
-            first if you want the current sheet in History.
+            Replace this canvas with an .excalidraw file or JSON drawing backup.
+            Save first to keep the current drawing in History.
           </DialogDescription>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <input
-            aria-label="Spreadsheet file"
+            aria-label="Drawing file"
             ref={fileInput}
             type="file"
-            accept=".xlsx,.json"
+            accept=".excalidraw,.json"
             disabled={busy}
             onChange={(e) => {
               const file = e.target.files?.[0]
@@ -484,6 +472,11 @@ export function SpreadsheetDialog({
             Restore a previous save as a new version. Your current version is
             kept.
           </DialogDescription>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <div className="max-h-80 space-y-2 overflow-auto">
             {history?.length ? (
               history.map((v) => (

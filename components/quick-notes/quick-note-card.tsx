@@ -1,6 +1,12 @@
 "use client"
 
-import { FolderIcon, Trash2Icon, FileTextIcon, SheetIcon } from "lucide-react"
+import {
+  FolderIcon,
+  Trash2Icon,
+  FileTextIcon,
+  SheetIcon,
+  PencilRulerIcon,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { formatRelative } from "@/lib/format"
@@ -52,6 +58,8 @@ export function QuickNoteCard({
       >
         {note.kind === "spreadsheet" ? (
           <SheetIcon className="mr-1 inline size-4" />
+        ) : note.kind === "drawing" ? (
+          <PencilRulerIcon className="mr-1 inline size-4" />
         ) : (
           <FileTextIcon className="mr-1 inline size-4" />
         )}
@@ -63,7 +71,14 @@ export function QuickNoteCard({
       </p>
 
       <div className="mt-2 flex items-center gap-1.5 text-xs text-subtle">
-        <span>{note.kind === "spreadsheet" ? "Spreadsheet" : "Text"} ·</span>
+        <span>
+          {note.kind === "spreadsheet"
+            ? "Spreadsheet"
+            : note.kind === "drawing"
+              ? "Drawing"
+              : "Text"}{" "}
+          ·
+        </span>
         <span>{formatRelative(note.updatedAt)}</span>
         {!hideProject && note.project ? (
           <span className="flex min-w-0 items-center gap-1 truncate rounded-full bg-white/[0.06] px-1.5 py-0.5">

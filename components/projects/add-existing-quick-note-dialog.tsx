@@ -99,7 +99,7 @@ export function AddExistingQuickNoteDialog({
         <DialogHeader>
           <DialogTitle>Add existing docs</DialogTitle>
           <DialogDescription>
-            Link existing text docs and spreadsheets to this project.
+            Link existing text docs, spreadsheets, and drawings to this project.
           </DialogDescription>
         </DialogHeader>
 

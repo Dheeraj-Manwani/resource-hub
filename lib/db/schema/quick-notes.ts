@@ -20,7 +20,7 @@ const timestamps = {
     .$onUpdate(() => new Date()),
 }
 
-/** Text and spreadsheet docs. Keep the original table name to preserve notes. */
+/** Text, spreadsheet and drawing docs. Preserve the original table name. */
 export const quickNotes = pgTable(
   "quick_notes",
   {
@@ -30,7 +30,7 @@ export const quickNotes = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     projectId: uuid().references(() => projects.id, { onDelete: "set null" }),
     title: text(),
-    kind: text({ enum: ["text", "spreadsheet"] })
+    kind: text({ enum: ["text", "spreadsheet", "drawing"] })
       .notNull()
       .default("text"),
     revision: integer().notNull().default(0),

@@ -62,7 +62,12 @@ test("Docs preserves text, saves spreadsheets, prevents stale writes and restore
     fullPage: true,
   })
   await page.getByRole("button", { name: "Close", exact: true }).click()
-  await page.getByRole("button", { name: "Save & close", exact: true }).click()
+  await expect(
+    page.getByRole("dialog", { name: "Spreadsheet doc", exact: true })
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole("dialog", { name: "Close spreadsheet?", exact: true })
+  ).toHaveCount(0)
   await expect(
     page.getByRole("heading", { name: "Applications 2026" })
   ).toBeVisible()
@@ -123,7 +128,12 @@ test("Docs preserves text, saves spreadsheets, prevents stale writes and restore
       .getByRole("status")
   ).toHaveText("Saved")
   await page.getByRole("button", { name: "Close", exact: true }).click()
-  await page.getByRole("button", { name: "Save & close", exact: true }).click()
+  await expect(
+    page.getByRole("dialog", { name: "Spreadsheet doc", exact: true })
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole("dialog", { name: "Close spreadsheet?", exact: true })
+  ).toHaveCount(0)
   expect(
     (await page.request.delete(`/api/v1/quick-notes/${doc.id}`)).ok()
   ).toBe(true)

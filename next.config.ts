@@ -16,7 +16,9 @@ const r2PublicOrigin = (() => {
     return null
   }
 })()
-const R2_SOURCES = [R2_PRIVATE_ENDPOINT, r2PublicOrigin].filter(Boolean).join(" ")
+const R2_SOURCES = [R2_PRIVATE_ENDPOINT, r2PublicOrigin]
+  .filter(Boolean)
+  .join(" ")
 
 // Embeds are click-to-load iframes from exactly these platforms (see
 // docs/EMBEDS.md) plus our own file preview redirect/public bucket; nothing
@@ -50,6 +52,11 @@ const cspHeader = `
   .trim()
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/api/drawing-assets/*": [
+      "./node_modules/@excalidraw/excalidraw/dist/prod/fonts/**/*.woff2",
+    ],
+  },
   // Keep standalone test-server builds separate from normal dev/build output.
   distDir: process.env.PLAYWRIGHT_SERVER === "1" ? ".next-e2e" : ".next",
   async redirects() {

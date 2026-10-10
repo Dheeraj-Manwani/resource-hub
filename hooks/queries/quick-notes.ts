@@ -49,7 +49,7 @@ export const quickNoteKeys = {
 
 type QuickNoteInput = {
   clientId?: string
-  kind?: "text" | "spreadsheet"
+  kind?: "text" | "spreadsheet" | "drawing"
   expectedRevision?: number
   projectId?: string | null
   title?: string | null

@@ -27,7 +27,10 @@ export default function SheetEditor({
 }: {
   initial: Partial<IWorkbookData>
   onChange: (workbook: IWorkbookData) => void
-  onReady: (getSnapshot: () => Promise<IWorkbookData>) => void
+  onReady: (
+    getSnapshot: () => Promise<IWorkbookData>,
+    baseline: IWorkbookData
+  ) => void
 }) {
   const container = useRef<HTMLDivElement>(null)
   const callbacks = useRef({ onChange, onReady })
@@ -76,7 +79,7 @@ export default function SheetEditor({
     callbacks.current.onReady(async () => {
       await workbook.endEditingAsync(true)
       return workbook.save()
-    })
+    }, workbook.save())
     let timer: ReturnType<typeof setTimeout> | undefined
     const subscription = workbook.onCommandExecuted((command) => {
       if (!command.id.includes("mutation")) return
