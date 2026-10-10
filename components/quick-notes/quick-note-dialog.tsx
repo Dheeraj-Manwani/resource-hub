@@ -31,6 +31,7 @@ import { createWorkbook } from "@/lib/docs/workbook"
 import { SpreadsheetDialog } from "@/components/docs/spreadsheet-dialog"
 import { DrawingDialog } from "@/components/docs/drawing-dialog"
 import { createDrawing } from "@/lib/docs/drawing"
+import { NewDocPicker } from "@/components/docs/new-doc-picker"
 
 const NoteEditor = dynamic(
   () => import("@/components/resources/full-view/note-editor"),
@@ -411,59 +412,28 @@ function DocSession(props: DocDialogProps & { draft: QuickNoteDraft }) {
   )
   if (!selected)
     return (
-      <Dialog open onOpenChange={props.onOpenChange}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>New doc</DialogTitle>
-            <DialogDescription>
-              Choose a text doc, spreadsheet, or freehand drawing.
-            </DialogDescription>
-          </DialogHeader>
-          <Button
-            variant="outline"
-            onClick={() => setSelected({ ...props.draft, kind: "text" })}
-          >
-            Text — write freely, add images and links
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() =>
-              setSelected({
-                ...props.draft,
-                kind: "spreadsheet",
-                bodyJson: createWorkbook(),
-              })
-            }
-          >
-            Spreadsheet — start with a blank sheet
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() =>
-              setSelected({
-                ...props.draft,
-                kind: "spreadsheet",
-                title: "Job tracker",
-                bodyJson: createWorkbook(true),
-              })
-            }
-          >
-            Job tracker — start with application columns
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() =>
-              setSelected({
-                ...props.draft,
-                kind: "drawing",
-                bodyJson: createDrawing(),
-              })
-            }
-          >
-            Drawing — sketch freely with Excalidraw
-          </Button>
-        </DialogContent>
-      </Dialog>
+      <NewDocPicker
+        onOpenChange={props.onOpenChange}
+        onChoose={(choice) => {
+          if (choice === "text") {
+            setSelected({ ...props.draft, kind: "text" })
+          } else if (choice === "drawing") {
+            setSelected({
+              ...props.draft,
+              kind: "drawing",
+              bodyJson: createDrawing(),
+            })
+          } else {
+            setSelected({
+              ...props.draft,
+              kind: "spreadsheet",
+              title:
+                choice === "job-tracker" ? "Job tracker" : props.draft.title,
+              bodyJson: createWorkbook(choice === "job-tracker"),
+            })
+          }
+        }}
+      />
     )
   if (selected.kind === "spreadsheet")
     return (
