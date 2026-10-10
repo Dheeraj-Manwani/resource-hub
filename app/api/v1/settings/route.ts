@@ -22,6 +22,7 @@ const patchSchema = z
     libraryView: z.enum(["grid", "list", "focus"]),
     calendarColorMode: z.enum(["project", "priority", "status"]),
     hasSeenOnboarding: z.boolean(),
+    pinnedProjectIds: z.array(z.uuid()).max(5000).nullable(),
   })
   .partial()
   .strict()

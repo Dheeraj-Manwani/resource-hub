@@ -15,6 +15,7 @@ export type SettingsDto = {
   icsToken: string | null
   /** Whether the "How to use" onboarding modal has been shown or skipped. */
   hasSeenOnboarding: boolean
+  pinnedProjectIds: string[] | null
 }
 
 export async function getSettings(userId: string): Promise<SettingsDto> {
@@ -31,6 +32,7 @@ export async function getSettings(userId: string): Promise<SettingsDto> {
       calendarColorMode: row.calendarColorMode,
       icsToken: row.icsToken,
       hasSeenOnboarding: row.hasSeenOnboarding,
+      pinnedProjectIds: row.pinnedProjectIds,
     }
   }
   await db.insert(userSettings).values({ userId }).onConflictDoNothing()
@@ -41,6 +43,7 @@ export async function getSettings(userId: string): Promise<SettingsDto> {
     calendarColorMode: "project",
     icsToken: null,
     hasSeenOnboarding: false,
+    pinnedProjectIds: null,
   }
 }
 

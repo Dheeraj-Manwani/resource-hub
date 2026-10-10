@@ -12,11 +12,27 @@ import {
 import { FolderIcon } from "lucide-react"
 import { createContext, useContext, useMemo, useState } from "react"
 import { toast } from "react-hot-toast"
+import { useSettings } from "@/hooks/queries/settings"
+import {
+  sidebarLayout,
+  type SidebarTreeRow,
+} from "@/lib/projects/sidebar-layout"
 
-import { useLinkResources, useMoveProject, useProjectTree } from "@/hooks/queries/projects"
+import {
+  useLinkResources,
+  useMoveProject,
+  useProjectTree,
+} from "@/hooks/queries/projects"
 import { useCollapsedProjects } from "@/lib/projects/use-collapsed"
-import { findSiblingAnchors, getProjection } from "@/lib/projects/dnd-projection"
-import { buildProjectTree, flattenTree, isSelfOrDescendant } from "@/lib/projects/tree"
+import {
+  findSiblingAnchors,
+  getProjection,
+} from "@/lib/projects/dnd-projection"
+import {
+  buildProjectTree,
+  flattenTree,
+  isSelfOrDescendant,
+} from "@/lib/projects/tree"
 import { TypeIcon } from "@/components/resources/type-icon"
 import { displayTitle } from "@/lib/resources/dto"
 import type { ResourceDto } from "@/lib/resources/dto"
@@ -27,6 +43,18 @@ export const resourceDragId = (id: string) => `${RESOURCE_DRAG_PREFIX}${id}`
 type DragState = { activeId: string; type: "project" | "resource" } | null
 
 const ProjectDndStateContext = createContext<DragState>(null)
+const ProjectSidebarContext = createContext<{
+  rows: SidebarTreeRow[]
+  isCollapsed: (id: string) => boolean
+  toggle: (id: string) => void
+  toggleMore: (parentId: string | null) => void
+} | null>(null)
+
+export function useProjectSidebarLayout() {
+  const value = useContext(ProjectSidebarContext)
+  if (!value) throw new Error("Project sidebar requires ProjectDndProvider")
+  return value
+}
 
 /** Which project row (if any) is currently the target of an in-flight drag,
  * so the sidebar tree can highlight it. Sidebar rows read this. */
@@ -42,9 +70,25 @@ const INDENT_WIDTH = 16
  * sidebar project row to file it there. Must wrap both the sidebar and the
  * resource grid.
  */
-export function ProjectDndProvider({ children }: { children: React.ReactNode }) {
+export function ProjectDndProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const { data: flat = [] } = useProjectTree()
-  const { isCollapsed } = useCollapsedProjects()
+  const { isCollapsed, toggle } = useCollapsedProjects()
+  const { data: settings } = useSettings()
+  const [expandedMore, setExpandedMore] = useState<Set<string | null>>(
+    new Set()
+  )
+  function toggleMore(parentId: string | null) {
+    setExpandedMore((previous) => {
+      const next = new Set(previous)
+      if (next.has(parentId)) next.delete(parentId)
+      else next.add(parentId)
+      return next
+    })
+  }
   const moveProject = useMoveProject()
   const linkResources = useLinkResources()
   const [active, setActive] = useState<
@@ -57,9 +101,18 @@ export function ProjectDndProvider({ children }: { children: React.ReactNode }) 
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   )
 
-  const visibleItems = useMemo(
-    () => flattenTree(buildProjectTree(flat), isCollapsed),
-    [flat, isCollapsed]
+  const rows = useMemo(
+    () =>
+      sidebarLayout(
+        flat,
+        settings?.pinnedProjectIds ?? null,
+        isCollapsed,
+        expandedMore
+      ),
+    [flat, settings?.pinnedProjectIds, isCollapsed, expandedMore]
+  )
+  const visibleItems = rows.flatMap((row) =>
+    row.type === "project" ? [row.node] : []
   )
 
   function handleDragStart(event: DragStartEvent) {
@@ -69,7 +122,11 @@ export function ProjectDndProvider({ children }: { children: React.ReactNode }) 
       const node = visibleItems.find((n) => n.id === event.active.id)
       if (node) setActive({ type: "project", id: node.id, label: node.name })
     } else if (data.type === "resource") {
-      setActive({ type: "resource", id: String(event.active.id), resource: data.resource })
+      setActive({
+        type: "resource",
+        id: String(event.active.id),
+        resource: data.resource,
+      })
     }
   }
 
@@ -100,14 +157,27 @@ export function ProjectDndProvider({ children }: { children: React.ReactNode }) 
         parentId: n.parentId,
         depth: n.depth,
       }))
-      const projection = getProjection(items, activeId, overId, delta.x, INDENT_WIDTH)
+      const projection = getProjection(
+        items,
+        activeId,
+        overId,
+        delta.x,
+        INDENT_WIDTH
+      )
       if (!projection) return
       if (
         projection.parentId &&
         isSelfOrDescendant(flat, activeId, projection.parentId)
       )
         return
-      const anchors = findSiblingAnchors(items, activeId, overId, projection.parentId)
+      // Resolve sort-key anchors in stored order, including hidden siblings.
+      // Pinned/More display order can differ from the actual sibling order.
+      const anchors = findSiblingAnchors(
+        flattenTree(buildProjectTree(flat), () => false),
+        activeId,
+        overId,
+        projection.parentId
+      )
       moveProject.mutate({
         id: activeId,
         input: { parentId: projection.parentId, ...anchors },
@@ -122,11 +192,15 @@ export function ProjectDndProvider({ children }: { children: React.ReactNode }) 
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActive(null)}
     >
-      <ProjectDndStateContext.Provider
-        value={active ? { activeId: active.id, type: active.type } : null}
+      <ProjectSidebarContext.Provider
+        value={{ rows, isCollapsed, toggle, toggleMore }}
       >
-        {children}
-      </ProjectDndStateContext.Provider>
+        <ProjectDndStateContext.Provider
+          value={active ? { activeId: active.id, type: active.type } : null}
+        >
+          {children}
+        </ProjectDndStateContext.Provider>
+      </ProjectSidebarContext.Provider>
       <DragOverlay>
         {active?.type === "project" ? (
           <div className="flex h-8 items-center gap-2 rounded-lg border border-brand/50 bg-surface-raised px-3 text-sm shadow-popover">

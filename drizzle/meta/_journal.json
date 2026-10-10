@@ -71,6 +71,13 @@
       "when": 1791363857454,
       "tag": "0009_new_sue_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791615653371,
+      "tag": "0010_project_sidebar_pins",
+      "breakpoints": true
     }
   ]
 }

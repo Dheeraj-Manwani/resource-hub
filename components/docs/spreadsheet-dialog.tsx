@@ -167,10 +167,11 @@ export function SpreadsheetDialog({
       setBusy(false)
     }
   }
+  // Save after a full minute without edits; manual and close-time saves stay immediate.
   // Serialize saves; failed/conflicting writes require an explicit retry.
   useEffect(() => {
     if (!ready || busy || closing || !dirty.current || failure.current) return
-    const timer = setTimeout(() => void save(), 1800)
+    const timer = setTimeout(() => void save(), 60_000)
     return () => clearTimeout(timer)
     // save reads the live refs, never a stale workbook or revision.
     // eslint-disable-next-line react-hooks/exhaustive-deps

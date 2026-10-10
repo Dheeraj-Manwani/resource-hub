@@ -16,6 +16,9 @@ import {
   FolderPlusIcon,
   MoreHorizontalIcon,
   PencilIcon,
+  PinIcon,
+  PinOffIcon,
+  SlidersHorizontalIcon,
   PlusIcon,
   Trash2Icon,
 } from "lucide-react"
@@ -45,13 +48,13 @@ import {
   useProjectTree,
   useUpdateProject,
 } from "@/hooks/queries/projects"
-import { useCollapsedProjects } from "@/lib/projects/use-collapsed"
-import { buildProjectTree, flattenTree } from "@/lib/projects/tree"
+import { useSettings, useUpdateSettings } from "@/hooks/queries/settings"
 import type { ProjectTreeNode } from "@/lib/projects/types"
 import { cn } from "@/lib/utils"
 
 import { DeleteProjectDialog } from "./delete-project-dialog"
-import { useProjectDndActive } from "./project-dnd"
+import { useProjectDndActive, useProjectSidebarLayout } from "./project-dnd"
+import { ManageSidebarDialog } from "./manage-sidebar-dialog"
 import { ProjectIcon } from "./project-icon"
 import { ProjectIconColorFields } from "./project-icon-picker"
 
@@ -154,11 +157,17 @@ function ProjectMenu({
   onRename,
   onNewChild,
   onDelete,
+  pinned,
+  onTogglePin,
+  pinBusy,
 }: {
   project: ProjectTreeNode
   onRename: () => void
   onNewChild: () => void
   onDelete: () => void
+  pinned: boolean
+  onTogglePin: () => void
+  pinBusy: boolean
 }) {
   const update = useUpdateProject()
   return (
@@ -169,13 +178,18 @@ function ProjectMenu({
             type="button"
             aria-label={`${project.name} options`}
             onClick={(e) => e.stopPropagation()}
-            className="flex size-5 shrink-0 items-center justify-center rounded text-subtle opacity-0 group-hover/row:opacity-100 hover:bg-white/10 hover:text-foreground data-popup-open:opacity-100"
+            className="flex size-5 shrink-0 items-center justify-center rounded text-subtle opacity-100 group-focus-within/row:opacity-100 hover:bg-white/10 hover:text-foreground data-popup-open:opacity-100 md:opacity-0 md:group-hover/row:opacity-100"
           />
         }
       >
         <MoreHorizontalIcon className="size-3.5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-60">
+        <DropdownMenuItem disabled={pinBusy} onClick={onTogglePin}>
+          {pinned ? <PinOffIcon /> : <PinIcon />}
+          {pinned ? "Unpin from sidebar" : "Pin to sidebar"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onNewChild}>
           <FolderPlusIcon />
           New sub-project
@@ -227,6 +241,9 @@ type RowProps = {
   onDoneRename: () => void
   onNewChild: () => void
   onDelete: () => void
+  pinned: boolean
+  onTogglePin: () => void
+  pinBusy: boolean
 }
 
 type DragWiring = {
@@ -252,6 +269,9 @@ function ProjectRowView({
   onDoneRename,
   onNewChild,
   onDelete,
+  pinned,
+  onTogglePin,
+  pinBusy,
   drag,
 }: RowProps & { drag?: DragWiring }) {
   const pathname = usePathname()
@@ -261,6 +281,8 @@ function ProjectRowView({
     <li ref={drag?.setNodeRef} style={drag?.style} {...drag?.attributes}>
       <div
         role="treeitem"
+        aria-level={node.depth + 1}
+        aria-label={node.name}
         aria-expanded={node.children.length ? !collapsed : undefined}
         aria-selected={active}
         tabIndex={focused ? 0 : -1}
@@ -322,6 +344,9 @@ function ProjectRowView({
               onRename={onStartRename}
               onNewChild={onNewChild}
               onDelete={onDelete}
+              pinned={pinned}
+              onTogglePin={onTogglePin}
+              pinBusy={pinBusy}
             />
           </>
         ) : null}
@@ -371,15 +396,23 @@ function StaticProjectRow(props: RowProps) {
 export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
   const projectsQuery = useProjectTree()
   const { data: flat = [], isPending } = projectsQuery
-  const { isCollapsed, toggle } = useCollapsedProjects()
+  const { rows, isCollapsed, toggle, toggleMore } = useProjectSidebarLayout()
+  const settingsQuery = useSettings()
+  const { data: settings } = settingsQuery
+  const updateSettings = useUpdateSettings()
+  const [managing, setManaging] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [creating, setCreating] = useState<CreateTarget>(null)
   const [deleting, setDeleting] = useState<ProjectTreeNode | null>(null)
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const deleteProject = useDeleteProject()
 
-  const tree = buildProjectTree(flat)
-  const visible = flattenTree(tree, isCollapsed)
+  const visible = rows.flatMap((row) =>
+    row.type === "project" ? [row.node] : []
+  )
+  const pinned = new Set(
+    settings?.pinnedProjectIds ?? flat.map((project) => project.id)
+  )
 
   function focusAdjacent(delta: number, fromId: string) {
     const idx = visible.findIndex((n) => n.id === fromId)
@@ -400,7 +433,11 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
       case "ArrowRight":
         e.preventDefault()
         if (node.children.length && isCollapsed(node.id)) toggle(node.id)
-        else if (node.children.length) setFocusedId(node.children[0]!.id)
+        else if (node.children.length) {
+          const child = visible.find((item) => item.parentId === node.id)
+          if (child) setFocusedId(child.id)
+          else toggleMore(node.id)
+        }
         break
       case "ArrowLeft":
         e.preventDefault()
@@ -426,7 +463,45 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
       onDoneRename: () => setRenamingId(null),
       onNewChild: () => setCreating({ parentId: node.id }),
       onDelete: () => setDeleting(node),
+      pinned: pinned.has(node.id),
+      pinBusy: updateSettings.isPending || !settings,
+      onTogglePin: () => {
+        const next = new Set(pinned)
+        if (next.has(node.id)) next.delete(node.id)
+        else next.add(node.id)
+        updateSettings.mutate({ pinnedProjectIds: [...next] })
+      },
     }
+  }
+
+  function renderRows() {
+    return rows.map((row) => {
+      if (row.type === "project") {
+        const Row = draggable ? SortableProjectRow : StaticProjectRow
+        return <Row key={row.node.id} node={row.node} {...rowProps(row.node)} />
+      }
+      return (
+        <li key={`more:${row.parentId ?? "root"}`} role="none">
+          <button
+            type="button"
+            aria-expanded={row.expanded}
+            aria-label={`More projects (${row.count})${row.parentId ? ` in ${flat.find((project) => project.id === row.parentId)?.name}` : ""}`}
+            onClick={() => toggleMore(row.parentId)}
+            style={{ paddingLeft: `${row.depth * 16 + 8}px` }}
+            className="flex h-8 w-full items-center gap-2 rounded-lg pr-2 text-left text-xs text-subtle hover:bg-white/[0.04] hover:text-foreground"
+          >
+            <ChevronRightIcon
+              className={cn(
+                "size-3.5 transition-transform",
+                row.expanded && "rotate-90"
+              )}
+            />
+            More projects{" "}
+            <span className="ml-auto tabular-nums">{row.count}</span>
+          </button>
+        </li>
+      )
+    })
   }
 
   return (
@@ -435,25 +510,48 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
         <span className="text-[11px] font-medium tracking-wider text-subtle uppercase">
           Projects
         </span>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <button
-                type="button"
-                aria-label="New project"
-                onClick={() => setCreating({ parentId: null })}
-                className="flex size-5 items-center justify-center rounded text-subtle hover:bg-white/10 hover:text-foreground"
-              />
-            }
-          >
-            <PlusIcon className="size-3.5" />
-          </TooltipTrigger>
-          <TooltipContent>New project</TooltipContent>
-        </Tooltip>
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label="Manage sidebar"
+                  disabled={!settings}
+                  onClick={() => setManaging(true)}
+                  className="flex size-5 items-center justify-center rounded text-subtle hover:bg-white/10 hover:text-foreground disabled:opacity-50"
+                />
+              }
+            >
+              <SlidersHorizontalIcon className="size-3.5" />
+            </TooltipTrigger>
+            <TooltipContent>Manage sidebar</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label="New project"
+                  onClick={() => setCreating({ parentId: null })}
+                  className="flex size-5 items-center justify-center rounded text-subtle hover:bg-white/10 hover:text-foreground"
+                />
+              }
+            >
+              <PlusIcon className="size-3.5" />
+            </TooltipTrigger>
+            <TooltipContent>New project</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       <QueryFeedback query={projectsQuery} label="projects" loading={false} />
-      {!isPending && !projectsQuery.isError && !visible.length && !creating ? (
+      <QueryFeedback
+        query={settingsQuery}
+        label="sidebar preferences"
+        loading={false}
+      />
+      {!isPending && !projectsQuery.isError && !flat.length && !creating ? (
         <button
           type="button"
           onClick={() => setCreating({ parentId: null })}
@@ -468,20 +566,12 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
           strategy={verticalListSortingStrategy}
         >
           <ul role="tree" aria-label="Projects" className="space-y-0.5">
-            {visible.map((node) => (
-              <SortableProjectRow
-                key={node.id}
-                node={node}
-                {...rowProps(node)}
-              />
-            ))}
+            {renderRows()}
           </ul>
         </SortableContext>
       ) : (
         <ul role="tree" aria-label="Projects" className="space-y-0.5">
-          {visible.map((node) => (
-            <StaticProjectRow key={node.id} node={node} {...rowProps(node)} />
-          ))}
+          {renderRows()}
         </ul>
       )}
 
@@ -506,6 +596,13 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
           await deleteProject.mutateAsync({ id: deleting.id, mode })
         }}
       />
+      {managing && settings && (
+        <ManageSidebarDialog
+          projects={flat}
+          pinnedProjectIds={settings.pinnedProjectIds}
+          onClose={() => setManaging(false)}
+        />
+      )}
     </div>
   )
 }
