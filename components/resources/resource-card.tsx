@@ -98,6 +98,7 @@ export const ResourceCard = memo(function ResourceCard({
   return (
     <ResourceContextMenu
       resource={resource}
+      buttonClassName="absolute top-2 right-2 bg-black/70 text-white backdrop-blur"
       onPreview={onPreview}
       onEdit={onOpen}
       trigger={
@@ -174,7 +175,7 @@ export const ResourceCard = memo(function ResourceCard({
       </div>
       <div
         className={cn(
-          "absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-focus-within/card:opacity-100 group-hover/card:opacity-100",
+          "absolute top-2 right-10 flex gap-1 opacity-0 transition-opacity group-focus-within/card:opacity-100 group-hover/card:opacity-100",
           resource.isFavorite && "opacity-100"
         )}
       >

@@ -9,33 +9,16 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import {
-  ArchiveIcon,
-  ArchiveRestoreIcon,
   ChevronRightIcon,
   FolderIcon,
   FolderPlusIcon,
-  MoreHorizontalIcon,
-  PencilIcon,
-  PinIcon,
-  PinOffIcon,
   SlidersHorizontalIcon,
   PlusIcon,
-  Trash2Icon,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import {
   Tooltip,
@@ -48,7 +31,7 @@ import {
   useProjectTree,
   useUpdateProject,
 } from "@/hooks/queries/projects"
-import { useSettings, useUpdateSettings } from "@/hooks/queries/settings"
+import { useSettings } from "@/hooks/queries/settings"
 import type { ProjectTreeNode } from "@/lib/projects/types"
 import { cn } from "@/lib/utils"
 
@@ -56,7 +39,7 @@ import { DeleteProjectDialog } from "./delete-project-dialog"
 import { useProjectDndActive, useProjectSidebarLayout } from "./project-dnd"
 import { ManageSidebarDialog } from "./manage-sidebar-dialog"
 import { ProjectIcon } from "./project-icon"
-import { ProjectIconColorFields } from "./project-icon-picker"
+import { ProjectItemMenu } from "./project-item-menu"
 
 type CreateTarget = { parentId: string | null } | null
 
@@ -152,83 +135,6 @@ function InlineRename({
   )
 }
 
-function ProjectMenu({
-  project,
-  onRename,
-  onNewChild,
-  onDelete,
-  pinned,
-  onTogglePin,
-  pinBusy,
-}: {
-  project: ProjectTreeNode
-  onRename: () => void
-  onNewChild: () => void
-  onDelete: () => void
-  pinned: boolean
-  onTogglePin: () => void
-  pinBusy: boolean
-}) {
-  const update = useUpdateProject()
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            aria-label={`${project.name} options`}
-            onClick={(e) => e.stopPropagation()}
-            className="flex size-5 shrink-0 items-center justify-center rounded text-subtle opacity-100 group-focus-within/row:opacity-100 hover:bg-white/10 hover:text-foreground data-popup-open:opacity-100 md:opacity-0 md:group-hover/row:opacity-100"
-          />
-        }
-      >
-        <MoreHorizontalIcon className="size-3.5" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-60">
-        <DropdownMenuItem disabled={pinBusy} onClick={onTogglePin}>
-          {pinned ? <PinOffIcon /> : <PinIcon />}
-          {pinned ? "Unpin from sidebar" : "Pin to sidebar"}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onNewChild}>
-          <FolderPlusIcon />
-          New sub-project
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onRename}>
-          <PencilIcon />
-          Rename
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() =>
-            update.mutate({
-              id: project.id,
-              patch: { archived: !project.archivedAt },
-            })
-          }
-        >
-          {project.archivedAt ? <ArchiveRestoreIcon /> : <ArchiveIcon />}
-          {project.archivedAt ? "Unarchive" : "Archive"}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <ProjectIcon icon={project.icon} color={project.color} size={14} />
-            Icon & color
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-72 overflow-hidden p-0">
-            <ProjectIconColorFields project={project} />
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={onDelete}>
-          <Trash2Icon />
-          Delete…
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 type RowProps = {
   node: ProjectTreeNode
   collapsed: boolean
@@ -241,9 +147,6 @@ type RowProps = {
   onDoneRename: () => void
   onNewChild: () => void
   onDelete: () => void
-  pinned: boolean
-  onTogglePin: () => void
-  pinBusy: boolean
 }
 
 type DragWiring = {
@@ -269,9 +172,6 @@ function ProjectRowView({
   onDoneRename,
   onNewChild,
   onDelete,
-  pinned,
-  onTogglePin,
-  pinBusy,
   drag,
 }: RowProps & { drag?: DragWiring }) {
   const pathname = usePathname()
@@ -279,24 +179,33 @@ function ProjectRowView({
 
   return (
     <li ref={drag?.setNodeRef} style={drag?.style} {...drag?.attributes}>
-      <div
-        role="treeitem"
-        aria-level={node.depth + 1}
-        aria-label={node.name}
-        aria-expanded={node.children.length ? !collapsed : undefined}
-        aria-selected={active}
-        tabIndex={focused ? 0 : -1}
-        onFocus={onFocus}
-        onKeyDown={(e) => onKeyNav(e, node)}
-        style={{ paddingLeft: `${node.depth * 16 + 4}px` }}
-        className={cn(
-          "group/row relative flex h-8 items-center gap-1 rounded-lg pr-1 text-sm text-text-muted transition-colors outline-none hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-brand/40",
-          active && "bg-brand-soft text-foreground",
-          drag?.isDropTarget && "bg-brand-soft/70 ring-1 ring-brand/50",
-          drag?.isDragging && "opacity-40",
-          node.archivedAt && "opacity-50"
-        )}
-        {...drag?.listeners}
+      <ProjectItemMenu
+        project={node}
+        onRename={onStartRename}
+        onNewChild={onNewChild}
+        onDelete={onDelete}
+        buttonClassName="size-5 text-subtle opacity-100 md:opacity-0 md:group-hover/row:opacity-100 group-focus-within/row:opacity-100 data-popup-open:opacity-100"
+        trigger={
+          <div
+            role="treeitem"
+            aria-level={node.depth + 1}
+            aria-label={node.name}
+            aria-expanded={node.children.length ? !collapsed : undefined}
+            aria-selected={active}
+            tabIndex={focused ? 0 : -1}
+            onFocus={onFocus}
+            onKeyDown={(e) => onKeyNav(e, node)}
+            style={{ paddingLeft: `${node.depth * 16 + 4}px` }}
+            className={cn(
+              "group/row relative flex h-8 items-center gap-1 rounded-lg pr-1 text-sm text-text-muted transition-colors outline-none hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-brand/40",
+              active && "bg-brand-soft text-foreground",
+              drag?.isDropTarget && "bg-brand-soft/70 ring-1 ring-brand/50",
+              drag?.isDragging && "opacity-40",
+              node.archivedAt && "opacity-50"
+            )}
+            {...drag?.listeners}
+          />
+        }
       >
         <button
           type="button"
@@ -339,18 +248,9 @@ function ProjectRowView({
                 {node.totalCount}
               </span>
             ) : null}
-            <ProjectMenu
-              project={node}
-              onRename={onStartRename}
-              onNewChild={onNewChild}
-              onDelete={onDelete}
-              pinned={pinned}
-              onTogglePin={onTogglePin}
-              pinBusy={pinBusy}
-            />
           </>
         ) : null}
-      </div>
+      </ProjectItemMenu>
     </li>
   )
 }
@@ -399,7 +299,6 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
   const { rows, isCollapsed, toggle, toggleMore } = useProjectSidebarLayout()
   const settingsQuery = useSettings()
   const { data: settings } = settingsQuery
-  const updateSettings = useUpdateSettings()
   const [managing, setManaging] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [creating, setCreating] = useState<CreateTarget>(null)
@@ -409,9 +308,6 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
 
   const visible = rows.flatMap((row) =>
     row.type === "project" ? [row.node] : []
-  )
-  const pinned = new Set(
-    settings?.pinnedProjectIds ?? flat.map((project) => project.id)
   )
 
   function focusAdjacent(delta: number, fromId: string) {
@@ -463,14 +359,6 @@ export function ProjectsSidebarSection({ draggable }: { draggable: boolean }) {
       onDoneRename: () => setRenamingId(null),
       onNewChild: () => setCreating({ parentId: node.id }),
       onDelete: () => setDeleting(node),
-      pinned: pinned.has(node.id),
-      pinBusy: updateSettings.isPending || !settings,
-      onTogglePin: () => {
-        const next = new Set(pinned)
-        if (next.has(node.id)) next.delete(node.id)
-        else next.add(node.id)
-        updateSettings.mutate({ pinnedProjectIds: [...next] })
-      },
     }
   }
 

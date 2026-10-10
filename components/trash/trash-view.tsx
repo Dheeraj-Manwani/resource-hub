@@ -23,6 +23,11 @@ import {
 } from "@/hooks/queries/trash"
 import { formatRelative } from "@/lib/format"
 import type { TrashEntityType, TrashItem } from "@/lib/server/dal/trash"
+import { ItemMenu } from "@/components/ui/item-menu"
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 
 const SECTIONS: { key: TrashEntityType; label: string }[] = [
   { key: "resource", label: "Resources" },
@@ -36,39 +41,66 @@ function Row({ item }: { item: TrashItem }) {
   const [confirming, setConfirming] = useState(false)
 
   return (
-    <li className="flex items-center gap-3 px-3 py-2.5">
-      {item.entityType === "resource" && item.resourceType ? (
-        <TypeIcon type={item.resourceType} />
-      ) : item.entityType === "task" ? (
-        <ListTodoIcon className="size-3.5 shrink-0 text-subtle" />
-      ) : (
-        <FolderIcon className="size-3.5 shrink-0 text-subtle" />
-      )}
-      <span className="min-w-0 flex-1 truncate text-sm">{item.title}</span>
-      <span className="shrink-0 text-xs text-subtle">
-        Deleted {formatRelative(item.deletedAt)}
-      </span>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Restore"
-        disabled={restore.isPending || permanentlyDelete.isPending}
-        loading={restore.isPending}
-        onClick={() =>
-          restore.mutate({ entityType: item.entityType, id: item.id })
+    <>
+      <ItemMenu
+        trigger={<li className="flex items-center gap-3 px-3 py-2.5" />}
+        label={`${item.title} options`}
+        actions={
+          <>
+            <DropdownMenuItem
+              disabled={restore.isPending || permanentlyDelete.isPending}
+              onClick={() =>
+                restore.mutate({ entityType: item.entityType, id: item.id })
+              }
+            >
+              <RotateCcwIcon />
+              Restore
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={restore.isPending || permanentlyDelete.isPending}
+              onClick={() => setConfirming(true)}
+            >
+              <Trash2Icon />
+              Delete forever
+            </DropdownMenuItem>
+          </>
         }
       >
-        <RotateCcwIcon />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Delete forever"
-        disabled={restore.isPending || permanentlyDelete.isPending}
-        onClick={() => setConfirming(true)}
-      >
-        <Trash2Icon />
-      </Button>
+        {item.entityType === "resource" && item.resourceType ? (
+          <TypeIcon type={item.resourceType} />
+        ) : item.entityType === "task" ? (
+          <ListTodoIcon className="size-3.5 shrink-0 text-subtle" />
+        ) : (
+          <FolderIcon className="size-3.5 shrink-0 text-subtle" />
+        )}
+        <span className="min-w-0 flex-1 truncate text-sm">{item.title}</span>
+        <span className="shrink-0 text-xs text-subtle">
+          Deleted {formatRelative(item.deletedAt)}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Restore"
+          disabled={restore.isPending || permanentlyDelete.isPending}
+          loading={restore.isPending}
+          onClick={() =>
+            restore.mutate({ entityType: item.entityType, id: item.id })
+          }
+        >
+          <RotateCcwIcon />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Delete forever"
+          disabled={restore.isPending || permanentlyDelete.isPending}
+          onClick={() => setConfirming(true)}
+        >
+          <Trash2Icon />
+        </Button>
+      </ItemMenu>
       <ConfirmDialog
         open={confirming}
         onOpenChange={setConfirming}
@@ -82,7 +114,7 @@ function Row({ item }: { item: TrashItem }) {
           })
         }
       />
-    </li>
+    </>
   )
 }
 

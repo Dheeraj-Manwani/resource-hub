@@ -1,5 +1,9 @@
 "use client"
 
+import { ProjectItemMenu } from "@/components/projects/project-item-menu"
+import { ResourceContextMenu } from "@/components/resources/resource-context-menu"
+import { useResourcePreview } from "@/components/resources/resource-preview-provider"
+import { useProjectTree } from "@/hooks/queries/projects"
 import { QueryFeedback } from "@/components/query-feedback"
 
 import {
@@ -174,9 +178,11 @@ function OverviewSkeleton() {
 }
 
 export function OverviewView({ userName }: { userName: string }) {
+  const { data: projectTree = [] } = useProjectTree()
   const overviewQuery = useOverview()
   const { data, isPending } = overviewQuery
   const { openTask, openResource } = useDetailDrawer()
+  const { openPreview } = useResourcePreview()
 
   if (isPending) return <OverviewSkeleton />
 
@@ -272,11 +278,24 @@ export function OverviewView({ userName }: { userName: string }) {
           {resources.recent.length ? (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {resources.recent.map((r) => (
-                <button
+                <ResourceContextMenu
                   key={r.id}
-                  type="button"
-                  onClick={() => openResource(r.id)}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-surface p-2 text-left transition-colors hover:border-brand/40"
+                  resource={r}
+                  onEdit={openResource}
+                  onPreview={openPreview}
+                  trigger={
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) =>
+                        e.target === e.currentTarget &&
+                        e.key === "Enter" &&
+                        openResource(r.id)
+                      }
+                      onClick={() => openResource(r.id)}
+                      className="flex items-center gap-2 rounded-lg border border-border bg-surface p-2 text-left transition-colors hover:border-brand/40"
+                    />
+                  }
                 >
                   <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-raised">
                     {r.thumbnailUrl ? (
@@ -299,7 +318,7 @@ export function OverviewView({ userName }: { userName: string }) {
                       {formatRelative(r.createdAt)}
                     </span>
                   </span>
-                </button>
+                </ResourceContextMenu>
               ))}
             </div>
           ) : (
@@ -319,11 +338,10 @@ export function OverviewView({ userName }: { userName: string }) {
                 const pct = p.taskTotal
                   ? Math.round((p.taskDone / p.taskTotal) * 100)
                   : 0
-                return (
+                const card = (
                   <Link
-                    key={p.id}
                     href={`/projects/${p.id}`}
-                    className="block rounded-lg border border-border bg-surface px-3 py-2.5 transition-colors hover:border-brand/40"
+                    className="block rounded-lg border border-border bg-surface px-3 py-2.5 pr-12 transition-colors hover:border-brand/40"
                   >
                     <div className="flex items-center gap-2">
                       <span
@@ -346,6 +364,24 @@ export function OverviewView({ userName }: { userName: string }) {
                       </div>
                     ) : null}
                   </Link>
+                )
+                const project = projectTree.find((node) => node.id === p.id)
+                return project ? (
+                  <ProjectItemMenu
+                    key={p.id}
+                    project={{
+                      ...project,
+                      depth: 0,
+                      totalCount: p.directCount,
+                      children: [],
+                    }}
+                    buttonClassName="absolute top-2 right-2"
+                    trigger={<div className="relative" />}
+                  >
+                    {card}
+                  </ProjectItemMenu>
+                ) : (
+                  <div key={p.id}>{card}</div>
                 )
               })}
             </div>

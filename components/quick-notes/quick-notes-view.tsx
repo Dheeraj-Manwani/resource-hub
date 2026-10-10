@@ -1,6 +1,8 @@
 "use client"
 
 import { QueryFeedback } from "@/components/query-feedback"
+import { ItemMenu } from "@/components/ui/item-menu"
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 
 import { NotebookPenIcon, PlusIcon } from "lucide-react"
 import { useState } from "react"
@@ -185,7 +187,20 @@ export function QuickNotesView() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((note) =>
             filter === "trash" ? (
-              <div key={note.id} className="rounded-xl border p-4">
+              <ItemMenu
+                key={note.id}
+                trigger={<div className="relative rounded-xl border p-4" />}
+                label={`${note.title || "Untitled"} options`}
+                buttonClassName="absolute top-2 right-2"
+                actions={
+                  <DropdownMenuItem
+                    disabled={restoring !== null}
+                    onClick={() => void restore(note.id)}
+                  >
+                    Restore
+                  </DropdownMenuItem>
+                }
+              >
                 <p className="mb-3 truncate">{note.title || "Untitled"}</p>
                 <Button
                   size="sm"
@@ -195,7 +210,7 @@ export function QuickNotesView() {
                 >
                   Restore
                 </Button>
-              </div>
+              </ItemMenu>
             ) : (
               <QuickNoteCard
                 key={note.id}

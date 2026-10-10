@@ -188,6 +188,17 @@
   }
 }
 
+@media (pointer: coarse) {
+  [data-item-menu] {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+  [data-item-menu] :is(input, textarea, [contenteditable="true"]) {
+    -webkit-touch-callout: default;
+    user-select: text;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

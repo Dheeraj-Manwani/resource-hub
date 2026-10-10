@@ -10,6 +10,7 @@ import { useTaskList } from "@/hooks/queries/tasks"
 import { useDetailDrawer } from "@/hooks/use-detail-drawer"
 import type { TaskDto } from "@/lib/tasks/types"
 import { cn } from "@/lib/utils"
+import { TaskItemMenu } from "@/components/tasks/task-item-menu"
 
 function Section({
   title,
@@ -40,16 +41,22 @@ function Section({
       {items.length ? (
         <ul className="space-y-1">
           {items.map((t) => (
-            <li
+            <TaskItemMenu
+              task={t}
+              onOpen={onOpen}
               key={t.id}
-              data-task-id={t.id}
-              data-title={t.title}
-              onClick={() => onOpen(t.id)}
-              className="calendar-draggable-task flex cursor-grab items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1.5 text-sm hover:border-border-strong"
+              trigger={
+                <li
+                  data-task-id={t.id}
+                  data-title={t.title}
+                  onClick={() => onOpen(t.id)}
+                  className="calendar-draggable-task flex cursor-grab items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1.5 text-sm hover:border-border-strong"
+                />
+              }
             >
               <PriorityDot priority={t.priority} />
               <span className="min-w-0 flex-1 truncate">{t.title}</span>
-            </li>
+            </TaskItemMenu>
           ))}
         </ul>
       ) : !query.isPending && !query.isError ? (

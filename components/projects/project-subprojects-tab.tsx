@@ -13,6 +13,7 @@ import { useProjectTree } from "@/hooks/queries/projects"
 import { buildProjectTree, findNode, flattenTree } from "@/lib/projects/tree"
 
 import { ProjectIcon } from "./project-icon"
+import { ProjectItemMenu } from "./project-item-menu"
 
 /** Direct children of this project, or (with "include sub-projects") every
  * descendant flattened with relative indentation. Reuses the sidebar's
@@ -74,20 +75,29 @@ export function ProjectSubprojectsTab({
       <PendingCreations entity="project" filters={{ parentId: projectId }} />
       <div className="space-y-2">
         {rows.map((p) => (
-          <Link
+          <ProjectItemMenu
             key={p.id}
-            href={`/projects/${p.id}`}
-            style={{ marginLeft: `${(p.depth - baseDepth) * 20 + 12}px` }}
-            className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5 transition-colors hover:border-brand/40"
+            project={p}
+            trigger={
+              <div
+                style={{ marginLeft: `${(p.depth - baseDepth) * 20 + 12}px` }}
+                className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5 transition-colors hover:border-brand/40"
+              />
+            }
           >
-            <ProjectIcon icon={p.icon} color={p.color} size={18} />
-            <span className="min-w-0 flex-1 truncate text-sm font-medium">
-              {p.name}
-            </span>
-            <span className="shrink-0 text-xs text-subtle">
-              {p.directCount} {p.directCount === 1 ? "resource" : "resources"}
-            </span>
-          </Link>
+            <Link
+              href={`/projects/${p.id}`}
+              className="flex min-w-0 flex-1 items-center gap-3"
+            >
+              <ProjectIcon icon={p.icon} color={p.color} size={18} />
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                {p.name}
+              </span>
+              <span className="shrink-0 text-xs text-subtle">
+                {p.directCount} {p.directCount === 1 ? "resource" : "resources"}
+              </span>
+            </Link>
+          </ProjectItemMenu>
         ))}
       </div>
     </div>

@@ -53,9 +53,9 @@ import { toDateOnly } from "@/lib/tasks/recurrence"
 import { TASK_STATUSES, TASK_STATUS_LABELS } from "@/lib/tasks/types"
 import type { SettingsDto } from "@/lib/server/dal/settings"
 import type { UpdateTaskInput } from "@/lib/validation/tasks"
-import { cn } from "@/lib/utils"
 
 import { CalendarSidePanel } from "./calendar-side-panel"
+import { CalendarEventMenu } from "./calendar-event-menu"
 import {
   OccurrenceScopeDialog,
   type OccurrenceScope,
@@ -462,25 +462,12 @@ export function CalendarView({
           eventContent={(arg: EventContentArg) => {
             const occ = arg.event.extendedProps as CalendarOccurrence
             return (
-              <div className="flex items-center gap-1 overflow-hidden px-1 py-0.5">
-                <input
-                  type="checkbox"
-                  checked={occ.status === "done"}
-                  aria-label={`Mark ${arg.event.title} ${occ.status === "done" ? "incomplete" : "complete"}`}
-                  disabled={editOccurrence.isPending}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={() => onToggleComplete(occ)}
-                  className="size-3 shrink-0"
-                />
-                <span
-                  className={cn(
-                    "truncate",
-                    occ.status === "done" && "line-through opacity-70"
-                  )}
-                >
-                  {arg.event.title}
-                </span>
-              </div>
+              <CalendarEventMenu
+                occurrence={occ}
+                onOpen={() => openTask(occ.taskId)}
+                onToggle={() => onToggleComplete(occ)}
+                disabled={editOccurrence.isPending}
+              />
             )
           }}
           eventClick={onEventClick}

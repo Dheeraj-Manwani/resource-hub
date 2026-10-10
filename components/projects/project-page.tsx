@@ -6,15 +6,11 @@ import { AddMenu } from "@/components/add-menu"
 import { QueryFeedback } from "@/components/query-feedback"
 
 import {
-  ArchiveIcon,
-  ArchiveRestoreIcon,
   ChevronRightIcon,
   InfoIcon,
   ListPlusIcon,
-  MoreHorizontalIcon,
   PlusIcon,
   RotateCcwIcon,
-  Trash2Icon,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
@@ -28,13 +24,7 @@ import { ProjectTasksSection } from "@/components/tasks/project-tasks-section"
 import { useProjectTaskProgress } from "@/hooks/queries/tasks"
 import { useQuickNotes } from "@/hooks/queries/quick-notes"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+
 import { Switch } from "@/components/ui/switch"
 import {
   Tabs,
@@ -43,17 +33,12 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
-import {
-  useDeleteProject,
-  useProject,
-  useProjectTree,
-  useUpdateProject,
-} from "@/hooks/queries/projects"
+import { useProject, useProjectTree } from "@/hooks/queries/projects"
 import type { SettingsDto } from "@/lib/server/dal/settings"
 import { cn } from "@/lib/utils"
 
 import { AddExistingDialog } from "./add-existing-dialog"
-import { DeleteProjectDialog } from "./delete-project-dialog"
+import { ProjectItemMenu } from "./project-item-menu"
 import { ProjectIconPicker } from "./project-icon-picker"
 import { ProjectInfoModal } from "./project-info-modal"
 import { ProjectQuickNotesTab } from "./project-quick-notes-tab"
@@ -116,59 +101,35 @@ function Breadcrumbs({ projectId }: { projectId: string }) {
   )
 }
 
-function ProjectMenu({ projectId }: { projectId: string }) {
+function ProjectMenu({
+  projectId,
+  children,
+}: {
+  projectId: string
+  children: React.ReactNode
+}) {
   const { data } = useProject(projectId)
-  const update = useUpdateProject()
-  const deleteProject = useDeleteProject()
-  const [deleting, setDeleting] = useState(false)
-  const router = useRouter()
-  if (!data) return null
-
+  if (!data)
+    return (
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        {children}
+      </div>
+    )
   return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button variant="outline" size="sm" aria-label="Project options" />
-          }
-        >
-          <MoreHorizontalIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onClick={() =>
-              update.mutate({
-                id: projectId,
-                patch: { archived: !data.project.archivedAt },
-              })
-            }
-          >
-            {data.project.archivedAt ? <ArchiveRestoreIcon /> : <ArchiveIcon />}
-            {data.project.archivedAt ? "Unarchive" : "Archive"}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="destructive"
-            onClick={() => setDeleting(true)}
-          >
-            <Trash2Icon />
-            Delete…
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <DeleteProjectDialog
-        project={
-          deleting
-            ? { ...data.project, depth: 0, totalCount: 0, children: [] }
-            : null
-        }
-        onOpenChange={(open) => !open && setDeleting(false)}
-        onConfirm={async (mode) => {
-          await deleteProject.mutateAsync({ id: projectId, mode })
-          router.push("/resources")
-        }}
-      />
-    </>
+    <ProjectItemMenu
+      project={{
+        ...data.project,
+        depth: 0,
+        totalCount: data.project.directCount,
+        children: [],
+      }}
+      label="Project options"
+      trigger={
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3" />
+      }
+    >
+      {children}
+    </ProjectItemMenu>
   )
 }
 
@@ -257,7 +218,7 @@ export function ProjectPage({
     <>
       <QueryFeedback query={projectQuery} label="project" loading={false} />
       <Breadcrumbs projectId={projectId} />
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <ProjectMenu projectId={projectId}>
         <div className="flex min-w-0 items-center gap-2.5">
           {project ? (
             <ProjectIconPicker project={project} size={20} />
@@ -281,10 +242,7 @@ export function ProjectPage({
             <InfoIcon />
           </Button>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <ProjectMenu projectId={projectId} />
-        </div>
-      </div>
+      </ProjectMenu>
 
       {tab !== "resources" ? (
         <FilterPanel activeCount={includeDescendants ? 1 : 0}>

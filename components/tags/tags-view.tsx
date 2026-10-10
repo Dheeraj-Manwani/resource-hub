@@ -1,7 +1,14 @@
 "use client"
 import { QueryFeedback } from "@/components/query-feedback"
 
-import { PlusIcon, TagIcon, Trash2Icon } from "lucide-react"
+import {
+  PlusIcon,
+  TagIcon,
+  Trash2Icon,
+  PencilIcon,
+  PaletteIcon,
+  CheckIcon,
+} from "lucide-react"
 import { useState } from "react"
 
 import { AddTagDialog } from "./add-tag-dialog"
@@ -27,6 +34,27 @@ import {
 import { PROJECT_COLORS } from "@/lib/projects/types"
 import type { TagWithCounts } from "@/lib/server/dal/tags"
 import { cn } from "@/lib/utils"
+import { ItemMenu } from "@/components/ui/item-menu"
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from "@/components/ui/dropdown-menu"
+
+const COLOR_NAMES: Record<(typeof PROJECT_COLORS)[number], string> = {
+  "#FF6A00": "Orange",
+  "#F59E0B": "Amber",
+  "#EF4444": "Red",
+  "#EC4899": "Pink",
+  "#A855F7": "Purple",
+  "#6366F1": "Indigo",
+  "#0EA5E9": "Blue",
+  "#14B8A6": "Teal",
+  "#84CC16": "Green",
+  "#78716C": "Gray",
+}
 
 function ColorSwatch({ tag }: { tag: TagWithCounts }) {
   const setColor = useSetTagColor()
@@ -69,10 +97,17 @@ function ColorSwatch({ tag }: { tag: TagWithCounts }) {
   )
 }
 
-function TagNameField({ tag }: { tag: TagWithCounts }) {
+function TagNameField({
+  tag,
+  editing,
+  setEditing,
+}: {
+  tag: TagWithCounts
+  editing: boolean
+  setEditing: (editing: boolean) => void
+}) {
   const rename = useRenameTag()
   const [value, setValue] = useState(tag.name)
-  const [editing, setEditing] = useState(false)
 
   function commit() {
     setEditing(false)
@@ -109,6 +144,93 @@ function TagNameField({ tag }: { tag: TagWithCounts }) {
       }}
       className="h-7 max-w-48"
     />
+  )
+}
+
+function TagRow({
+  tag,
+  selected,
+  onToggle,
+  onDelete,
+}: {
+  tag: TagWithCounts
+  selected: boolean
+  onToggle: () => void
+  onDelete: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const color = useSetTagColor()
+  return (
+    <ItemMenu
+      label={`#${tag.name} options`}
+      trigger={<li className="flex items-center gap-3 px-3 py-2.5" />}
+      actions={
+        <>
+          <DropdownMenuItem onClick={() => setEditing(true)}>
+            <PencilIcon />
+            Rename
+          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <PaletteIcon />
+              Change color
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {PROJECT_COLORS.map((value) => (
+                <DropdownMenuItem
+                  key={value}
+                  disabled={color.isPending}
+                  onClick={() => color.mutate({ id: tag.id, color: value })}
+                >
+                  <span
+                    className="size-3 rounded-full"
+                    style={{ backgroundColor: value }}
+                  />
+                  {COLOR_NAMES[value]}
+                  {tag.color === value && <CheckIcon className="ml-auto" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuItem onClick={onToggle}>
+            <CheckIcon />
+            {selected ? "Deselect" : "Select"}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+            <Trash2Icon />
+            Delete tag
+          </DropdownMenuItem>
+        </>
+      }
+    >
+      <Checkbox
+        checked={selected}
+        onCheckedChange={onToggle}
+        aria-label={`Select #${tag.name}`}
+      />
+      <ColorSwatch tag={tag} />
+      <div className="min-w-0 flex-1">
+        <TagNameField
+          key={tag.name}
+          tag={tag}
+          editing={editing}
+          setEditing={setEditing}
+        />
+      </div>
+      <span className="shrink-0 text-xs text-subtle">
+        {tag.resourceCount} resource{tag.resourceCount === 1 ? "" : "s"} ·{" "}
+        {tag.taskCount} task{tag.taskCount === 1 ? "" : "s"}
+      </span>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`Delete #${tag.name}`}
+        onClick={onDelete}
+      >
+        <Trash2Icon />
+      </Button>
+    </ItemMenu>
   )
 }
 
@@ -199,29 +321,13 @@ export function TagsView() {
       ) : (
         <ul className="divide-y divide-border rounded-xl border border-border">
           {tags.map((tag) => (
-            <li key={tag.id} className="flex items-center gap-3 px-3 py-2.5">
-              <Checkbox
-                checked={selected.has(tag.id)}
-                onCheckedChange={() => toggle(tag.id)}
-                aria-label={`Select #${tag.name}`}
-              />
-              <ColorSwatch tag={tag} />
-              <div className="min-w-0 flex-1">
-                <TagNameField tag={tag} />
-              </div>
-              <span className="shrink-0 text-xs text-subtle">
-                {tag.resourceCount} resource{tag.resourceCount === 1 ? "" : "s"}{" "}
-                · {tag.taskCount} task{tag.taskCount === 1 ? "" : "s"}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Delete #${tag.name}`}
-                onClick={() => setDeleting(tag)}
-              >
-                <Trash2Icon />
-              </Button>
-            </li>
+            <TagRow
+              key={tag.id}
+              tag={tag}
+              selected={selected.has(tag.id)}
+              onToggle={() => toggle(tag.id)}
+              onDelete={() => setDeleting(tag)}
+            />
           ))}
         </ul>
       )}

@@ -15,6 +15,8 @@ import { MetaLine, TagChips } from "./cards/card-parts"
 import { ResourceFullView } from "./full-view/resource-full-view"
 import { TypeBadge } from "./type-icon"
 import { ResourceChecklistCheckbox } from "./resource-checklist"
+import { ResourceContextMenu } from "./resource-context-menu"
+import { useResourcePreview } from "./resource-preview-provider"
 
 /** One resource at a time, large; ←/→ to move through the current list. */
 export function FocusView({
@@ -29,6 +31,7 @@ export function FocusView({
   onNearEnd: () => void
 }) {
   const [index, setIndex] = useState(0)
+  const { openPreview } = useResourcePreview()
   const safeIndex = Math.min(index, Math.max(items.length - 1, 0))
   const resource = items[safeIndex]
 
@@ -39,7 +42,11 @@ export function FocusView({
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const target = e.target as HTMLElement
-      if (target.closest("input,textarea,[contenteditable=true]")) return
+      if (
+        e.defaultPrevented ||
+        target.closest("input,textarea,[contenteditable=true],[role=menu]")
+      )
+        return
       if (e.key === "ArrowRight" || e.key === "j")
         setIndex((i) => Math.min(i + 1, items.length - 1))
       if (e.key === "ArrowLeft" || e.key === "k")
@@ -75,11 +82,21 @@ export function FocusView({
           <ChevronRightIcon />
         </Button>
       </div>
-      <article
+      <ResourceContextMenu
         key={resource.id}
-        className="space-y-4 rounded-xl border border-border bg-card p-4 md:p-6"
+        resource={resource}
+        onEdit={onOpen}
+        onPreview={openPreview}
+        buttonClassName="absolute top-4 right-4 md:top-6 md:right-6"
+        trigger={
+          <article
+            tabIndex={0}
+            aria-label={displayTitle(resource)}
+            className="relative space-y-4 rounded-xl border border-border bg-card p-4 focus-visible:outline-2 focus-visible:outline-brand md:p-6"
+          />
+        }
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3 pr-8">
           <div className="min-w-0 space-y-1.5">
             <TypeBadge type={resource.type} />
             <h2 className="text-xl font-semibold tracking-tight">
@@ -100,7 +117,7 @@ export function FocusView({
           </p>
         ) : null}
         <TagChips tags={resource.tags} max={12} />
-      </article>
+      </ResourceContextMenu>
       <p className="mt-3 text-center text-xs text-subtle">
         Use ← and → to move between resources.
       </p>

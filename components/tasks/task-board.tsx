@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils"
 
 import { TaskMeta } from "./task-card"
+import { TaskItemMenu } from "./task-item-menu"
 import { StatusIcon } from "./task-status"
 
 type Columns = Record<TaskStatus, TaskDto[]>
@@ -36,7 +37,9 @@ function toColumns(items: TaskDto[]): Columns {
   const cols: Columns = { todo: [], in_progress: [], blocked: [], done: [] }
   for (const t of items) cols[t.status].push(t)
   for (const status of TASK_STATUSES) {
-    cols[status].sort((a, b) => (a.sortKey < b.sortKey ? -1 : a.sortKey > b.sortKey ? 1 : 0))
+    cols[status].sort((a, b) =>
+      a.sortKey < b.sortKey ? -1 : a.sortKey > b.sortKey ? 1 : 0
+    )
   }
   return cols
 }
@@ -67,27 +70,42 @@ function BoardCardView({
   drag?: DragWiring
 }) {
   return (
-    <div
-      ref={drag?.setNodeRef}
-      style={drag?.style}
-      {...drag?.attributes}
-      {...drag?.listeners}
-      role="button"
-      tabIndex={0}
-      onClick={() => onOpen(task.id)}
-      onKeyDown={(e) => e.key === "Enter" && onOpen(task.id)}
-      className={cn(
-        "cursor-grab rounded-lg border border-border bg-surface p-2.5 text-left shadow-card outline-none focus-visible:border-brand/50",
-        drag?.isDragging && "opacity-40"
-      )}
+    <TaskItemMenu
+      task={task}
+      onOpen={onOpen}
+      buttonClassName="absolute top-1 right-1"
+      trigger={
+        <div
+          ref={drag?.setNodeRef}
+          style={drag?.style}
+          {...drag?.attributes}
+          {...drag?.listeners}
+          role="button"
+          tabIndex={0}
+          onClick={() => onOpen(task.id)}
+          onKeyDown={(e) =>
+            e.target === e.currentTarget && e.key === "Enter" && onOpen(task.id)
+          }
+          className={cn(
+            "relative cursor-grab rounded-lg border border-border bg-surface p-2.5 text-left shadow-card outline-none focus-visible:border-brand/50",
+            drag?.isDragging && "opacity-40"
+          )}
+        />
+      }
     >
-      <p className="text-sm font-medium">{task.title}</p>
+      <p className="pr-7 text-sm font-medium">{task.title}</p>
       <TaskMeta task={task} className="mt-1.5" />
-    </div>
+    </TaskItemMenu>
   )
 }
 
-function BoardCard({ task, onOpen }: { task: TaskDto; onOpen: (id: string) => void }) {
+function BoardCard({
+  task,
+  onOpen,
+}: {
+  task: TaskDto
+  onOpen: (id: string) => void
+}) {
   const sortable = useSortable({ id: task.id })
   return (
     <BoardCardView
@@ -131,7 +149,10 @@ function Column({
           isOver && "border-brand/50 bg-brand-soft/30"
         )}
       >
-        <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext
+          items={tasks.map((t) => t.id)}
+          strategy={verticalListSortingStrategy}
+        >
           {tasks.map((task) => (
             <BoardCard key={task.id} task={task} onOpen={onOpen} />
           ))}
@@ -153,7 +174,9 @@ export function TaskBoard({
   const [cols, setCols] = useState<Columns>(() => toColumns(items))
   const dragging = useRef(false)
   const move = useMoveTask()
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
+  )
 
   useEffect(() => {
     if (!dragging.current) setCols(toColumns(items))
@@ -188,7 +211,9 @@ export function TaskBoard({
     dragging.current = false
     const { active, over } = e
     if (!over) return
-    const finalCol = findColumn(cols, over.id as string) ?? findColumn(cols, active.id as string)
+    const finalCol =
+      findColumn(cols, over.id as string) ??
+      findColumn(cols, active.id as string)
     if (!finalCol) return
     const column = cols[finalCol]
     const activeIndex = column.findIndex((t) => t.id === active.id)
@@ -224,7 +249,12 @@ export function TaskBoard({
     >
       <div className="flex gap-4 overflow-x-auto pb-4">
         {TASK_STATUSES.map((status) => (
-          <Column key={status} status={status} tasks={cols[status]} onOpen={onOpen} />
+          <Column
+            key={status}
+            status={status}
+            tasks={cols[status]}
+            onOpen={onOpen}
+          />
         ))}
       </div>
     </DndContext>

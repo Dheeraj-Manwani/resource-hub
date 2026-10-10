@@ -6,12 +6,18 @@ import {
   FileTextIcon,
   SheetIcon,
   PencilRulerIcon,
+  PencilIcon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { formatRelative } from "@/lib/format"
 import type { QuickNoteDto } from "@/lib/quick-notes/dto"
 import { cn } from "@/lib/utils"
+import { ItemMenu } from "@/components/ui/item-menu"
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 
 export function QuickNoteCard({
   note,
@@ -28,14 +34,33 @@ export function QuickNoteCard({
 }) {
   const preview = note.bodyText?.trim()
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") onOpen()
-      }}
-      className="group relative flex h-40 flex-col rounded-xl border border-border bg-surface p-3.5 text-left transition-colors hover:border-border-strong focus-visible:outline-2 focus-visible:outline-brand"
+    <ItemMenu
+      label={`${note.title || "Untitled"} options`}
+      buttonClassName="absolute top-2 right-2"
+      actions={
+        <>
+          <DropdownMenuItem onClick={onOpen}>
+            <PencilIcon />
+            Open / edit
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+            <Trash2Icon />
+            Move doc to Trash
+          </DropdownMenuItem>
+        </>
+      }
+      trigger={
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={onOpen}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && e.target === e.currentTarget) onOpen()
+          }}
+          className="group relative flex h-40 flex-col rounded-xl border border-border bg-surface p-3.5 text-left transition-colors hover:border-border-strong focus-visible:outline-2 focus-visible:outline-brand"
+        />
+      }
     >
       <Button
         variant="ghost"
@@ -45,14 +70,14 @@ export function QuickNoteCard({
           e.stopPropagation()
           onDelete()
         }}
-        className="absolute top-2 right-2 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
+        className="absolute top-2 right-10 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
       >
         <Trash2Icon />
       </Button>
 
       <h3
         className={cn(
-          "truncate pr-7 text-sm font-medium",
+          "truncate pr-16 text-sm font-medium",
           !note.title && "text-subtle"
         )}
       >
@@ -90,6 +115,6 @@ export function QuickNoteCard({
           </span>
         ) : null}
       </div>
-    </div>
+    </ItemMenu>
   )
 }

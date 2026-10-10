@@ -1,6 +1,11 @@
 "use client"
 
-import { CalendarIcon, FolderIcon, ListChecksIcon, LinkIcon } from "lucide-react"
+import {
+  CalendarIcon,
+  FolderIcon,
+  ListChecksIcon,
+  LinkIcon,
+} from "lucide-react"
 
 import { Checkbox } from "@/components/ui/checkbox"
 import { useUpdateTask } from "@/hooks/queries/tasks"
@@ -9,6 +14,7 @@ import { checklistProgress, type TaskDto } from "@/lib/tasks/types"
 import { cn } from "@/lib/utils"
 
 import { PriorityDot } from "./task-priority"
+import { TaskItemMenu } from "./task-item-menu"
 
 function isOverdue(task: TaskDto) {
   if (task.status === "done") return false
@@ -17,14 +23,30 @@ function isOverdue(task: TaskDto) {
   return new Date(due).getTime() < Date.now()
 }
 
-export function TaskMeta({ task, className }: { task: TaskDto; className?: string }) {
+export function TaskMeta({
+  task,
+  className,
+}: {
+  task: TaskDto
+  className?: string
+}) {
   const due = task.dueAt ?? task.dueDate
   const { done, total } = checklistProgress(task.checklist)
   return (
-    <div className={cn("flex flex-wrap items-center gap-2.5 text-xs text-subtle", className)}>
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-2.5 text-xs text-subtle",
+        className
+      )}
+    >
       <PriorityDot priority={task.priority} />
       {due ? (
-        <span className={cn("flex items-center gap-1", isOverdue(task) && "text-destructive")}>
+        <span
+          className={cn(
+            "flex items-center gap-1",
+            isOverdue(task) && "text-destructive"
+          )}
+        >
           <CalendarIcon className="size-3" />
           {formatDate(due)}
         </span>
@@ -43,7 +65,10 @@ export function TaskMeta({ task, className }: { task: TaskDto; className?: strin
       ) : null}
       {task.project ? (
         <span className="flex items-center gap-1 truncate">
-          <FolderIcon className="size-3" style={{ color: task.project.color ?? undefined }} />
+          <FolderIcon
+            className="size-3"
+            style={{ color: task.project.color ?? undefined }}
+          />
           <span className="truncate">{task.project.name}</span>
         </span>
       ) : null}
@@ -71,29 +96,39 @@ export function TaskRow({
   const done = task.status === "done"
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest("[data-interactive]")) return
-        if (selectable) onToggleSelect?.(task.id)
-        else onOpen(task.id)
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          if (selectable) onToggleSelect?.(task.id)
-          else onOpen(task.id)
-        }
-        if (e.key.toLowerCase() === "x" && !selectable) {
-          e.preventDefault()
-          update.mutate({ id: task.id, patch: { status: done ? "todo" : "done" } })
-        }
-      }}
-      className={cn(
-        "group flex items-center gap-3 px-3 py-2.5 text-left outline-none focus-visible:bg-brand-soft",
-        selected && "bg-brand-soft",
-        className
-      )}
+    <TaskItemMenu
+      task={task}
+      onOpen={onOpen}
+      trigger={
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest("[data-interactive]")) return
+            if (selectable) onToggleSelect?.(task.id)
+            else onOpen(task.id)
+          }}
+          onKeyDown={(e) => {
+            if (e.target !== e.currentTarget) return
+            if (e.key === "Enter") {
+              if (selectable) onToggleSelect?.(task.id)
+              else onOpen(task.id)
+            }
+            if (e.key.toLowerCase() === "x" && !selectable) {
+              e.preventDefault()
+              update.mutate({
+                id: task.id,
+                patch: { status: done ? "todo" : "done" },
+              })
+            }
+          }}
+          className={cn(
+            "group flex items-center gap-3 px-3 py-2.5 text-left outline-none focus-visible:bg-brand-soft",
+            selected && "bg-brand-soft",
+            className
+          )}
+        />
+      }
     >
       <span data-interactive>
         {selectable ? (
@@ -106,18 +141,26 @@ export function TaskRow({
           <Checkbox
             checked={done}
             onCheckedChange={(checked) =>
-              update.mutate({ id: task.id, patch: { status: checked ? "done" : "todo" } })
+              update.mutate({
+                id: task.id,
+                patch: { status: checked ? "done" : "todo" },
+              })
             }
             aria-label={done ? "Mark as not done" : "Mark as done"}
           />
         )}
       </span>
       <div className="min-w-0 flex-1">
-        <p className={cn("truncate text-sm font-medium", done && "text-text-muted line-through")}>
+        <p
+          className={cn(
+            "truncate text-sm font-medium",
+            done && "text-text-muted line-through"
+          )}
+        >
           {task.title}
         </p>
         <TaskMeta task={task} className="mt-0.5" />
       </div>
-    </div>
+    </TaskItemMenu>
   )
 }

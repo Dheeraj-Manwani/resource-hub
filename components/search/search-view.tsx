@@ -1,6 +1,8 @@
 "use client"
 
 import { FilterPanel } from "@/components/filter-panel"
+import { ItemMenu } from "@/components/ui/item-menu"
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu"
 
 import { QueryFeedback } from "@/components/query-feedback"
 
@@ -10,6 +12,8 @@ import {
   SearchIcon,
   StarIcon,
   TagIcon,
+  ExternalLinkIcon,
+  PencilIcon,
 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useMemo, useState } from "react"
@@ -283,11 +287,44 @@ export function SearchView() {
                 </h2>
                 <ul className="space-y-1">
                   {hits.map((hit) => (
-                    <li key={hit.id}>
+                    <ItemMenu
+                      key={hit.id}
+                      trigger={<li className="relative" />}
+                      label={`${hit.title} options`}
+                      buttonClassName="absolute top-2 right-2"
+                      actions={
+                        <>
+                          <DropdownMenuItem onClick={() => onSelect(hit)}>
+                            <PencilIcon />
+                            Open
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            render={
+                              <a
+                                href={
+                                  hit.entityType === "project"
+                                    ? `/projects/${hit.id}`
+                                    : hit.entityType === "resource"
+                                      ? `/resources?r=${hit.id}`
+                                      : hit.entityType === "task"
+                                        ? `/tasks?t=${hit.id}`
+                                        : "/tags"
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              />
+                            }
+                          >
+                            <ExternalLinkIcon />
+                            Open in new tab
+                          </DropdownMenuItem>
+                        </>
+                      }
+                    >
                       <button
                         type="button"
                         onClick={() => onSelect(hit)}
-                        className="flex w-full flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left hover:bg-white/[0.04]"
+                        className="flex w-full flex-col items-start gap-0.5 rounded-lg px-3 py-2 pr-12 text-left hover:bg-white/[0.04]"
                       >
                         <span className="flex items-center gap-2 text-sm">
                           {hit.entityType === "resource" && hit.resourceType ? (
@@ -306,7 +343,7 @@ export function SearchView() {
                           </span>
                         ) : null}
                       </button>
-                    </li>
+                    </ItemMenu>
                   ))}
                 </ul>
               </section>
