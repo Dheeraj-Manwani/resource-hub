@@ -292,6 +292,109 @@
   .prose-dark :where(img) {
     @apply my-2 max-w-full rounded-md;
   }
+  .document-writing-area > .tiptap {
+    margin-inline: auto;
+    width: 100%;
+    padding: 1.25rem;
+    min-height: 100%;
+  }
+  .document-width-narrow > .tiptap {
+    max-width: 38rem;
+  }
+  .document-width-comfortable > .tiptap {
+    max-width: 48rem;
+  }
+  .document-width-wide > .tiptap {
+    max-width: none;
+  }
+  .prose-dark figure[data-document-image] {
+    margin: 1rem 0;
+    max-width: 100%;
+  }
+  .prose-dark figure[data-alignment="left"] {
+    text-align: left;
+  }
+  .prose-dark figure[data-alignment="center"] {
+    text-align: center;
+  }
+  .prose-dark figure[data-alignment="right"] {
+    text-align: right;
+  }
+  .document-image-frame {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: top;
+    line-height: 0;
+  }
+  .prose-dark .document-image-frame > img {
+    display: block;
+    margin: 0;
+    max-width: 100%;
+  }
+  .prose-dark figcaption {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: pre-wrap;
+  }
+  .ProseMirror-selectednode .document-image-frame {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+  .document-image-resize-handle {
+    display: none;
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    border: 2px solid var(--brand);
+    border-radius: 3px;
+    background: var(--surface);
+    touch-action: none;
+    z-index: 1;
+  }
+  [contenteditable="true"]
+    .ProseMirror-selectednode
+    .document-image-resize-handle,
+  [contenteditable="true"] figure:hover .document-image-resize-handle {
+    display: block;
+  }
+  .document-image-resize-handle[data-direction="top-left"] {
+    top: -6px;
+    left: -6px;
+    cursor: nwse-resize;
+  }
+  .document-image-resize-handle[data-direction="top-right"] {
+    top: -6px;
+    right: -6px;
+    cursor: nesw-resize;
+  }
+  .document-image-resize-handle[data-direction="bottom-left"] {
+    bottom: -6px;
+    left: -6px;
+    cursor: nesw-resize;
+  }
+  .document-image-resize-handle[data-direction="bottom-right"] {
+    bottom: -6px;
+    right: -6px;
+    cursor: nwse-resize;
+  }
+  .document-image-upload {
+    display: inline-flex;
+    max-width: 100%;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0.5rem 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .document-image-upload img {
+    max-width: 240px;
+    max-height: 160px;
+    object-fit: contain;
+    opacity: 0.6;
+  }
   .prose-dark :where(table) {
     @apply w-full border-collapse text-left;
   }

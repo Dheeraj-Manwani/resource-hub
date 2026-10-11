@@ -5,6 +5,9 @@ import { useSyncController } from "@/components/sync-provider"
 import { FolderIcon, XIcon } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useEffect, useRef, useState } from "react"
+import { toast } from "react-hot-toast"
+import { hasTemporaryImages } from "@/lib/docs/text-document"
+import { cn } from "@/lib/utils"
 
 import {
   ProjectSinglePicker,
@@ -83,12 +86,14 @@ function UnsavedChangesDialog({
   onSaveAndExit,
   onDiscard,
   saving,
+  uploading = false,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSaveAndExit: () => void
   onDiscard: () => void
   saving: boolean
+  uploading?: boolean
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,7 +116,11 @@ function UnsavedChangesDialog({
           <Button variant="destructive" onClick={onDiscard} disabled={saving}>
             Discard
           </Button>
-          <Button loading={saving} onClick={onSaveAndExit} disabled={saving}>
+          <Button
+            loading={saving}
+            onClick={onSaveAndExit}
+            disabled={saving || uploading}
+          >
             Save & Exit
           </Button>
         </DialogFooter>
@@ -126,16 +135,23 @@ function DialogBody({
   onCancel,
   onSaveClick,
   saving,
+  fullscreen,
+  onFullscreen,
+  onUploadStateChange,
 }: {
   draft: QuickNoteDraft
   onLiveChange: (patch: Partial<LiveDraft>) => void
   onCancel: () => void
   onSaveClick: () => void
   saving: boolean
+  fullscreen: boolean
+  onFullscreen: () => void
+  onUploadStateChange: (pending: number) => void
 }) {
   const sync = useSyncController()
   const [title, setTitle] = useState(draft.title)
   const [projectId, setProjectId] = useState(draft.projectId)
+  const [pendingUploads, setPendingUploads] = useState(0)
   const { options: projectOptions } = useProjectOptions()
   const project = projectId
     ? (projectOptions.find((p) => p.id === projectId) ?? draft.project ?? null)
@@ -183,6 +199,14 @@ function DialogBody({
           content={(draft.bodyJson as Record<string, unknown>) ?? null}
           debounceMs={0}
           bare
+          workspace
+          documentTitle={title}
+          fullscreen={fullscreen}
+          onFullscreen={onFullscreen}
+          onUploadStateChange={(pending) => {
+            setPendingUploads(pending)
+            onUploadStateChange(pending)
+          }}
           onSave={(json, text) =>
             onLiveChange({ bodyJson: json, bodyText: text })
           }
@@ -224,7 +248,11 @@ function DialogBody({
           <Button variant="outline" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button loading={saving} onClick={onSaveClick} disabled={saving}>
+          <Button
+            loading={saving}
+            onClick={onSaveClick}
+            disabled={saving || pendingUploads > 0}
+          >
             Save
           </Button>
         </div>
@@ -273,6 +301,9 @@ function TextNoteDialog({
     bodyText: null,
   })
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const pendingUploads = useRef(0)
 
   // Re-seed the "current" snapshot every time a (possibly different) note
   // is opened, so the dirty check always compares against the right note.
@@ -295,7 +326,11 @@ function TextNoteDialog({
   useEffect(() => {
     if (!draft) return
     function handleBeforeUnload(e: BeforeUnloadEvent) {
-      if (!draft || !isDirty(baseline.current, live.current)) return
+      if (
+        !draft ||
+        (!pendingUploads.current && !isDirty(baseline.current, live.current))
+      )
+        return
       e.preventDefault()
       e.returnValue = ""
     }
@@ -322,7 +357,10 @@ function TextNoteDialog({
 
   function requestClose() {
     if (saving) return
-    if (draft && isDirty(baseline.current, live.current)) {
+    if (
+      draft &&
+      (pendingUploads.current > 0 || isDirty(baseline.current, live.current))
+    ) {
       setConfirmOpen(true)
       return
     }
@@ -331,6 +369,13 @@ function TextNoteDialog({
 
   function triggerSave(keepOpen = false) {
     if (!draft || saving) return
+    if (
+      pendingUploads.current > 0 ||
+      hasTemporaryImages(live.current.bodyJson)
+    ) {
+      toast.error("Wait for image uploads to finish before saving.")
+      return
+    }
     const snapshot: LiveDraft = { ...live.current }
     onSave(
       {
@@ -362,7 +407,12 @@ function TextNoteDialog({
       >
         <DialogContent
           showCloseButton={false}
-          className="flex h-[90vh] max-h-250 w-[95vw] max-w-5xl flex-col gap-0 p-0 sm:max-w-5xl"
+          className={cn(
+            "flex flex-col gap-0 p-0",
+            fullscreen
+              ? "h-[100dvh] max-h-none w-screen max-w-none rounded-none sm:max-w-none"
+              : "h-[90vh] max-h-250 w-[95vw] max-w-5xl sm:max-w-5xl"
+          )}
         >
           {draft ? (
             <DialogBody
@@ -372,6 +422,12 @@ function TextNoteDialog({
               onCancel={requestClose}
               onSaveClick={() => triggerSave(false)}
               saving={saving}
+              fullscreen={fullscreen}
+              onFullscreen={() => setFullscreen((value) => !value)}
+              onUploadStateChange={(pending) => {
+                pendingUploads.current = pending
+                setUploading(pending > 0)
+              }}
             />
           ) : null}
         </DialogContent>
@@ -386,6 +442,7 @@ function TextNoteDialog({
           onOpenChange(false)
         }}
         saving={saving}
+        uploading={uploading}
       />
     </>
   )

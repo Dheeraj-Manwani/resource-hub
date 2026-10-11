@@ -1,9 +1,8 @@
 "use client"
 
 import { TaskItem, TaskList } from "@tiptap/extension-list"
-import Image from "@tiptap/extension-image"
 import { Placeholder } from "@tiptap/extensions"
-import { Fragment, Slice, type Node as ProseMirrorNode } from "@tiptap/pm/model"
+import { Fragment, Slice } from "@tiptap/pm/model"
 import type { EditorView } from "@tiptap/pm/view"
 import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import { BubbleMenu } from "@tiptap/react/menus"
@@ -29,6 +28,18 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { DocumentImage } from "@/components/docs/document-image"
+import {
+  ImageUploads,
+  uploadDocumentImage,
+} from "@/components/docs/image-upload"
+import { ImageControls } from "@/components/docs/image-controls"
+import {
+  BlockActions,
+  SlashMenu,
+  WorkspaceControls,
+} from "@/components/docs/document-workspace"
+import { hasTemporaryImages } from "@/lib/docs/text-document"
 
 type Doc = Record<string, unknown>
 
@@ -44,18 +55,6 @@ const BARE_URL_RE = /^https?:\/\/\S+$/i
 
 function isBareUrl(text: string) {
   return BARE_URL_RE.test(text.trim())
-}
-
-function findNode(
-  view: EditorView,
-  match: (node: ProseMirrorNode) => boolean
-): { pos: number; node: ProseMirrorNode } | null {
-  let found: { pos: number; node: ProseMirrorNode } | null = null
-  view.state.doc.descendants((node, pos) => {
-    if (found) return false
-    if (match(node)) found = { pos, node }
-  })
-  return found
 }
 
 /** Range of the text node that still reads as the raw `href` with a link
@@ -76,53 +75,6 @@ function findLinkText(
     }
   })
   return found
-}
-
-/** Inserts a local object-URL image immediately, then swaps it for the
- * uploaded URL (or removes it on failure) once the upload settles. */
-function insertImageWithUpload(
-  view: EditorView,
-  file: File,
-  upload: UploadImage,
-  pos?: number
-) {
-  const imageType = view.state.schema.nodes.image
-  if (!imageType) return
-  const localSrc = URL.createObjectURL(file)
-  const node = imageType.create({ src: localSrc, alt: file.name })
-  const insertAt = pos ?? view.state.selection.from
-  view.dispatch(view.state.tr.insert(insertAt, node))
-
-  upload(file)
-    .then(({ url, width, height }) => {
-      if (view.isDestroyed) return
-      const match = findNode(
-        view,
-        (n) => n.type.name === "image" && n.attrs.src === localSrc
-      )
-      if (!match) return
-      view.dispatch(
-        view.state.tr.setNodeMarkup(match.pos, undefined, {
-          ...match.node.attrs,
-          src: url,
-          width: width ?? match.node.attrs.width,
-          height: height ?? match.node.attrs.height,
-        })
-      )
-    })
-    .catch((error) => {
-      toast.error(`Image upload failed: ${(error as Error).message}`)
-      if (view.isDestroyed) return
-      const match = findNode(
-        view,
-        (n) => n.type.name === "image" && n.attrs.src === localSrc
-      )
-      if (match)
-        view.dispatch(
-          view.state.tr.delete(match.pos, match.pos + match.node.nodeSize)
-        )
-    })
-    .finally(() => URL.revokeObjectURL(localSrc))
 }
 
 /** Inserts the raw URL as a link right away, then quietly swaps the link
@@ -205,7 +157,13 @@ const FLOATING_BAR_CLASS =
  * so it's there when you've selected text and gone otherwise. */
 function SelectionMenu({ editor }: { editor: Editor }) {
   return (
-    <BubbleMenu editor={editor} className={FLOATING_BAR_CLASS}>
+    <BubbleMenu
+      editor={editor}
+      className={FLOATING_BAR_CLASS}
+      shouldShow={({ state }) =>
+        !state.selection.empty && !editor.isActive("image")
+      }
+    >
       <ToolbarButton
         label="Bold"
         active={editor.isActive("bold")}
@@ -229,13 +187,11 @@ function SelectionMenu({ editor }: { editor: Editor }) {
  * don't need a popover of their own at every line. */
 function FormattingMenu({
   editor,
-  onUploadImage,
+  onInsertImage,
 }: {
   editor: Editor
-  onUploadImage?: UploadImage
+  onInsertImage?: () => void
 }) {
-  const fileInput = useRef<HTMLInputElement>(null)
-
   return (
     <Popover>
       <PopoverTrigger
@@ -245,7 +201,7 @@ function FormattingMenu({
             variant="ghost"
             size="icon-sm"
             aria-label="Formatting options"
-            className="absolute top-2 right-2 z-10 text-subtle hover:text-text-muted"
+            className="text-subtle hover:text-text-muted"
           />
         }
       >
@@ -299,27 +255,10 @@ function FormattingMenu({
         >
           <ListChecksIcon />
         </ToolbarButton>
-        {onUploadImage ? (
-          <>
-            <ToolbarButton
-              label="Insert image"
-              onClick={() => fileInput.current?.click()}
-            >
-              <ImageIcon />
-            </ToolbarButton>
-            <input
-              ref={fileInput}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                e.target.value = ""
-                if (file)
-                  insertImageWithUpload(editor.view, file, onUploadImage)
-              }}
-            />
-          </>
+        {onInsertImage ? (
+          <ToolbarButton label="Insert image" onClick={onInsertImage}>
+            <ImageIcon />
+          </ToolbarButton>
         ) : null}
       </PopoverContent>
     </Popover>
@@ -329,9 +268,10 @@ function FormattingMenu({
 /**
  * Tiptap editor for note bodies. Saves JSON + plain text with a debounce;
  * read-only mode renders the same document without the formatting menus.
- * Formatting controls stay out of view until summoned: select text for a
- * bold/italic bubble menu, or click the formatting trigger for everything
- * else (headings, lists, image). Pasting or dropping an image uploads it (when
+ * A compact bar provides block actions and a formatting menu; select text
+ * for inline formatting or an image for its controls. Slash commands insert
+ * blocks. The Docs host can enable export and writing-width controls.
+ * Pasting or dropping an image uploads it (when
  * `onUploadImage` is given); pasting a bare URL becomes a "smart" link whose
  * text is swapped for the page's title (when `onLinkPreview` is given);
  * pasting multi-line plain text keeps every blank line exactly as copied.
@@ -345,6 +285,11 @@ export default function NoteEditor({
   debounceMs = 800,
   bare = false,
   draftKey,
+  workspace = false,
+  documentTitle = "Untitled",
+  fullscreen,
+  onFullscreen,
+  onUploadStateChange,
 }: {
   content: Doc | null
   editable?: boolean
@@ -362,6 +307,11 @@ export default function NoteEditor({
    * host (the Docs modal) that already provides its own chrome but
    * still wants the editable area visually set apart from it. */
   bare?: boolean
+  workspace?: boolean
+  documentTitle?: string
+  fullscreen?: boolean
+  onFullscreen?: () => void
+  onUploadStateChange?: (pending: number) => void
 }) {
   const sync = useSyncController()
   const instanceId = useId()
@@ -372,6 +322,39 @@ export default function NoteEditor({
     () => undefined
   )
   const timer = useRef<number | undefined>(undefined)
+  const slashKeyHandler = useRef<((event: KeyboardEvent) => boolean) | null>(
+    null
+  )
+  const imageInput = useRef<HTMLInputElement>(null)
+  const imageInsertPosition = useRef<number | undefined>(undefined)
+  const pendingUploads = useRef(0)
+  const [uploading, setUploading] = useState(false)
+  const [writingWidth, setWritingWidth] = useState("comfortable")
+  const uploadStateCallback = useRef(onUploadStateChange)
+  const uploadImage = (
+    editor: Editor,
+    file: File,
+    pos?: number,
+    replaceSrc?: string
+  ) => {
+    const upload = onUploadImageRef.current
+    if (!upload) return
+    pendingUploads.current++
+    setUploading(true)
+    uploadStateCallback.current?.(pendingUploads.current)
+    void uploadDocumentImage(editor, file, upload, pos, replaceSrc)
+      .catch((error) =>
+        toast.error(`Image upload failed: ${(error as Error).message}`)
+      )
+      .finally(() => {
+        pendingUploads.current--
+        if (!editor.isDestroyed) {
+          setUploading(pendingUploads.current > 0)
+          uploadStateCallback.current?.(pendingUploads.current)
+        }
+      })
+  }
+  const uploadImageRef = useRef(uploadImage)
   // Switching entities keeps the old flush callback bound to its original ID.
   const onSaveRef = useRef(onSave)
   const callbacks = useRef(new Map<string, NonNullable<typeof onSave>>())
@@ -382,6 +365,8 @@ export default function NoteEditor({
     if (draftKey && onSave) callbacks.current.set(draftKey, onSave)
     onUploadImageRef.current = onUploadImage
     onLinkPreviewRef.current = onLinkPreview
+    uploadStateCallback.current = onUploadStateChange
+    uploadImageRef.current = uploadImage
   })
 
   const [retrying, setRetrying] = useState(false)
@@ -402,7 +387,7 @@ export default function NoteEditor({
     saveDraftRef.current = saveDraft
   })
 
-  const editor = useEditor(
+  const editor: Editor | null = useEditor(
     {
       immediatelyRender: false,
       editable,
@@ -417,16 +402,19 @@ export default function NoteEditor({
             },
           },
         }),
-        Image.configure({
+        DocumentImage.configure({
           allowBase64: false,
           HTMLAttributes: { class: "rounded-lg max-w-full" },
         }),
+        ImageUploads,
         TaskList,
         TaskItem.configure({ nested: true }),
         Placeholder.configure({ placeholder: "Write something…" }),
       ],
       content: content ?? undefined,
       editorProps: {
+        handleKeyDown: (_view, event) =>
+          !event.isComposing && (slashKeyHandler.current?.(event) ?? false),
         attributes: {
           class: cn(
             "prose-dark px-3 py-2 outline-none [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:text-subtle [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
@@ -444,8 +432,7 @@ export default function NoteEditor({
             )
             if (images.length) {
               event.preventDefault()
-              for (const file of images)
-                insertImageWithUpload(view, file, upload)
+              for (const file of images) uploadImageRef.current(editor!, file)
               return true
             }
           }
@@ -485,11 +472,12 @@ export default function NoteEditor({
             top: event.clientY,
           })
           for (const file of images)
-            insertImageWithUpload(view, file, upload, pos?.pos)
+            uploadImageRef.current(editor!, file, pos?.pos)
           return true
         },
       },
       onUpdate: ({ editor }) => {
+        if (hasTemporaryImages(editor.getJSON())) return
         const commit = () => {
           timer.current = undefined
           if (draftKey) {
@@ -562,6 +550,25 @@ export default function NoteEditor({
     )
   return (
     <div
+      onKeyDown={(event) => {
+        if (
+          !editable ||
+          event.defaultPrevented ||
+          !(event.ctrlKey || event.metaKey)
+        )
+          return
+        const target = event.target as HTMLElement
+        if (
+          target.closest(".tiptap") ||
+          target.matches("input, textarea, select")
+        )
+          return
+        const key = event.key.toLowerCase()
+        if (key !== "z" && key !== "y") return
+        event.preventDefault()
+        if (key === "y" || event.shiftKey) editor.chain().focus().redo().run()
+        else editor.chain().focus().undo().run()
+      }}
       className={cn(
         "relative overflow-hidden rounded-lg transition-colors",
         bare && "flex h-full min-h-0 flex-col",
@@ -615,12 +622,80 @@ export default function NoteEditor({
       {editable ? (
         <>
           <SelectionMenu editor={editor} />
-          <FormattingMenu editor={editor} onUploadImage={onUploadImage} />
+          {workspace && (
+            <WorkspaceControls
+              editor={editor}
+              title={documentTitle}
+              width={writingWidth}
+              onWidth={setWritingWidth}
+              fullscreen={fullscreen}
+              onFullscreen={onFullscreen}
+              uploading={uploading}
+            />
+          )}
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-1">
+            <BlockActions editor={editor} />
+            <span className="text-xs text-subtle">
+              {uploading ? "Uploading images…" : "Type / to insert a block"}
+            </span>
+            <FormattingMenu
+              editor={editor}
+              onInsertImage={
+                onUploadImage
+                  ? () => {
+                      imageInsertPosition.current = editor.state.selection.from
+                      imageInput.current?.click()
+                    }
+                  : undefined
+              }
+            />
+          </div>
+          <ImageControls
+            editor={editor}
+            onReplace={
+              onUploadImage
+                ? (file, pos, src) => uploadImage(editor, file, pos, src)
+                : undefined
+            }
+          />
+          <SlashMenu
+            editor={editor}
+            keyHandlerRef={slashKeyHandler}
+            onImage={
+              onUploadImage
+                ? () => {
+                    imageInsertPosition.current = editor.state.selection.from
+                    imageInput.current?.click()
+                  }
+                : undefined
+            }
+          />
+          <input
+            ref={imageInput}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            aria-label="Insert image file"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ""
+              if (file) uploadImage(editor, file, imageInsertPosition.current)
+            }}
+          />
         </>
       ) : null}
       <EditorContent
         editor={editor}
-        className={bare ? "min-h-0 flex-1 overflow-y-auto" : undefined}
+        className={cn(
+          bare && "min-h-0 flex-1 overflow-y-auto",
+          workspace && "document-writing-area",
+          workspace &&
+            (writingWidth === "narrow"
+              ? "document-width-narrow"
+              : writingWidth === "wide"
+                ? "document-width-wide"
+                : "document-width-comfortable")
+        )}
       />
     </div>
   )

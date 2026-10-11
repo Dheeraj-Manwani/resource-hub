@@ -7,6 +7,7 @@ import { db } from "@/lib/db"
 import { files, projects, quickNotes, docVersions } from "@/lib/db/schema"
 import { workbookSchema, workbookText } from "@/lib/docs/workbook"
 import { drawingSchema, drawingText } from "@/lib/docs/drawing"
+import { hasTemporaryImages } from "@/lib/docs/text-document"
 import {
   toQuickNoteDto,
   type QuickNoteDto,
@@ -208,6 +209,8 @@ function documentValues(
   input: QuickNoteInput,
   kind: "text" | "spreadsheet" | "drawing"
 ) {
+  if (kind === "text" && hasTemporaryImages(input.bodyJson))
+    throw badRequest("Image uploads must finish before saving a document.")
   const values = { ...input }
   delete values.expectedRevision
   delete values.clientId
