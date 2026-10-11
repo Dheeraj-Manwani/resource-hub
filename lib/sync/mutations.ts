@@ -1,6 +1,7 @@
 import type { MutationMeta } from "@tanstack/react-query"
 
 type Entity =
+  | "habit"
   | "task"
   | "resource"
   | "project"
@@ -16,6 +17,14 @@ export type SyncMutationMeta = {
   safeRetry?: boolean
 }
 const operations = {
+  "habit.save": { label: "Saving habit", entity: "habit" },
+  "habit.log": {
+    label: "Saving habit progress",
+    entity: "habit",
+    safeRetry: true,
+  },
+  "habit.correct": { label: "Correcting habit progress", entity: "habit" },
+  "habit.status": { label: "Updating habit", entity: "habit" },
   "task.create": { label: "Creating task", entity: "task" },
   "task.update": { label: "Saving task", entity: "task", safeRetry: true },
   "task.move": { label: "Moving task", entity: "task" },
@@ -140,27 +149,29 @@ export function describeMutation(meta: SyncMutationMeta, variables: unknown) {
     }
   }
   const href =
-    entity === "resource"
-      ? id
-        ? `/resources?r=${id}`
-        : "/resources"
-      : entity === "task"
+    entity === "habit"
+      ? "/habits"
+      : entity === "resource"
         ? id
-          ? `/tasks?t=${id}`
-          : "/tasks"
-        : entity === "project"
+          ? `/resources?r=${id}`
+          : "/resources"
+        : entity === "task"
           ? id
-            ? `/projects/${id}`
-            : "/overview"
-          : entity === "quick-note"
-            ? "/docs"
-            : entity === "tag"
-              ? "/tags"
-              : entity === "reminder"
-                ? "/calendar"
-                : entity === "trash"
-                  ? "/trash"
-                  : "/settings"
+            ? `/tasks?t=${id}`
+            : "/tasks"
+          : entity === "project"
+            ? id
+              ? `/projects/${id}`
+              : "/overview"
+            : entity === "quick-note"
+              ? "/docs"
+              : entity === "tag"
+                ? "/tags"
+                : entity === "reminder"
+                  ? "/calendar"
+                  : entity === "trash"
+                    ? "/trash"
+                    : "/settings"
   // Recurrence changes can materialize occurrences; don't automatically replay them.
   const patch = vars.patch as Record<string, unknown> | undefined
   const safeRetry =

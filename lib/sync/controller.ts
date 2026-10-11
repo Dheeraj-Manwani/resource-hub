@@ -35,6 +35,7 @@ const overlaps = (left: string[], right: string[]) =>
   )
 
 const relatedRoots: Record<string, string[]> = {
+  habit: ["habits"],
   task: [
     "tasks",
     "calendar",
@@ -68,7 +69,7 @@ const relatedRoots: Record<string, string[]> = {
   tag: ["tags", "resources", "tasks", "overview", "search", "command-search"],
   trash: ["trash", "resources", "tasks", "projects", "overview"],
   reminder: ["reminders"],
-  settings: ["settings", "overview"],
+  settings: ["settings", "overview", "habits"],
   token: ["tokens"],
 }
 

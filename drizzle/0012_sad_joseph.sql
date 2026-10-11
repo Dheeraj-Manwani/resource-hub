@@ -1,0 +1,1 @@
+ALTER TABLE "habit_occurrences" ADD COLUMN "celebrated_at" timestamp with time zone;

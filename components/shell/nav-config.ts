@@ -6,6 +6,7 @@ import {
   NotebookPenIcon,
   SearchIcon,
   TagIcon,
+  SproutIcon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -15,6 +16,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/overview", label: "Overview", icon: LayoutDashboardIcon },
   { href: "/resources", label: "Resources", icon: LibraryBigIcon },
   { href: "/tasks", label: "Tasks", icon: ListTodoIcon },
+  { href: "/habits", label: "Habits", icon: SproutIcon },
   { href: "/calendar", label: "Calendar", icon: CalendarDaysIcon },
   { href: "/docs", label: "Docs", icon: NotebookPenIcon },
   { href: "/search", label: "Search", icon: SearchIcon },
