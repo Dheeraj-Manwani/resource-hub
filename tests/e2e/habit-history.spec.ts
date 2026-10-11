@@ -89,7 +89,7 @@ test("history shows older work, drills into a day and updates every chart after 
   const totals = page.locator('section[aria-label="Your work so far"]')
   await expect(totals).toContainText("1.3 hr")
   const section = page.getByRole("region", { name: "Keep reading history" })
-  await expect(section).toContainText("2 completed days")
+  await expect(section).toContainText("2 goals met")
   await expect(section).toContainText("Earlier chapter")
   await section
     .getByRole("button", {

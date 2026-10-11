@@ -171,6 +171,28 @@ test("quiet mode persists, reduced motion is respected and a return recognises e
   void testAccount
   const { habit, today } = await create(page.request, "Return gently")
   await record(page.request, habit.id, addDays(today, -10), 18)
+  await page.addInitScript(() => {
+    const state = window as unknown as Window & {
+      habitAudioStarts: number
+      habitAudioCloses: number
+    }
+    state.habitAudioStarts = 0
+    state.habitAudioCloses = 0
+    const NativeAudio = window.AudioContext
+    if (NativeAudio)
+      Object.defineProperty(window, "AudioContext", {
+        value: class extends NativeAudio {
+          constructor() {
+            super()
+            state.habitAudioStarts++
+          }
+          close() {
+            state.habitAudioCloses++
+            return super.close()
+          }
+        },
+      })
+  })
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto("/habits")
   await expect(page.getByLabel("Habit encouragement")).toContainText(
@@ -180,6 +202,13 @@ test("quiet mode persists, reduced motion is respected and a return recognises e
   expect(result.reward.returning).toBe(true)
   const reward = page.getByRole("status", { name: "Habit reward", exact: true })
   await expect(reward).toContainText("Good to have you back")
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as Window & { habitAudioStarts: number })
+          .habitAudioStarts
+    )
+  ).toBe(0)
   expect(await reward.evaluate((e) => getComputedStyle(e).animationName)).toBe(
     "none"
   )
@@ -193,6 +222,23 @@ test("quiet mode persists, reduced motion is respected and a return recognises e
     settings.getByRole("checkbox", { name: "Celebration sound", exact: true })
   ).not.toBeChecked()
   await write(page, "PATCH", "/habits/preferences", () =>
+    settings
+      .getByRole("checkbox", { name: "Celebration sound", exact: true })
+      .check()
+  )
+  await settings
+    .getByRole("button", { name: "Test sound", exact: true })
+    .click()
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as Window & { habitAudioCloses: number })
+            .habitAudioCloses
+      )
+    )
+    .toBe(1)
+  await write(page, "PATCH", "/habits/preferences", () =>
     settings.getByRole("checkbox", { name: "Quiet mode", exact: true }).check()
   )
   await settings.getByRole("button", { name: "Close", exact: true }).click()
@@ -200,6 +246,13 @@ test("quiet mode persists, reduced motion is respected and a return recognises e
   const complete = await uiRecord(page, habit, 25)
   expect(complete.completed).toBe(true)
   await expect(reward).toHaveCount(0)
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as Window & { habitAudioStarts: number })
+          .habitAudioStarts
+    )
+  ).toBe(1)
   await page.reload()
   await expect(page.getByRole("region", { name: "Habit recap" })).toHaveCount(0)
   await page.getByRole("button", { name: "Experience", exact: true }).click()
@@ -216,11 +269,27 @@ test("quiet mode persists, reduced motion is respected and a return recognises e
   ).json()
   expect(prefs).toMatchObject({
     quiet: true,
-    sound: false,
+    sound: true,
     celebrations: true,
     recaps: true,
     nudges: true,
   })
+  const bundle: HabitBundle = await (
+    await page.request.get("/api/v1/habits")
+  ).json()
+  const entries = bundle.items
+    .find((h) => h.id === habit.id)!
+    .logs.filter((l) => l.date === today && !l.deleted)
+  for (const entry of entries) {
+    const deletion = await page.request.patch(
+      `/api/v1/habits/${habit.id}/logs/${entry.id}`,
+      { data: { deleted: true, expectedRevision: entry.revision } }
+    )
+    expect(deletion.ok()).toBe(true)
+  }
+  const returningAgain = await record(page.request, habit.id, today, 5)
+  expect(returningAgain.reward.returning).toBe(false)
+  expect(returningAgain.reward.milestones).toEqual([])
 })
 
 test("timer rewards require a save; quantity timers and concurrent weekly goals earn once", async ({

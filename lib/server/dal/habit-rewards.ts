@@ -53,15 +53,19 @@ export async function claimHabitRewards(
   const candidates = rewardCandidates(oldJourney, journey, today)
   const earned = journey.badges.filter((b) => b.earned)
   if (!earned.length) return { ...candidates, milestones: [] }
+  const returnKey = `return:${today}`
+  const claims = earned.map((b) => ({ habitId: after.id, key: b.id }))
+  if (candidates.returning) claims.push({ habitId: after.id, key: returnKey })
   // Existing achievements are remembered silently. Correcting/undoing never resets this ledger.
   const claimed = await tx
     .insert(habitMilestones)
-    .values(earned.map((b) => ({ habitId: after.id, key: b.id })))
+    .values(claims)
     .onConflictDoNothing()
     .returning({ key: habitMilestones.key })
   const keys = new Set(claimed.map((b) => b.key))
   return {
     ...candidates,
+    returning: candidates.returning && keys.has(returnKey),
     milestones: candidates.milestones.filter((b) => keys.has(b.id)),
   }
 }

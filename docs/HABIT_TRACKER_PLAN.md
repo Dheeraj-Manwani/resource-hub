@@ -185,9 +185,25 @@ Checks passed: 249 unit tests, all four history journeys in installed Chrome/Edg
 
 ### Phase 5 — Motivation and light gamification
 
+**Implemented — 12 October 2026.** See **Your journey** inside **Habits → Your work**. Use **Experience** on Habits to choose the amount of feedback.
+
 - Add goal-completion celebrations, milestone badges, the habit journey, next-milestone progress, daily/weekly recaps and supportive return-after-a-gap messages.
 - Add quiet-mode controls, optional sound and reduced-motion behaviour. Use clear rules for each message and reward.
 - **Ready when:** partial work feels acknowledged, completion feels satisfying, old effort stays visible, and each earned milestone is celebrated once. No rewards from planned time, skips or duplicate saves.
+
+What is available now:
+
+- A brief, dismissible reward after a successful manual/timer save: acknowledge a first effort, celebrate a newly met goal, show newly earned milestones or welcome a return after a gap. Partial work keeps its positive saved feedback and progress-ring update. The reward does not block app controls; it fades after a few seconds.
+- A personal journey with earned badges and progress toward the next milestone. Milestones recognise the first day of saved effort; 1/5/25/100 hours invested; 5/20/50/100 completed scheduled goals; completed weekly/flexible targets and a first monthly goal. Actual work remains the measure—there are no points, rankings or streak penalties.
+- Goals use historical schedules and targets. Multiple prompts/sessions do not multiply one goal; flexible habits count distinct completed days and their weekly target separately. Timer time for quantity/done habits earns time milestones without marking the quantity/done goal complete. Archived history remains visible, including work saved on the day of archiving.
+- **Today** shows a small daily/weekly recap: habits with saved effort, distinct days worked and actual recorded minutes. Partial work and archived habits are included. Last week's actual work remains visible without inventing comparisons or encouragement.
+- Optional nudges before starting use the habit's reason or suggest a manageable first step. After seven days without saved work, offer a gentle welcome back; recognise the first newly saved effort today once. During a timer, a quiet text cue appears after five tracked minutes and reminds the user to review/save. It awards nothing while the timer runs.
+- Account-persisted controls for quiet mode, celebrations, sound, nudges and recaps. Sound is off by default, with an explicit **Test sound** button after enabling it. Quiet mode hides extra feedback while keeping the journey and saved work visible. Animations respect reduced-motion settings; unsupported/blocked audio never interrupts recording.
+- Badges recalculate from non-deleted saved records after correction, deletion or Undo. A separate habit-owned ledger prevents the same milestone from celebrating again across concurrent saves, retries, refreshes or restored entries. Existing achievements are remembered silently when new work is saved. Viewing a journey creates no award/progress record; a skip, plan, unsaved timer or failed save earns nothing.
+
+The additive migration is `drizzle/0015_nasty_morlocks.sql`, applied locally. It adds habit experience preferences and the milestone ledger. Milestone claims commit in the same transaction as the recorded work. Account JSON export includes preferences and the habit-owned ledger. Habits remain independent of tasks, projects, resources and docs.
+
+Checks passed: 266 unit tests, all four motivation journeys in installed Chrome/Edge/Brave, and 17 existing habit/timer/PiP/calendar/history journeys. Browser checks cover saved-work rewards, correction and milestone re-earning without repeated celebration, concurrent retries, return-after-a-gap deduplication, actual opt-in sound preview, quiet mode, reduced motion and account privacy. Type checking, changed-file lint, the production build and tablet/narrow-layout checks pass.
 
 ### Phase 6 — Polish and release checks
 
