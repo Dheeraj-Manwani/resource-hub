@@ -33,7 +33,7 @@ const STEPS: Step[] = [
   {
     target: "tour-nav-resources",
     title: "Resources",
-    body: "Paste a YouTube, GitHub or Pinterest link, any URL, a quick note, or drop a file. It shows up rendered and playable, not just a bookmark.",
+    body: "Save a YouTube, GitHub or Pinterest link, any URL, a text resource, or a file. View and play saved resources directly in the app.",
     inSidebar: true,
   },
   {
@@ -69,7 +69,7 @@ const STEPS: Step[] = [
   {
     target: "tour-add-menu",
     title: "Add anything",
-    body: "One button to create a resource, task, project or quick note — reachable from anywhere in the app.",
+    body: "One button to create a resource, task, project or doc — reachable from anywhere in the app.",
   },
 ]
 

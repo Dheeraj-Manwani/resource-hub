@@ -350,7 +350,7 @@ export function ProjectPage({
               initialSettings={initialSettings}
               baseFilters={baseFilters}
               emptyTitle="Nothing filed here yet"
-              emptyDescription="Add a new resource here, add existing Inbox items, or drag a resource onto this project in the sidebar."
+              emptyDescription="Add a new resource here, add existing independent resources, or drag a resource onto this project in the sidebar."
               hideHeader
               extraFilters={
                 <label className="flex items-center gap-2 text-xs text-text-muted">

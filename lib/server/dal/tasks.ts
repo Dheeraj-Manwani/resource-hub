@@ -344,6 +344,26 @@ export async function getTask(userId: string, id: string): Promise<TaskDto | nul
   return dto ?? null
 }
 
+/** Hydrate a bounded set of Overview tasks together, scoped to their owner. */
+export async function getTasksByIds(
+  userId: string,
+  ids: string[]
+): Promise<TaskDto[]> {
+  if (!ids.length) return []
+  const rows = await db
+    .select()
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        inArray(tasks.id, ids),
+        isNull(tasks.deletedAt),
+        isNull(tasks.archivedAt)
+      )
+    )
+  return toDtos(rows)
+}
+
 async function assertProjectOwnership(userId: string, projectId: string) {
   const [row] = await db
     .select({ id: projects.id })

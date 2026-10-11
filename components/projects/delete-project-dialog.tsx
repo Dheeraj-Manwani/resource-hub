@@ -63,8 +63,8 @@ export function DeleteProjectDialog({
               <DialogTitle>Delete &quot;{project.name}&quot;?</DialogTitle>
               <DialogDescription>
                 Resources are never deleted — only unfiled from this project.
-                They stay in your library and any other project they&apos;re
-                also linked to.
+                They stay in Resources and any other project they&apos;re also
+                linked to.
               </DialogDescription>
             </DialogHeader>
 

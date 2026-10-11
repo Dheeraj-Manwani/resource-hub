@@ -21,8 +21,7 @@ import { useResourceList } from "@/hooks/queries/resources"
 import { useLinkTaskResources } from "@/hooks/queries/tasks"
 import { displayTitle } from "@/lib/resources/dto"
 
-/** Links existing library resources to a task, filtered client-side by
- * title (full-text search across the library arrives in Phase 6). */
+/** Links existing resources to a task, filtered client-side by title. */
 export function TaskResourcePickerDialog({
   taskId,
   excludeIds,
@@ -81,7 +80,7 @@ export function TaskResourcePickerDialog({
         <DialogHeader>
           <DialogTitle>Link resources</DialogTitle>
           <DialogDescription>
-            Pick resources from your library to attach to this task.
+            Pick saved resources to attach to this task.
           </DialogDescription>
         </DialogHeader>
 
@@ -125,7 +124,7 @@ export function TaskResourcePickerDialog({
             ))
           ) : resourcesQuery.isError && !data ? null : (
             <p className="py-8 text-center text-sm text-subtle">
-              {items.length ? "No matches" : "Your library is empty"}
+              {items.length ? "No matches" : "No resources yet"}
             </p>
           )}
           {hasNextPage ? (

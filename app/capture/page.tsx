@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { CaptureClient } from "@/components/capture-client"
 import { requireUser } from "@/lib/server/dal/session"
 
-export const metadata: Metadata = { title: "Save to Inbox" }
+export const metadata: Metadata = { title: "Save resource" }
 
 function first(value: string | string[] | undefined) {
   return (Array.isArray(value) ? value[0] : value)?.slice(0, 50_000) ?? ""

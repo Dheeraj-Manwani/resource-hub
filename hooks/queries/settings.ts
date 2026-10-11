@@ -80,6 +80,8 @@ export function useUpdateSettings() {
       ) {
         toast.success("Calendar settings saved", { id: "calendar-settings" })
       }
+      if (patch.timezone !== undefined)
+        return qc.invalidateQueries({ queryKey: ["overview"] })
     },
   })
 }

@@ -64,6 +64,7 @@ export function QuickNotesView() {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["docs-trash"] }),
         qc.invalidateQueries({ queryKey: ["quick-notes"] }),
+        qc.invalidateQueries({ queryKey: ["overview"] }),
       ])
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Restore failed")

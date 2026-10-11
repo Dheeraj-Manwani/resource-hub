@@ -54,15 +54,12 @@ export default async function SettingsPage() {
       >
         <CalendarSettings appUrl={appUrl} initialSettings={settings} />
       </Section>
-      <Section
-        title="Capture"
-        description="Save things from anywhere into your Inbox."
-      >
+      <Section title="Capture" description="Save resources from anywhere.">
         <CaptureSettings appUrl={appUrl} />
       </Section>
       <Section
         title="Personal tokens"
-        description="For the iOS Shortcut and scripts. Tokens can only capture into your Inbox; revoke any you no longer use."
+        description="For the iOS Shortcut and scripts. Tokens can only save resources; revoke any you no longer use."
       >
         <TokenSettings appUrl={appUrl} />
       </Section>

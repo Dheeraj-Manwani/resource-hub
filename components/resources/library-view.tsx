@@ -327,6 +327,7 @@ export function LibraryView({
   hideHeader,
   independentFilter,
   initialIndependent,
+  initialReviewed,
   emptyTitleIndependent,
   emptyDescriptionIndependent,
   extraFilters,
@@ -343,9 +344,10 @@ export function LibraryView({
   headerActions?: React.ReactNode
   /** Skip the built-in title/description header (a custom one is rendered above). */
   hideHeader?: boolean
-  /** Show the All/Independent toggle and the inbox triage bar. */
+  /** Show the All/Independent toggle and resource filters. */
   independentFilter?: boolean
   initialIndependent?: boolean
+  initialReviewed?: boolean
   /** Empty-state copy shown while the Independent filter is active. */
   emptyTitleIndependent?: string
   emptyDescriptionIndependent?: string
@@ -367,7 +369,11 @@ export function LibraryView({
   const [favorite, setFavorite] = useState(false)
   const [hasTasks, setHasTasks] = useState(false)
   const [reviewed, setReviewed] = useState<"all" | "reviewed" | "unreviewed">(
-    "all"
+    initialReviewed === undefined
+      ? "all"
+      : initialReviewed
+        ? "reviewed"
+        : "unreviewed"
   )
   const [sort, setSort] = useState<SortKey>("newest")
   const [selectMode, setSelectMode] = useState(false)

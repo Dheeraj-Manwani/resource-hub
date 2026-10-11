@@ -1,84 +1,228 @@
 import "server-only"
 
-import type { ProjectDto } from "@/lib/projects/types"
-import type { ResourceDto } from "@/lib/resources/dto"
-import type { TaskDto } from "@/lib/tasks/types"
-
+import { and, eq, isNull, desc, sql } from "drizzle-orm"
+import { db } from "@/lib/db"
+import {
+  tasks,
+  resources,
+  projects,
+  projectResources,
+  quickNotes,
+} from "@/lib/db/schema"
+import {
+  dateInTimezone,
+  focusSignals,
+  isPastDue,
+  isToday,
+  isThisWeek,
+  overviewWindow,
+  projectPaths,
+  projectSummaries,
+  type FocusSignal,
+  type FocusTask,
+  type OverviewSummary,
+} from "@/lib/overview/model"
 import { getProjectTree } from "./projects"
 import { listResources, resourceOverviewCounts } from "./resources"
-import { listTasks, smartFilterCounts, taskDashboardCounts, taskProgressForProjects } from "./tasks"
+import { getSettings } from "./settings"
+import { getTasksByIds } from "./tasks"
 
-export type OverviewTopProject = ProjectDto & { taskDone: number; taskTotal: number }
+export type { OverviewSummary } from "@/lib/overview/model"
 
-export type OverviewSummary = {
-  tasks: {
-    /** Due later today, not already overdue. */
-    dueToday: number
-    /** Past their due date and not done. */
-    pastDue: number
-    completedToday: number
-    /** Every open (not done, not archived) task. */
-    activeTotal: number
-    /** Most urgent open tasks (overdue first, then due today), for the "in focus" list. */
-    upNext: TaskDto[]
-  }
-  resources: {
-    total: number
-    favorites: number
-    inbox: number
-    recent: ResourceDto[]
-  }
-  projects: {
-    total: number
-    top: OverviewTopProject[]
-  }
-}
-
-const TOP_PROJECT_COUNT = 4
-
-/** Everything the Overview (home) page needs, in one request: today's task
- * focus, library snapshot, and the most recently active projects. Each piece
- * reuses the same DAL functions the dedicated pages call, so the numbers
- * always agree with what Library/Tasks/Projects show. */
 export async function getOverview(userId: string): Promise<OverviewSummary> {
-  const [smartCounts, dashboardCounts, upNext, resourceCounts, recent, tree] = await Promise.all([
-    smartFilterCounts(userId),
-    taskDashboardCounts(userId),
-    listTasks(userId, { limit: 6, sort: "due", order: "asc", smartFilter: "today" }),
-    resourceOverviewCounts(userId),
-    listResources(userId, { limit: 6, sort: "created", order: "desc" }),
+  const [
+    settings,
+    taskRows,
+    tree,
+    docs,
+    resourceActivity,
+    resourceCounts,
+    reviewCounts,
+    toReview,
+  ] = await Promise.all([
+    getSettings(userId),
+    db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        projectId: tasks.projectId,
+        status: tasks.status,
+        priority: tasks.priority,
+        dueAt: tasks.dueAt,
+        dueDate: tasks.dueDate,
+        startAt: tasks.startAt,
+        startDate: tasks.startDate,
+        allDay: tasks.allDay,
+        rrule: tasks.rrule,
+        seriesId: tasks.seriesId,
+        exdates: tasks.exdates,
+        updatedAt: tasks.updatedAt,
+        completedAt: tasks.completedAt,
+      })
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.userId, userId),
+          isNull(tasks.deletedAt),
+          isNull(tasks.archivedAt)
+        )
+      ),
     getProjectTree(userId),
+    db
+      .select({
+        id: quickNotes.id,
+        title: quickNotes.title,
+        kind: quickNotes.kind,
+        projectId: quickNotes.projectId,
+        updatedAt: quickNotes.updatedAt,
+      })
+      .from(quickNotes)
+      .where(and(eq(quickNotes.userId, userId), isNull(quickNotes.deletedAt)))
+      .orderBy(desc(quickNotes.updatedAt), desc(quickNotes.id)),
+    db
+      .select({
+        projectId: projectResources.projectId,
+        resourceId: resources.id,
+        updatedAt: sql<Date>`greatest(${resources.updatedAt}, ${projectResources.addedAt})`,
+      })
+      .from(projectResources)
+      .innerJoin(resources, eq(resources.id, projectResources.resourceId))
+      .innerJoin(projects, eq(projects.id, projectResources.projectId))
+      .where(
+        and(
+          eq(resources.userId, userId),
+          eq(projects.userId, userId),
+          isNull(resources.deletedAt),
+          isNull(projects.deletedAt)
+        )
+      ),
+    resourceOverviewCounts(userId),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(resources)
+      .where(
+        and(
+          eq(resources.userId, userId),
+          isNull(resources.deletedAt),
+          eq(resources.isReviewed, false)
+        )
+      ),
+    listResources(userId, {
+      limit: 3,
+      sort: "created",
+      order: "desc",
+      reviewed: false,
+    }),
   ])
-
-  const activeProjects = tree.filter((p) => !p.archivedAt)
-  const topProjects = [...activeProjects]
-    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
-    .slice(0, TOP_PROJECT_COUNT)
-  const progress = await Promise.all(
-    topProjects.map((p) => taskProgressForProjects(userId, [p.id]))
+  const now = new Date()
+  const window = overviewWindow(settings.timezone, now)
+  const taskSignals = taskRows.map((t) => ({
+    ...t,
+    dueAt: t.dueAt?.toISOString() ?? null,
+    startAt: t.startAt?.toISOString() ?? null,
+    completedAt: t.completedAt?.toISOString() ?? null,
+    updatedAt: t.updatedAt.toISOString(),
+    exdates: (t.exdates ?? []).map((date) => date.toISOString()),
+  }))
+  const docSummaries = docs.map((d) => ({
+    ...d,
+    updatedAt: d.updatedAt.toISOString(),
+  }))
+  const signals = focusSignals(taskSignals, window)
+  const actionable = signals.filter((s) => s.status !== "blocked")
+  const todaySignals = actionable.filter((s) => isToday(s, window))
+  const weekSignals = actionable.filter((s) => isThisWeek(s, window))
+  const suggested = actionable.filter((s) => !s.dueAt && !s.dueDate).slice(0, 3)
+  const blocked = taskSignals
+    .filter((t) => t.status === "blocked")
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  const top = projectSummaries(
+    tree,
+    taskSignals,
+    signals,
+    docSummaries,
+    resourceActivity.map((r) => ({
+      ...r,
+      updatedAt: new Date(r.updatedAt).toISOString(),
+    })),
+    window
+  ).slice(0, 3)
+  const visibleSignals = [
+    ...todaySignals.slice(0, 6),
+    ...weekSignals.slice(0, 6),
+    ...suggested,
+    ...top.flatMap((p) => (p.nextTask ? [p.nextTask] : [])),
+  ]
+  const hydrated = await getTasksByIds(userId, [
+    ...new Set([
+      ...visibleSignals.map((s) => s.taskId),
+      ...blocked.slice(0, 2).map((t) => t.id),
+    ]),
+  ])
+  const byId = new Map(hydrated.map((t) => [t.id, t]))
+  const hydrate = (signal: FocusSignal): FocusTask => ({
+    ...signal,
+    task: byId.get(signal.taskId)!,
+  })
+  const visible = (items: FocusSignal[]) =>
+    items
+      .slice(0, 6)
+      .filter((s) => byId.has(s.taskId))
+      .map(hydrate)
+  const projectContexts = await Promise.all(
+    top.map((p) =>
+      p.resourceCount
+        ? listResources(
+            userId,
+            { limit: 2, sort: "updated", order: "desc" },
+            { projectIds: p.memberProjectIds }
+          )
+        : Promise.resolve({ items: [] })
+    )
   )
-
   return {
+    generatedAt: now.toISOString(),
+    timezone: settings.timezone,
+    todayDate: window.todayDate,
+    projectPaths: projectPaths(tree),
     tasks: {
-      dueToday: Math.max(0, smartCounts.today - smartCounts.overdue),
-      pastDue: smartCounts.overdue,
-      completedToday: dashboardCounts.completedToday,
-      activeTotal: dashboardCounts.active,
-      upNext: upNext.items,
+      pastDue: actionable.filter((s) => isPastDue(s, window)).length,
+      dueToday: actionable.filter(
+        (s) => !isPastDue(s, window) && isToday(s, window)
+      ).length,
+      completedToday: taskSignals.filter(
+        (t) =>
+          t.status === "done" &&
+          t.completedAt &&
+          dateInTimezone(t.completedAt, settings.timezone) === window.todayDate
+      ).length,
+      activeTotal: taskSignals.filter((t) => t.status !== "done").length,
+      todayCount: todaySignals.length,
+      weekCount: weekSignals.length,
+      today: visible(todaySignals),
+      week: visible(weekSignals),
+      suggested: visible(suggested),
+      blockedCount: blocked.length,
+      blocked: blocked
+        .slice(0, 2)
+        .flatMap((t) => (byId.get(t.id) ? [byId.get(t.id)!] : [])),
     },
     resources: {
       total: resourceCounts.total,
-      favorites: resourceCounts.favorites,
-      inbox: resourceCounts.inbox,
-      recent: recent.items,
+      toReviewCount: reviewCounts[0]?.count ?? 0,
+      toReview: toReview.items,
     },
     projects: {
-      total: activeProjects.length,
-      top: topProjects.map((p, i) => ({
+      total: tree.filter((p) => !p.archivedAt).length,
+      top: top.map((p, i) => ({
         ...p,
-        taskDone: progress[i]?.done ?? 0,
-        taskTotal: progress[i]?.total ?? 0,
+        nextTask:
+          p.nextTask && byId.has(p.nextTask.taskId)
+            ? hydrate(p.nextTask)
+            : null,
+        resources: projectContexts[i].items,
       })),
     },
+    docs: { recent: docSummaries.slice(0, 3) },
   }
 }

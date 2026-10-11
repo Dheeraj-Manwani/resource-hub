@@ -173,7 +173,7 @@ test("real account: projects, resources, tasks, notes, tags, associations and tr
       page.getByRole("option", { name: "In progress", exact: true }).click()
     )
     await drawer
-      .getByRole("button", { name: "No project (Inbox)", exact: true })
+      .getByRole("button", { name: "No project", exact: true })
       .click()
     await write(page, "PATCH", `/tasks/${taskId}`, () =>
       page.getByRole("button", { name: projectName, exact: true }).click()

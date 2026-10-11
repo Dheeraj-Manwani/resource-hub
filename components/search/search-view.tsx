@@ -264,7 +264,7 @@ export function SearchView() {
       {search.isError && !data ? null : !enabled ? (
         <EmptyState
           icon={SearchIcon}
-          title="Search your whole library"
+          title="Search resources, tasks, projects and tags"
           description="Type a query or set a filter above. Matches on title, notes, description and extracted text are highlighted; typos are tolerated."
         />
       ) : total === 0 && search.isSuccess && !isFetching ? (

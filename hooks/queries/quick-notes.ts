@@ -79,7 +79,13 @@ export function useQuickNotes(filters: QuickNoteFilters = {}) {
  * and refetch from the server. */
 function invalidateFilteredLists(qc: QueryClient) {
   if (quickNoteCache.pending(qc)) return Promise.resolve()
-  return qc.invalidateQueries({ queryKey: KEY }).catch(() => {})
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: KEY }),
+    qc.invalidateQueries({ queryKey: ["overview"] }),
+    qc.invalidateQueries({ queryKey: ["projects"] }),
+  ])
+    .then(() => undefined)
+    .catch(() => {})
 }
 
 export function useCreateQuickNote() {

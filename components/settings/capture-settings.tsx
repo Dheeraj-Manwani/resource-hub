@@ -28,7 +28,7 @@ export function CaptureSettings({ appUrl }: { appUrl: string }) {
           className="inline-flex h-9 cursor-grab items-center gap-2 rounded-lg bg-brand px-3 font-medium text-brand-fg shadow-glow active:cursor-grabbing"
         >
           <BookmarkIcon className="size-4" />
-          Save to Hub
+          Save resource
         </a>
       </div>
       <div className="space-y-2">
@@ -64,8 +64,8 @@ export function CaptureSettings({ appUrl }: { appUrl: string }) {
             <em>Shortcut Input</em>.
           </li>
           <li>
-            Optionally add <em>Show Notification</em> &ldquo;Saved to
-            Inbox&rdquo;.
+            Optionally add <em>Show Notification</em> &ldquo;Resource
+            saved&rdquo;.
           </li>
         </ol>
       </div>

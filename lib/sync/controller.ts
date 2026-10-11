@@ -64,11 +64,11 @@ const relatedRoots: Record<string, string[]> = {
     "search",
     "command-search",
   ],
-  "quick-note": ["quick-notes", "projects"],
+  "quick-note": ["quick-notes", "projects", "overview"],
   tag: ["tags", "resources", "tasks", "overview", "search", "command-search"],
   trash: ["trash", "resources", "tasks", "projects", "overview"],
   reminder: ["reminders"],
-  settings: ["settings"],
+  settings: ["settings", "overview"],
   token: ["tokens"],
 }
 

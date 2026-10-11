@@ -1,9 +1,12 @@
 # Resource Hub
 
-A personal hub for everything you save online. Links are rendered
-richly and play inline (YouTube, Instagram, X, GitHub, Pinterest, any URL),
-alongside notes and uploaded files. Projects, tasks and a calendar come in
-later phases (see [`PLAN.md`](./PLAN.md)).
+A personal hub for resources, tasks, projects, sub-projects and docs. Saved links
+render richly and play inline (YouTube, Instagram, X, GitHub, Pinterest, any URL),
+alongside text resources and uploaded files. Docs include text documents,
+spreadsheets and drawings; the calendar displays scheduled tasks.
+
+Tags are supporting labels for organizing resources and tasks. Resources without
+a project appear under the **Independent** filter in **Resources**.
 
 **Stack:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4,
 shadcn/ui on Base UI, Better Auth (Google only), Drizzle ORM + Postgres,
@@ -27,7 +30,7 @@ pnpm dev                      # http://localhost:3000
 2. Add the authorized redirect URI `http://localhost:3000/api/auth/callback/google`
    (and your production URL's equivalent).
 3. Put the client ID and secret in `.env`. Any Google account can sign in;
-   each account gets its own private library.
+   each account gets its own private resources, tasks, projects and docs.
 
 ### Cloudflare R2 (uploads and thumbnail snapshots)
 
@@ -94,7 +97,7 @@ what's missing.
 | `pnpm db:studio`                               | Drizzle Studio                                                                    |
 | `pnpm db:seed`                                 | Demo data (one resource of every type) for `SEED_USER_EMAIL`. Sign in once first. |
 
-Empty Library and Inbox pages also have a **Load demo data** button.
+The Resources page also has a **Load demo data** button in its empty state.
 
 ## Capture
 
@@ -105,8 +108,8 @@ Empty Library and Inbox pages also have a **Load demo data** button.
   then build a Shortcut that POSTs `{"url": <Shortcut Input>}` to
   `/api/v1/capture` with `Authorization: Bearer <token>`.
 
-Captured items land in the Inbox; a URL you already saved returns the existing
-resource instead of creating a duplicate.
+Captured items are saved as independent resources; a URL you already saved
+returns the existing resource instead of creating a duplicate.
 
 ## Architecture notes
 

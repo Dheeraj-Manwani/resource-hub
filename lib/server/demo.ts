@@ -5,7 +5,11 @@ import { linkResources } from "@/lib/server/dal/project-links"
 import { createProject } from "@/lib/server/dal/projects"
 import { addReminder } from "@/lib/server/dal/reminders"
 import { insertResources, type NewResource } from "@/lib/server/dal/resources"
-import { addChecklistItem, createTask, linkTaskResources } from "@/lib/server/dal/tasks"
+import {
+  addChecklistItem,
+  createTask,
+  linkTaskResources,
+} from "@/lib/server/dal/tasks"
 import { buildRrule } from "@/lib/tasks/recurrence"
 
 function fromUrl(
@@ -75,7 +79,10 @@ export function demoResources(): NewResource[] {
               {
                 type: "paragraph",
                 content: [
-                  { type: "text", text: "File the Inbox every Friday" },
+                  {
+                    type: "text",
+                    text: "Organize independent resources every Friday",
+                  },
                 ],
               },
             ],
@@ -85,7 +92,7 @@ export function demoResources(): NewResource[] {
     ],
   }
   const noteText =
-    "Weekly reading plan\nNotes are rich text: bold, italic, lists and links.\nFinish the flexbox guide\nWatch one talk per day\nFile the Inbox every Friday"
+    "Weekly reading plan\nNotes are rich text: bold, italic, lists and links.\nFinish the flexbox guide\nWatch one talk per day\nOrganize independent resources every Friday"
 
   return [
     fromUrl("https://www.youtube.com/watch?v=jNQXAC9IVRw", {
@@ -207,7 +214,7 @@ export function demoResources(): NewResource[] {
 
 /**
  * Loads one resource of every type plus two demo projects, with a few
- * resources filed into each — the rest stay unfiled, to show off the Inbox.
+ * resources filed into each — the rest stay independent.
  */
 export async function seedDemoData(userId: string) {
   const created = await insertResources(userId, demoResources().reverse())
@@ -234,7 +241,10 @@ export async function seedDemoData(userId: string) {
     await linkResources(userId, moodboard.id, ids)
   }
 
-  await seedDemoTasks(userId, byTitle, { readingId: reading?.id ?? null, moodboardId: moodboard?.id ?? null })
+  await seedDemoTasks(userId, byTitle, {
+    readingId: reading?.id ?? null,
+    moodboardId: moodboard?.id ?? null,
+  })
 
   return created
 }
@@ -265,7 +275,11 @@ async function seedDemoTasks(
   })
   if (flexboxTask) {
     await addChecklistItem(userId, flexboxTask.id, "Read sections 1-4")
-    await addChecklistItem(userId, flexboxTask.id, "Try the interactive examples")
+    await addChecklistItem(
+      userId,
+      flexboxTask.id,
+      "Try the interactive examples"
+    )
     await addChecklistItem(userId, flexboxTask.id, "Summarize key takeaways")
     if (flexboxId) await linkTaskResources(userId, flexboxTask.id, [flexboxId])
     await addReminder(userId, flexboxTask.id, 60)
@@ -308,7 +322,11 @@ async function seedDemoTasks(
     tags: ["demo"],
   })
   if (shipTask) {
-    await addChecklistItem(userId, shipTask.id, "Unblock: waiting on design review")
+    await addChecklistItem(
+      userId,
+      shipTask.id,
+      "Unblock: waiting on design review"
+    )
     if (nextjsId) await linkTaskResources(userId, shipTask.id, [nextjsId])
   }
 

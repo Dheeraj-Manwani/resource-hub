@@ -82,13 +82,13 @@ export function CaptureClient({
         {state.status === "saving" ? (
           <div className="mt-5 flex flex-col items-center gap-2">
             <Loader2Icon className="size-6 animate-spin text-brand" />
-            <p className="text-sm text-text-muted">Saving to Inbox…</p>
+            <p className="text-sm text-text-muted">Saving resource…</p>
           </div>
         ) : state.status === "saved" ? (
           <div className="mt-5 flex flex-col items-center gap-2">
             <CheckCircle2Icon className="size-7 text-emerald-400" />
             <p className="font-medium">
-              {state.duplicate ? "Already in your hub" : "Saved to Inbox"}
+              {state.duplicate ? "Resource already saved" : "Resource saved"}
             </p>
             <p className="line-clamp-2 text-sm text-text-muted">
               {displayTitle(state.resource)}
@@ -116,7 +116,7 @@ export function CaptureClient({
               nativeButton={false}
               render={<Link href="/resources?filter=independent" />}
             >
-              Go to Inbox
+              Go to Resources
             </Button>
           </div>
         )}

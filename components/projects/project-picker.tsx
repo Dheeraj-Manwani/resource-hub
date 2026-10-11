@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils"
 const neverCollapsed = () => false
 
 /** Flattened, always-expanded project options for pickers (a personal
- * library's tree is small enough to show in full). */
+ * project tree is small enough to show in full). */
 export function useProjectOptions() {
   const { data: flat = [], isPending } = useProjectTree()
   const options = useMemo(
@@ -123,7 +123,7 @@ function SearchableList({
   )
 }
 
-/** Single-select popover (move/file into exactly one project, or Inbox).
+/** Single-select popover (move/file into exactly one project, or no project).
  * `render` follows the same base-ui convention as Tooltip/DropdownMenu
  * triggers elsewhere: pass the styled element with no children, and put the
  * visible label/icon as `children`. */
@@ -165,7 +165,7 @@ export function ProjectSinglePicker({
           {!query.trim() ? (
             <ProjectRow
               depth={0}
-              name="No project (Inbox)"
+              name="No project"
               onClick={() => pick(null)}
               right={value === null ? <CheckIcon className="size-3.5" /> : null}
               className={value === null ? "bg-brand-soft" : undefined}
@@ -251,8 +251,8 @@ export function ProjectMultiPicker({
           />
           {!filtered.length && !query.trim() ? (
             <p className="flex items-center justify-center gap-1.5 px-2 py-3 text-center text-xs text-subtle">
-              <InboxIcon className="size-3.5" /> No projects yet — it&apos;ll
-              land in your Inbox
+              <InboxIcon className="size-3.5" /> No projects yet — save without
+              a project
             </p>
           ) : null}
         </SearchableList>

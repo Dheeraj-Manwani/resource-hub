@@ -11,7 +11,7 @@ const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })
 
 export const metadata: Metadata = {
   title: { default: "Resource Hub | RH", template: "%s | RH" },
-  description: "Your private library of everything you save online.",
+  description: "Your private resources, tasks, projects and docs.",
   applicationName: "Resource Hub",
 }
 

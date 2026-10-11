@@ -323,7 +323,7 @@ function DetailContent({ task }: { task: TaskDto }) {
             ) : (
               <>
                 <FolderIcon className="size-3.5 text-subtle" />
-                No project (Inbox)
+                No project
               </>
             )}
           </ProjectSinglePicker>

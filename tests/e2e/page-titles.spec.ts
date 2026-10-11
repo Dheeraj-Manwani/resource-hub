@@ -27,7 +27,7 @@ test("public and app pages use descriptive RH tab titles", async ({
     ["/search", "Search"],
     ["/settings", "Settings"],
     ["/trash", "Trash"],
-    ["/capture", "Save to Inbox"],
+    ["/capture", "Save resource"],
   ]) {
     await page.goto(path!)
     await expect(page).toHaveTitle(`${title} | RH`)

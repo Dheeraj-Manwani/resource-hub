@@ -36,7 +36,9 @@ Coverage includes:
   and the global Syncing indicator while a real write waits.
 - Task create, title/status/project edit, checklist add/edit/complete/delete,
   reminder add/delete, and resource link/unlink.
-- Rich-text quick note create/edit/project assignment/delete.
+- Text doc create/edit/project assignment/delete.
+- Focus first Overview task completion, recurring occurrences, sub-project totals,
+  doc editing, resource review and responsive tablet/phone layouts.
 - Tag rename, color change and delete.
 - API token create/revoke.
 - Search results and completing a task from Calendar, including persistence.

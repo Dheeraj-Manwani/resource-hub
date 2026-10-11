@@ -384,7 +384,7 @@ function DialogBody({
           <FolderIcon className="size-3.5" />
           {projectIds.length
             ? `${projectIds.length} project${projectIds.length === 1 ? "" : "s"}`
-            : "Inbox"}
+            : "No project"}
         </ProjectMultiPicker>
       </div>
 

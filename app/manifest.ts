@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Resource Hub",
     short_name: "Hub",
-    description: "Your private library of everything you save online.",
+    description: "Your private resources, tasks, projects and docs.",
     start_url: "/overview",
     display: "standalone",
     background_color: "#0A0A0A",

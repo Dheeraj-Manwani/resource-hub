@@ -43,7 +43,7 @@ export default async function LandingPage(props: PageProps<"/">) {
           </p>
         ) : null}
         <p className="mt-10 text-xs text-subtle">
-          Your library is private to your account
+          Your resources are private to your account
         </p>
       </div>
     </main>

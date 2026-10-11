@@ -21,9 +21,7 @@ import { useResourceList } from "@/hooks/queries/resources"
 import { useLinkResources } from "@/hooks/queries/projects"
 import { displayTitle } from "@/lib/resources/dto"
 
-/** Files existing library resources into a project. Candidates come from the
- * Inbox (unfiled) list, filtered client-side by title — full-text search
- * across the whole library arrives in Phase 6. */
+/** Adds existing independent resources to a project, filtered by title. */
 export function AddExistingDialog({
   projectId,
   open,
@@ -75,7 +73,7 @@ export function AddExistingDialog({
         <DialogHeader>
           <DialogTitle>Add existing resources</DialogTitle>
           <DialogDescription>
-            From your Inbox — pick what belongs in this project.
+            Pick independent resources to add to this project.
           </DialogDescription>
         </DialogHeader>
 
@@ -119,7 +117,7 @@ export function AddExistingDialog({
             ))
           ) : resourcesQuery.isError && !data ? null : (
             <p className="py-8 text-center text-sm text-subtle">
-              {items.length ? "No matches" : "Your Inbox is empty"}
+              {items.length ? "No matches" : "No independent resources"}
             </p>
           )}
           {hasNextPage ? (
