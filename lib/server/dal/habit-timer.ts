@@ -22,6 +22,7 @@ import {
   type HabitTimer,
   type TimerCommand,
   type TimerSnapshot,
+  type StartTimerInput,
 } from "@/lib/habits/timer"
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 type SessionRow = typeof habitTimerSessions.$inferSelect
@@ -34,6 +35,7 @@ function dto(row: SessionRow, habit: typeof habits.$inferSelect): HabitTimer {
     icon: habit.icon,
     timezone: row.timezone,
     mode: row.mode,
+    pomodoro: row.pomodoro,
     status: row.status,
     targetMs: row.targetMs,
     runningSince: row.runningSince?.getTime() ?? null,
@@ -68,15 +70,7 @@ export async function getHabitTimer(userId: string): Promise<TimerSnapshot> {
     serverNow: Date.now(),
   }
 }
-export async function startHabitTimer(
-  userId: string,
-  input: {
-    id: string
-    habitId: string
-    mode: "countdown" | "stopwatch"
-    minutes: number
-  }
-) {
+export async function startHabitTimer(userId: string, input: StartTimerInput) {
   const settings = await getSettings(userId)
   return db.transaction(async (tx) => {
     await lockAccount(tx, userId)
@@ -123,7 +117,23 @@ export async function startHabitTimer(
         habitId: habit.id,
         timezone: settings.timezone,
         mode: input.mode,
-        targetMs: input.minutes * 60000,
+        targetMs:
+          input.minutes *
+          60000 *
+          (input.mode === "pomodoro" ? input.rounds! : 1),
+        pomodoro:
+          input.mode === "pomodoro"
+            ? {
+                workMs: input.minutes * 60000,
+                breakMs: input.breakMinutes! * 60000,
+                rounds: input.rounds!,
+                round: 1,
+                phase: "work",
+                workStartMs: 0,
+                breakElapsedMs: 0,
+                breakSince: null,
+              }
+            : null,
         runningSince: new Date(now),
         goal: progress.version.config,
       })
@@ -262,6 +272,7 @@ export async function commandHabitTimer(
       .update(habitTimerSessions)
       .set({
         status: next.status,
+        pomodoro: next.pomodoro,
         targetMs: next.targetMs,
         runningSince:
           next.runningSince === null ? null : new Date(next.runningSince),

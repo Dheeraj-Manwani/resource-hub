@@ -3,6 +3,17 @@ import { todayIn, type HabitConfig } from "./model"
 
 export const MAX_TIMER_MS = 24 * 60 * 60 * 1000
 export type WorkSegment = { start: number; end: number }
+export type TimerMode = "countdown" | "stopwatch" | "pomodoro"
+export type Pomodoro = {
+  workMs: number
+  breakMs: number
+  rounds: number
+  round: number
+  phase: "work" | "break"
+  workStartMs: number
+  breakElapsedMs: number
+  breakSince: number | null
+}
 export type TimerStatus =
   "running" | "paused" | "review" | "finished" | "discarded"
 export type HabitTimer = {
@@ -11,7 +22,8 @@ export type HabitTimer = {
   name: string
   icon: string
   timezone: string
-  mode: "countdown" | "stopwatch"
+  mode: TimerMode
+  pomodoro?: Pomodoro | null
   status: TimerStatus
   targetMs: number
   runningSince: number | null
@@ -26,10 +38,32 @@ export const startTimerSchema = z
   .object({
     id: z.uuid(),
     habitId: z.uuid(),
-    mode: z.enum(["countdown", "stopwatch"]),
+    mode: z.enum(["countdown", "stopwatch", "pomodoro"]),
     minutes: z.number().int().min(1).max(1440),
+    breakMinutes: z.number().int().min(1).max(60).optional(),
+    rounds: z.number().int().min(1).max(12).optional(),
   })
   .strict()
+  .superRefine((input, ctx) => {
+    if (input.mode === "pomodoro") {
+      if (
+        !input.breakMinutes ||
+        !input.rounds ||
+        input.minutes > 120 ||
+        input.minutes * input.rounds > 1440
+      )
+        ctx.addIssue({
+          code: "custom",
+          message:
+            "Choose 1–120 work minutes, 1–60 break minutes and 1–12 rounds (up to 24 hours of work).",
+        })
+    } else if (input.breakMinutes !== undefined || input.rounds !== undefined)
+      ctx.addIssue({
+        code: "custom",
+        message: "Breaks and rounds are for Pomodoro sessions.",
+      })
+  })
+export type StartTimerInput = z.infer<typeof startTimerSchema>
 const commandFields = {
   id: z.uuid(),
   expectedRevision: z.number().int().positive(),
@@ -39,7 +73,7 @@ export const timerCommandSchema = z.discriminatedUnion("action", [
   z
     .object({
       ...commandFields,
-      action: z.enum(["pause", "resume", "review", "discard"]),
+      action: z.enum(["pause", "resume", "review", "discard", "next_phase"]),
     })
     .strict(),
   z
@@ -69,8 +103,9 @@ export function segmentTotal(segments: WorkSegment[]) {
 }
 export function timerSegments(timer: HabitTimer, now: number): WorkSegment[] {
   const saved = segmentTotal(timer.segments)
-  const limit = timer.mode === "countdown" ? timer.targetMs : MAX_TIMER_MS
+  const limit = timerWorkLimit(timer)
   if (
+    timer.pomodoro?.phase === "break" ||
     timer.status !== "running" ||
     timer.runningSince === null ||
     saved >= limit
@@ -86,6 +121,32 @@ export function timerSegments(timer: HabitTimer, now: number): WorkSegment[] {
 }
 export function timerElapsed(timer: HabitTimer, now: number) {
   return segmentTotal(timerSegments(timer, now))
+}
+export function timerWorkLimit(timer: HabitTimer) {
+  return timer.pomodoro
+    ? Math.min(
+        timer.targetMs,
+        timer.pomodoro.workStartMs + timer.pomodoro.workMs
+      )
+    : timer.mode === "countdown"
+      ? timer.targetMs
+      : MAX_TIMER_MS
+}
+export function breakElapsed(timer: HabitTimer, now: number) {
+  const cycle = timer.pomodoro
+  if (!cycle || cycle.phase !== "break") return 0
+  return Math.min(
+    cycle.breakMs,
+    cycle.breakElapsedMs +
+      (timer.status === "running" && cycle.breakSince !== null
+        ? Math.max(0, now - cycle.breakSince)
+        : 0)
+  )
+}
+export function timerPhaseRemaining(timer: HabitTimer, now: number) {
+  return timer.pomodoro?.phase === "break"
+    ? Math.max(0, timer.pomodoro.breakMs - breakElapsed(timer, now))
+    : Math.max(0, timerWorkLimit(timer) - timerElapsed(timer, now))
 }
 export function applyTimerCommand(
   timer: HabitTimer,
@@ -106,14 +167,56 @@ export function applyTimerCommand(
     revision: timer.revision + 1,
     lastActionId: command.id,
   }
+  if (command.action === "next_phase") {
+    const cycle = timer.pomodoro
+    if (!cycle) throw new Error("This session has no work/break cycles")
+    const segments = timerSegments(timer, at)
+    if (segments.length > 1000)
+      throw new Error("Finish this session before adding more intervals")
+    if (cycle.phase === "work") {
+      if (segmentTotal(segments) < timerWorkLimit(timer))
+        throw new Error("Finish this work interval before taking its break")
+      if (cycle.round >= cycle.rounds)
+        throw new Error("All rounds are finished. Review and save your work.")
+      return {
+        ...next,
+        segments,
+        runningSince: null,
+        status: "running",
+        pomodoro: {
+          ...cycle,
+          phase: "break",
+          breakElapsedMs: 0,
+          breakSince: at,
+        },
+      }
+    }
+    return {
+      ...next,
+      status: "running",
+      runningSince: at,
+      pomodoro: {
+        ...cycle,
+        phase: "work",
+        round: cycle.round + 1,
+        workStartMs: segmentTotal(segments),
+        breakElapsedMs: 0,
+        breakSince: null,
+      },
+    }
+  }
   if (command.action === "resume") {
     if (timer.status === "running")
       throw new Error("The timer is already running")
-    if (
-      timerElapsed(timer, at) >=
-      (timer.mode === "countdown" ? timer.targetMs : MAX_TIMER_MS)
-    )
+    if (timerPhaseRemaining(timer, at) <= 0)
       throw new Error("Add time before resuming a finished countdown")
+    if (timer.pomodoro?.phase === "break")
+      return {
+        ...next,
+        status: "running",
+        runningSince: null,
+        pomodoro: { ...timer.pomodoro, breakSince: at },
+      }
     return { ...next, status: "running", runningSince: at }
   }
   if (command.action === "add_time") {
@@ -154,6 +257,14 @@ export function applyTimerCommand(
     segments,
     runningSince: null,
     status,
+    pomodoro:
+      timer.pomodoro?.phase === "break"
+        ? {
+            ...timer.pomodoro,
+            breakElapsedMs: breakElapsed(timer, at),
+            breakSince: null,
+          }
+        : timer.pomodoro,
     confirmedMs:
       command.action === "finish" ? command.confirmedMs : timer.confirmedMs,
   }

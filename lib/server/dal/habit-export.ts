@@ -60,6 +60,7 @@ export async function buildHabitExport(userId: string) {
             id: session.id,
             timezone: session.timezone,
             mode: session.mode,
+            pomodoro: session.pomodoro,
             status: session.status,
             targetMs: session.targetMs,
             runningSince: session.runningSince?.toISOString() ?? null,

@@ -16,7 +16,12 @@ import {
 import { sql } from "drizzle-orm"
 import { user } from "./auth"
 import type { HabitConfig, HabitInput, HabitStatus } from "@/lib/habits/model"
-import type { TimerStatus, WorkSegment } from "@/lib/habits/timer"
+import type {
+  TimerMode,
+  TimerStatus,
+  WorkSegment,
+  Pomodoro,
+} from "@/lib/habits/timer"
 import type { HabitPlanInput } from "@/lib/habits/planning"
 
 export const habitPreferences = pgTable("habit_preferences", {
@@ -113,7 +118,8 @@ export const habitTimerSessions = pgTable(
       .notNull()
       .references(() => habits.id, { onDelete: "cascade" }),
     timezone: text().notNull(),
-    mode: text().$type<"countdown" | "stopwatch">().notNull(),
+    mode: text().$type<TimerMode>().notNull(),
+    pomodoro: jsonb().$type<Pomodoro>(),
     status: text().$type<TimerStatus>().notNull().default("running"),
     targetMs: integer().notNull(),
     runningSince: timestamp({ withTimezone: true }),

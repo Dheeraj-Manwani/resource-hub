@@ -1,0 +1,1 @@
+ALTER TABLE "habit_timer_sessions" ADD COLUMN "pomodoro" jsonb;

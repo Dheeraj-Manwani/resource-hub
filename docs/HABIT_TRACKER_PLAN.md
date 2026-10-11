@@ -1,6 +1,6 @@
 # Habit tracker and focus timer — proposed plan
 
-11 October 2026. Phases 1–2 are implemented; Phases 3–6 remain planned. Desktop Edge, Chrome and Brave come first, with practical tablet support.
+12 October 2026. All six implementation phases are complete. Desktop Edge, Chrome and Brave come first, with practical tablet support and the testing boundaries noted below.
 
 ## The experience
 
@@ -207,10 +207,27 @@ Checks passed: 266 unit tests, all four motivation journeys in installed Chrome/
 
 ### Phase 6 — Polish and release checks
 
+**Implemented — 12 October 2026.** Choose a starter in **New habit**, or choose **Pomodoro** when starting a timer.
+
 - Add optional Pomodoro work/break cycles and starter templates. Breaks never count as habit time.
 - Verify keyboard/screen-reader access, touch targets, empty/loading/error states, tablet portrait/landscape layouts and browser fallbacks.
 - Run full journeys from creating a habit through scheduling, calendar Start, timer/manual recording, completion, history, correction, archive and export.
 - **Ready when:** the whole flow works on the target desktop browsers, with the supported tablet experience and its limits clearly communicated.
+
+What is available now:
+
+- Six editable starters: reading, flexible movement, a mindful pause, weekly creative practice, page quantity and daily reflection. **Use starter** fills the form; review the goal, schedule and duration before **Create habit**. Templates create no saved work, reminder or entity association.
+- Optional **Pomodoro** sessions with 1–120 work minutes per round, 1–60 break minutes and 1–12 rounds (at most 24 hours of work). After work expires, choose **Start break**; after a break, choose **Start next round**, or explicitly skip the break. The final round leads to review/save without an unnecessary final break.
+- Work caps at each phase's end even after sleep, refresh or background throttling. Waiting between phases, paused time and breaks never count as work. Finish early or during a break, review actual working minutes and save explicitly. Expiry and phase transitions create no progress, completion or reward.
+- The same session and controls work in the app and supported desktop pop-out. Break/work state survives refresh and account-scoped offline command queues; revisions and action IDs protect concurrent transitions and retries. Quantity/done habits record timer time separately from their goals.
+- Touch-sized heatmap day controls, keyboard-operable charts and forms, labelled work/break clocks and phase announcements without announcing every second. The timer dock and start dialog scroll within smaller screen heights. Setup hints describe the available timer/reminders instead of future phases.
+- Loading, retry and empty states use the existing shared feedback. Tablet portrait, landscape and narrow layouts retain the in-app timer; unsupported pop-out stays visibly unavailable. Browser/device sleep can suspend rendering or alerts, so users review recovered work before saving. Native Android overlays and reliable closed-browser reminders remain outside this implementation.
+
+The additive migration is `drizzle/0016_slow_butterfly.sql`, applied locally. Its nullable cycle-state column preserves existing countdown/stopwatch sessions. Account JSON exports include the saved cycle configuration/state alongside actual work intervals and confirmed time. Habits remain independent of tasks, projects, resources and docs.
+
+Tablet checks use portrait (768×1024), landscape (1024×768) and narrow (390×844) desktop-browser viewports. Keyboard focus, dialog containment, accessible control names and live-phase semantics are checked; physical Android hardware and a manual screen-reader session have not been tested.
+
+Checks passed: 282 unit tests; three release journeys in each installed Chrome/Edge/Brave browser (nine runs); 20 existing habit/history/reward/calendar/reminder/timer journeys; and Pomodoro pop-out controls in all three installed desktop browsers (three runs). The release journey covers starter review, creation, scheduling, calendar Start, work/break transitions, explicit recording, completion, correction, archived history and export. Additional checks cover offline transitions, concurrent retries, quantity time, loading/retry/empty states, keyboard access and layout overflow. Type checking, changed-file lint, the production build and diff checks pass. Screenshots of the start dialog, history and recovered pop-out timer were reviewed.
 
 Leave native Android overlays, app blocking, health integrations, social leaderboards, AI coaching and elaborate game economies for later.
 

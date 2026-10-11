@@ -18,6 +18,8 @@ import {
   isActiveTimer,
   MAX_TIMER_MS,
   timerElapsed,
+  timerPhaseRemaining,
+  type TimerMode,
 } from "@/lib/habits/timer"
 import { todayIn, versionOn } from "@/lib/habits/model"
 import { useSettings } from "@/hooks/queries/settings"
@@ -109,7 +111,7 @@ export function HabitTimerUI() {
           ) : (
             <aside
               aria-label="Habit timer"
-              className="fixed right-4 bottom-24 z-40 w-[380px] max-w-[calc(100%-2rem)] rounded-xl border bg-card p-4 shadow-xl md:bottom-4"
+              className="fixed right-4 bottom-24 z-40 max-h-[calc(100dvh-8rem)] w-[380px] max-w-[calc(100%-2rem)] overflow-y-auto rounded-xl border bg-card p-4 shadow-xl md:bottom-4 md:max-h-[calc(100dvh-2rem)]"
             >
               <TimerPanel
                 supported={supported}
@@ -151,7 +153,9 @@ function StartDialog() {
   const current =
     versionOn(habit, todayIn(settings?.timezone ?? "UTC")) ??
     habit.versions.at(-1)!
-  const [mode, setMode] = useState<"countdown" | "stopwatch">("countdown")
+  const [mode, setMode] = useState<TimerMode>("countdown")
+  const [breakMinutes, setBreakMinutes] = useState(5)
+  const [rounds, setRounds] = useState(4)
   const [minutes, setMinutes] = useState(
     habit.lastTimerMinutes ?? current.config.defaultDuration
   )
@@ -163,7 +167,10 @@ function StartDialog() {
         if (!open && !timer.busy) timer.chooseHabit(null)
       }}
     >
-      <DialogContent className="sm:max-w-md" showCloseButton={!timer.busy}>
+      <DialogContent
+        className="max-h-[90dvh] overflow-y-auto sm:max-w-md"
+        showCloseButton={!timer.busy}
+      >
         <DialogHeader>
           <DialogTitle>Start · {habit.name}</DialogTitle>
           <DialogDescription>
@@ -176,7 +183,12 @@ function StartDialog() {
             e.preventDefault()
             setError("")
             try {
-              await timer.start(habit, mode, minutes)
+              await timer.start(
+                habit,
+                mode,
+                minutes,
+                mode === "pomodoro" ? { breakMinutes, rounds } : undefined
+              )
             } catch (cause) {
               setError(
                 cause instanceof Error ? cause.message : "Couldn't start timer"
@@ -189,26 +201,71 @@ function StartDialog() {
             <select
               className={controlClass}
               value={mode}
-              onChange={(e) => setMode(e.target.value as typeof mode)}
+              onChange={(e) => {
+                const nextMode = e.target.value as TimerMode
+                setMode(nextMode)
+                if (nextMode === "pomodoro")
+                  setMinutes((value) => Math.min(value, 120))
+              }}
             >
               <option value="countdown">Countdown</option>
               <option value="stopwatch">Stopwatch</option>
+              <option value="pomodoro">Pomodoro · work and breaks</option>
             </select>
           </label>
-          {mode === "countdown" && (
+          {mode !== "stopwatch" && (
             <label className="grid gap-1.5 text-sm font-medium">
-              Session minutes
+              {mode === "pomodoro"
+                ? "Work minutes per round"
+                : "Session minutes"}
               <Input
                 className="h-11"
                 type="number"
                 min={1}
-                max={1440}
+                max={mode === "pomodoro" ? 120 : 1440}
                 step={1}
                 required
                 value={minutes}
                 onChange={(e) => setMinutes(Number(e.target.value))}
               />
             </label>
+          )}
+          {mode === "pomodoro" && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="grid gap-1.5 text-sm font-medium">
+                  Break minutes
+                  <Input
+                    className="h-11"
+                    type="number"
+                    min={1}
+                    max={60}
+                    step={1}
+                    required
+                    value={breakMinutes}
+                    onChange={(e) => setBreakMinutes(Number(e.target.value))}
+                  />
+                </label>
+                <label className="grid gap-1.5 text-sm font-medium">
+                  Work rounds
+                  <Input
+                    className="h-11"
+                    type="number"
+                    min={1}
+                    max={12}
+                    step={1}
+                    required
+                    value={rounds}
+                    onChange={(e) => setRounds(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-text-muted">
+                {minutes * rounds} planned working minutes. Start each break and
+                next round when ready. Breaks and gaps after a phase ends never
+                count as work.
+              </p>
+            </>
           )}
           <HabitNudge habitId={habit.id} hasReason={!!habit.reason} />
           <p className="text-xs text-text-muted">
@@ -270,9 +327,9 @@ function TimerPanel({
   const preferences = useHabitPreferences().data
   const [discard, setDiscard] = useState(false)
   const elapsed = timerElapsed(session, timer.now)
-  const remaining = Math.max(0, session.targetMs - elapsed)
-  const expired =
-    elapsed >= (session.mode === "countdown" ? session.targetMs : MAX_TIMER_MS)
+  const remaining = timerPhaseRemaining(session, timer.now)
+  const expired = remaining <= 0
+  const cycle = session.pomodoro
   const disabled = timer.conflict || !isActiveTimer(session.status)
   return (
     <div className="grid gap-3" aria-label={pip ? "Habit timer" : undefined}>
@@ -305,11 +362,15 @@ function TimerPanel({
           role="timer"
           aria-live="off"
           aria-label={
-            session.mode === "countdown" ? "Remaining time" : "Elapsed time"
+            cycle?.phase === "break"
+              ? "Break remaining"
+              : session.mode !== "stopwatch"
+                ? "Remaining time"
+                : "Elapsed time"
           }
           className="font-heading text-4xl font-medium tabular-nums"
         >
-          {formatTimer(session.mode === "countdown" ? remaining : elapsed)}
+          {formatTimer(session.mode !== "stopwatch" ? remaining : elapsed)}
         </span>
         <span className="text-xs text-text-muted">
           {session.status === "review"
@@ -325,6 +386,18 @@ function TimerPanel({
                   : "Paused"}
         </span>
       </div>
+      {cycle && (
+        <div className="space-y-1 text-xs text-text-muted">
+          <p role="status">
+            {cycle.phase === "break" ? "Break" : "Work"} · Round {cycle.round}{" "}
+            of {cycle.rounds}
+            {expired ? " · Phase finished" : ""}
+          </p>
+          <p>
+            {formatTimer(elapsed)} working time so far. Breaks are excluded.
+          </p>
+        </div>
+      )}
       {timer.recovered && isActiveTimer(session.status) && (
         <p className="text-xs text-text-muted">
           Recovered or synced timer. Review elapsed work before saving.
@@ -340,6 +413,7 @@ function TimerPanel({
               variant="outline"
               disabled={
                 disabled ||
+                (session.status !== "running" && expired) ||
                 (!expired &&
                   session.status !== "running" &&
                   elapsed >= MAX_TIMER_MS)
@@ -353,6 +427,22 @@ function TimerPanel({
               {session.status === "running" ? <PauseIcon /> : <PlayIcon />}
               {session.status === "running" ? "Pause" : "Resume"}
             </Button>
+            {cycle &&
+              (cycle.phase === "break" ||
+                (expired && cycle.round < cycle.rounds)) && (
+                <Button
+                  className="h-11"
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={() => timer.command({ action: "next_phase" })}
+                >
+                  {cycle.phase === "work"
+                    ? "Start break"
+                    : expired
+                      ? "Start next round"
+                      : "Skip break · start next round"}
+                </Button>
+              )}
             {session.mode === "countdown" && (
               <Button
                 className="h-11"
@@ -472,8 +562,9 @@ function ReviewSession() {
       }}
     >
       <p className="text-xs text-text-muted">
-        {formatTimer(tracked)} tracked, excluding pauses. If you slept, stopped
-        working, or left the timer running, reduce the work time here.
+        {formatTimer(tracked)} tracked, excluding pauses and breaks. If you
+        slept, stopped working, or left the timer running, reduce the work time
+        here.
       </p>
       <label className="grid gap-1.5 text-sm font-medium">
         Actual working minutes
@@ -513,7 +604,9 @@ function ReviewSession() {
           className="h-11"
           type="button"
           variant="outline"
-          disabled={timer.conflict}
+          disabled={
+            timer.conflict || timerPhaseRemaining(session, timer.now) <= 0
+          }
           onClick={() => timer.command({ action: "resume" })}
         >
           Continue

@@ -18,6 +18,7 @@ import {
   type HabitTimer,
   type TimerCommand,
   type TimerSnapshot,
+  type TimerMode,
 } from "@/lib/habits/timer"
 import {
   readStoredTimer,
@@ -30,7 +31,7 @@ import { useSyncController } from "@/components/sync-provider"
 import { invalidateHabitViews } from "@/hooks/queries/habits"
 import { announceHabitReward, type HabitReward } from "@/lib/habits/motivation"
 type CommandInput =
-  | { action: "pause" | "resume" | "review" | "discard" }
+  | { action: "pause" | "resume" | "review" | "discard" | "next_phase" }
   | { action: "add_time"; minutes: number }
   | { action: "finish"; confirmedMs: number; notes: string }
 type TimerContextValue = {
@@ -43,8 +44,9 @@ type TimerContextValue = {
   recovered: boolean
   start: (
     habit: Habit,
-    mode: "countdown" | "stopwatch",
-    minutes: number
+    mode: TimerMode,
+    minutes: number,
+    cycles?: { breakMinutes: number; rounds: number }
   ) => Promise<void>
   command: (input: CommandInput) => void
   reviewLatest: () => void
@@ -293,8 +295,9 @@ export function HabitTimerProvider({
     projected && (isActiveTimer(projected.status) || pending) ? projected : null
   async function start(
     habit: Habit,
-    mode: "countdown" | "stopwatch",
-    minutes: number
+    mode: TimerMode,
+    minutes: number,
+    cycles?: { breakMinutes: number; rounds: number }
   ) {
     if (!navigator.onLine)
       throw new Error(
@@ -309,7 +312,13 @@ export function HabitTimerProvider({
       await client.cancelQueries({ queryKey: ["habit-timer", userId] })
       const result = await api<TimerSnapshot>("/api/v1/habits/timer", {
         method: "POST",
-        body: { id: crypto.randomUUID(), habitId: habit.id, mode, minutes },
+        body: {
+          id: crypto.randomUUID(),
+          habitId: habit.id,
+          mode,
+          minutes,
+          ...(mode === "pomodoro" ? cycles : {}),
+        },
       })
       setStartedId(result.session?.id ?? null)
       writeStoredTimer(userId, {

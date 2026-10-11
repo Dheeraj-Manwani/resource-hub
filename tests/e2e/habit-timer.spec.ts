@@ -394,8 +394,14 @@ test("pop-out controls share the timer and closing PiP returns it to the app", a
     .getByRole("article", { name: "Read with a timer", exact: true })
     .getByRole("button", { name: "Start timer", exact: true })
     .click()
-  await page
-    .getByRole("dialog", { name: "Start · Read with a timer" })
+  const startDialog = page.getByRole("dialog", {
+    name: "Start · Read with a timer",
+  })
+  await startDialog.getByLabel("Timer mode").selectOption("pomodoro")
+  await startDialog.getByLabel("Work minutes per round").fill("1")
+  await startDialog.getByLabel("Break minutes", { exact: true }).fill("1")
+  await startDialog.getByLabel("Work rounds").fill("2")
+  await startDialog
     .getByRole("button", { name: "Start timer", exact: true })
     .click()
   const dock = page.getByRole("complementary", {
@@ -403,6 +409,26 @@ test("pop-out controls share the timer and closing PiP returns it to the app", a
     exact: true,
   })
   await expect(dock).toBeVisible()
+  const current = (
+    await (await page.request.get("/api/v1/habits/timer")).json()
+  ).session as HabitTimer
+  const connection = postgres(process.env.DATABASE_URL!, { max: 1 })
+  const database = drizzle(connection, { schema, casing: "snake_case" })
+  try {
+    await database
+      .update(schema.habitTimerSessions)
+      .set({ runningSince: new Date(Date.now() - 65000) })
+      .where(
+        and(
+          eq(schema.habitTimerSessions.id, current.id),
+          eq(schema.habitTimerSessions.userId, testAccount.id)
+        )
+      )
+  } finally {
+    await connection.end()
+  }
+  await page.reload()
+  await expect(dock.getByRole("timer")).toHaveText("00:00")
   const supported = await page.evaluate(
     () =>
       !!(window as Window & { documentPictureInPicture?: unknown })
@@ -439,6 +465,19 @@ test("pop-out controls share the timer and closing PiP returns it to the app", a
       const pip = (
         window as Window & { documentPictureInPicture?: { window: Window } }
       ).documentPictureInPicture!.window
+      ;[...pip.document.querySelectorAll("button")]
+        .find((button) => button.textContent?.trim() === "Start break")!
+        .click()
+    })
+    await settle(page, testAccount.id)
+    expect(
+      (await (await page.request.get("/api/v1/habits/timer")).json()).session
+        .pomodoro.phase
+    ).toBe("break")
+    await page.evaluate(() => {
+      const pip = (
+        window as Window & { documentPictureInPicture?: { window: Window } }
+      ).documentPictureInPicture!.window
       const pause = [...pip.document.querySelectorAll("button")].find(
         (button) => button.textContent?.trim() === "Pause"
       )!
@@ -453,6 +492,10 @@ test("pop-out controls share the timer and closing PiP returns it to the app", a
     await expect(
       dock.getByRole("button", { name: "Resume", exact: true })
     ).toBeVisible()
+    await expect(dock.getByRole("timer")).toHaveAttribute(
+      "aria-label",
+      "Break remaining"
+    )
   } else {
     await expect(
       dock.getByRole("button", { name: "Pop out timer", exact: true })

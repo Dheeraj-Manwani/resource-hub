@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { useHabitWrite } from "@/hooks/queries/habits"
 import { showToast } from "@/lib/toast"
+import { habitFromStarter, habitStarters } from "@/lib/habits/templates"
 import {
   addDays,
   createHabitSchema,
@@ -76,6 +77,7 @@ export function HabitForm({
   const [times, setTimes] = useState(form.config.times.join(", "))
   const [reminders, setReminders] = useState(form.config.reminders.join(", "))
   const [error, setError] = useState("")
+  const [starter, setStarter] = useState("")
   const [clientId] = useState(() => crypto.randomUUID())
   const [expectedRevision] = useState(habit?.revision)
   const save = useHabitWrite("habit.save")
@@ -165,6 +167,49 @@ export function HabitForm({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-5">
+          {!habit && (
+            <fieldset className="grid gap-2 rounded-lg border p-3">
+              <legend className="px-1 text-sm font-medium">
+                Start your way
+              </legend>
+              <label className="grid gap-1.5 text-sm">
+                Starter template (optional)
+                <select
+                  className={controlClass}
+                  value={starter}
+                  onChange={(e) => setStarter(e.target.value)}
+                >
+                  <option value="">Choose a starter</option>
+                  {habitStarters.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label} · {item.description}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 justify-self-start"
+                disabled={!starter || save.isPending}
+                onClick={() => {
+                  const input = habitFromStarter(starter, today, weekStart)
+                  if (input) {
+                    setForm(input)
+                    setTimes("")
+                    setReminders("")
+                    setError("")
+                  }
+                }}
+              >
+                Use starter
+              </Button>
+              <p className="text-xs text-text-muted">
+                This replaces the form fields. Adjust anything before saving;
+                nothing is created yet.
+              </p>
+            </fieldset>
+          )}
           <LabelField label="Habit name">
             <Input
               className="h-11"
@@ -482,7 +527,7 @@ export function HabitForm({
               </LabelField>
               <LabelField
                 label="Reminder times (optional)"
-                hint="Saved for later. Reminder delivery comes in a later phase."
+                hint="24-hour times, separated by commas. Reminders appear while the app is open; they never record progress."
               >
                 <Input
                   className="h-11"
@@ -493,7 +538,7 @@ export function HabitForm({
               </LabelField>
               <LabelField
                 label="Default session minutes"
-                hint="Saved for the timer coming next."
+                hint="Pre-filled when you start a timer. You can choose a different duration for each session."
               >
                 <Input
                   className="h-11"

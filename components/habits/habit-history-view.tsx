@@ -133,7 +133,7 @@ function Heatmap({
         <div
           className="grid grid-flow-col grid-rows-7 gap-1"
           style={{
-            gridTemplateColumns: `repeat(${dates.length / 7}, minmax(28px, 40px))`,
+            gridTemplateColumns: `repeat(${dates.length / 7}, 44px)`,
           }}
         >
           {dates.map((date) => {
@@ -145,12 +145,12 @@ function Heatmap({
                 aria-label={dayLabel(habit, day)}
                 title={dayLabel(habit, day)}
                 onClick={() => onDay(date)}
-                className={`flex h-8 min-w-7 items-center justify-center rounded-md border text-xs focus-visible:outline-2 focus-visible:outline-ring ${stateClasses[day.state]}`}
+                className={`flex size-11 items-center justify-center rounded-md border text-xs focus-visible:outline-2 focus-visible:outline-ring ${stateClasses[day.state]}`}
               >
                 <span aria-hidden>{stateSymbols[day.state]}</span>
               </button>
             ) : (
-              <span className="h-8" key={date} />
+              <span className="h-11" key={date} />
             )
           })}
         </div>
