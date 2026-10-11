@@ -27,6 +27,7 @@ import {
 } from "@/lib/habits/timer-storage"
 import type { Habit } from "@/lib/habits/model"
 import { useSyncController } from "@/components/sync-provider"
+import { invalidateHabitViews } from "@/hooks/queries/habits"
 type CommandInput =
   | { action: "pause" | "resume" | "review" | "discard" }
   | { action: "add_time"; minutes: number }
@@ -183,7 +184,7 @@ export function HabitTimerProvider({
         retryAfter.current = 0
         setNotice("")
         if (first.action === "finish") {
-          await client.invalidateQueries({ queryKey: ["habits"] })
+          await invalidateHabitViews(client)
           if (result.saved)
             showToast(
               result.completed ? `${timer.name}: goal met!` : "Session saved",

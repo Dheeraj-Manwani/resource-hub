@@ -25,6 +25,16 @@ const operations = {
   },
   "habit.correct": { label: "Correcting habit progress", entity: "habit" },
   "habit.status": { label: "Updating habit", entity: "habit" },
+  "habit.plan": {
+    label: "Saving habit plan",
+    entity: "habit",
+    safeRetry: true,
+  },
+  "habit.reminder": {
+    label: "Saving habit reminder",
+    entity: "habit",
+    safeRetry: true,
+  },
   "task.create": { label: "Creating task", entity: "task" },
   "task.update": { label: "Saving task", entity: "task", safeRetry: true },
   "task.move": { label: "Moving task", entity: "task" },

@@ -84,6 +84,9 @@ export function useUpdateSettings() {
         return Promise.all([
           qc.invalidateQueries({ queryKey: ["overview"] }),
           qc.invalidateQueries({ queryKey: ["habits"] }),
+          qc.invalidateQueries({ queryKey: ["habit-calendar"] }),
+          qc.invalidateQueries({ queryKey: ["habit-reminders"] }),
+          qc.invalidateQueries({ queryKey: ["habit-history"] }),
         ])
     },
   })

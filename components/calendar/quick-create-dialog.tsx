@@ -12,15 +12,9 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { useCreateTask } from "@/hooks/queries/tasks"
-import { formatDate } from "@/lib/format"
-import { toDateOnly } from "@/lib/tasks/recurrence"
+import { todayIn } from "@/lib/habits/model"
 
 export type QuickCreateTarget = { date: Date; allDay: boolean } | null
-
-const timeFormatter = new Intl.DateTimeFormat("en", {
-  hour: "numeric",
-  minute: "2-digit",
-})
 
 /** Opened from clicking/dragging an empty calendar slot — the date/time is
  * already fixed by the click, so this is just a title field rather than
@@ -29,8 +23,10 @@ export function QuickCreateDialog({
   target,
   onClose,
   projectId,
+  timezone = "UTC",
 }: {
   projectId?: string
+  timezone?: string
   target: QuickCreateTarget
   onClose: () => void
 }) {
@@ -44,7 +40,7 @@ export function QuickCreateDialog({
         title: title.trim(),
         projectId,
         dueAt: target.allDay ? null : target.date.toISOString(),
-        dueDate: target.allDay ? toDateOnly(target.date) : null,
+        dueDate: target.allDay ? todayIn(timezone, target.date) : null,
         allDay: target.allDay,
       },
       {
@@ -65,7 +61,7 @@ export function QuickCreateDialog({
         <DialogHeader>
           <DialogTitle>
             {target
-              ? `New task — ${formatDate(target.date)}${target.allDay ? "" : ` ${timeFormatter.format(target.date)}`}`
+              ? `New task — ${new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: timezone }).format(target.date)}${target.allDay ? "" : ` ${new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", timeZone: timezone }).format(target.date)}`}`
               : "New task"}
           </DialogTitle>
         </DialogHeader>

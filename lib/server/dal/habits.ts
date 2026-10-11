@@ -9,6 +9,7 @@ import {
   habitOccurrences,
   habitLogs,
   habitStates,
+  habitPlanEdits,
 } from "@/lib/db/schema"
 import { ApiError, badRequest, notFound } from "@/lib/server/api"
 import { getSettings } from "./settings"
@@ -48,10 +49,11 @@ async function owned(tx: Tx, userId: string, id: string, lock = false) {
 async function details(
   tx: Tx,
   row: typeof habits.$inferSelect,
-  date: string
+  date: string,
+  through = date
 ): Promise<Habit> {
   const month = monthBounds(date)
-  const [versions, logs, states] = await Promise.all([
+  const [versions, logs, states, plans] = await Promise.all([
     tx
       .select()
       .from(habitVersions)
@@ -72,6 +74,7 @@ async function details(
         source: habitLogs.source,
         elapsedMs: habitLogs.elapsedMs,
         sessionId: habitLogs.sessionId,
+        timezone: habitLogs.timezone,
       })
       .from(habitLogs)
       .innerJoin(
@@ -82,7 +85,7 @@ async function details(
         and(
           eq(habitLogs.habitId, row.id),
           gte(habitLogs.date, addDays(month.start, -7)),
-          lte(habitLogs.date, addDays(month.end, 7))
+          lte(habitLogs.date, addDays(monthBounds(through).end, 7))
         )
       )
       .orderBy(asc(habitLogs.date), asc(habitLogs.createdAt)),
@@ -91,6 +94,22 @@ async function details(
       .from(habitStates)
       .where(eq(habitStates.habitId, row.id))
       .orderBy(asc(habitStates.createdAt), asc(habitStates.id)),
+    tx
+      .select({
+        id: habitPlanEdits.id,
+        revision: habitPlanEdits.revision,
+        versionId: habitPlanEdits.versionId,
+        scope: habitPlanEdits.scope,
+        sourceDate: habitPlanEdits.sourceDate,
+        sourceSlot: habitPlanEdits.sourceSlot,
+        date: habitPlanEdits.date,
+        time: habitPlanEdits.time,
+        minutes: habitPlanEdits.minutes,
+        canceled: habitPlanEdits.canceled,
+      })
+      .from(habitPlanEdits)
+      .where(eq(habitPlanEdits.habitId, row.id))
+      .orderBy(asc(habitPlanEdits.revision)),
   ])
   return {
     id: row.id,
@@ -101,6 +120,7 @@ async function details(
     status: row.status,
     revision: row.revision,
     lastTimerMinutes: row.lastTimerMinutes,
+    plans,
     versions: versions.map((v) => ({
       id: v.id,
       revision: v.revision,
@@ -116,7 +136,8 @@ async function details(
 }
 export async function listHabits(
   userId: string,
-  requestedDate?: string
+  requestedDate?: string,
+  through?: string
 ): Promise<HabitBundle> {
   const settings = await getSettings(userId)
   const today = todayIn(settings.timezone)
@@ -127,7 +148,7 @@ export async function listHabits(
       .from(habits)
       .where(eq(habits.userId, userId))
       .orderBy(asc(habits.createdAt))
-    return Promise.all(rows.map((row) => details(tx, row, date)))
+    return Promise.all(rows.map((row) => details(tx, row, date, through)))
   })
   return {
     today,

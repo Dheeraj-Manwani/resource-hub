@@ -1,5 +1,6 @@
 import {
   date,
+  boolean,
   bigint,
   index,
   integer,
@@ -15,6 +16,7 @@ import { sql } from "drizzle-orm"
 import { user } from "./auth"
 import type { HabitConfig, HabitInput, HabitStatus } from "@/lib/habits/model"
 import type { TimerStatus, WorkSegment } from "@/lib/habits/timer"
+import type { HabitPlanInput } from "@/lib/habits/planning"
 
 export const habits = pgTable(
   "habits",
@@ -151,4 +153,58 @@ export const habitStates = pgTable(
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("habit_states_habit_idx").on(t.habitId)]
+)
+
+export const habitPlanEdits = pgTable(
+  "habit_plan_edits",
+  {
+    id: uuid().primaryKey(),
+    habitId: uuid()
+      .notNull()
+      .references(() => habits.id, { onDelete: "cascade" }),
+    versionId: uuid()
+      .notNull()
+      .references(() => habitVersions.id, { onDelete: "cascade" }),
+    revision: integer().notNull(),
+    scope: text().$type<"this" | "following" | "extra">().notNull(),
+    sourceDate: date().notNull(),
+    sourceSlot: text().notNull(),
+    date: date().notNull(),
+    time: text(),
+    minutes: integer().notNull(),
+    canceled: boolean().notNull().default(false),
+    request: jsonb().$type<HabitPlanInput>().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("habit_plan_revision_idx").on(t.habitId, t.revision)]
+)
+
+export const habitReminderStates = pgTable(
+  "habit_reminder_states",
+  {
+    id: uuid().primaryKey(),
+    habitId: uuid()
+      .notNull()
+      .references(() => habits.id, { onDelete: "cascade" }),
+    versionId: uuid()
+      .notNull()
+      .references(() => habitVersions.id, { onDelete: "cascade" }),
+    date: date().notNull(),
+    time: text().notNull(),
+    dismissedAt: timestamp({ withTimezone: true }),
+    snoozedUntil: timestamp({ withTimezone: true }),
+    lastActionId: uuid(),
+    updatedAt: timestamp({ withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    uniqueIndex("habit_reminder_occurrence_idx").on(
+      t.habitId,
+      t.versionId,
+      t.date,
+      t.time
+    ),
+  ]
 )

@@ -140,9 +140,26 @@ Checks passed: 211 unit tests, the four existing habit browser journeys, and tim
 
 ### Phase 3 — Calendar and shared app views
 
+**Implemented — 11 October 2026.** Turn **Habits on** in Calendar, or use **Habits today** on Overview.
+
 - Add the optional habit calendar layer, all-day/timed occurrences, flexible weekly targets, planned-versus-recorded styling and the Start/Log panel.
 - Add habit summaries to Overview, habit search, and explicit-action reminders with snooze. Export habit history through account export and CSV.
 - **Ready when:** calendar/reminder interactions never record automatically; starting/logging there updates the same habit records and creates no task. Moving a block changes only its plan.
+
+What is available now:
+
+- An optional, account-specific habit layer alongside tasks in Calendar. Preferred times create timed prompts; habits without times appear all day. Planned minutes and saved work are labelled separately, with clear partial/completed states. Calendar dates and times use the account timezone and week-start setting.
+- Flexible habits appear as weekly targets, with **Choose a day** to add a specific plan. Past weeks remain visible as history; they cannot be planned retroactively. Choosing a date, opening a block or receiving a reminder records no work.
+- A shared habit panel in Calendar, Overview and reminders. **Start timer** opens the duration choice; **Log progress / Mark done** opens the existing recording form. The same independent habit owns every saved entry. Future dates allow planning; recording happens on the day the work is done or through explicit backdating.
+- **Change plan**, drag and resize offer **This occurrence** or **This and future occurrences**. Save changes the date, time or planned duration only. Future changes apply to that time slot until the next schedule version; other slots, individual overrides and recorded days retain their plans. Removing an occurrence removes its prompt, never its saved history. Concurrent/stale saves are checked, and retries cannot duplicate a plan.
+- **Habits today** on Overview shows remaining and completed goals, Start/Log controls and flexible weekly progress. Search and the command palette find habit names, reasons and saved notes, opening the correct habit/date. Habit-only search hides entity association filters.
+- Habit reminders in the existing bell, with account-persisted snooze and dismiss. They apply to actual planned dates and disappear after completion or skipping. Browser alerts are optional and request permission only after a click. Reminder delivery requires the app to be open; alerts with the browser closed or device asleep remain outside this phase.
+- **Export CSV** on Habits includes manual/timer work, notes, older entries, archived habits and deleted-entry flags. Account JSON export includes full habit history, schedule versions, plans, goal occurrences, timer sessions and reminder state. Exports remain private to the account.
+- Tablet controls use larger targets. Month/Week calendars can scroll horizontally on smaller screens; Day/Agenda fit the available width. Flexible targets use a compact scrollable list.
+
+The additive migration is `drizzle/0014_quick_salo.sql`, applied locally. It adds habit-owned planning edits and reminder state. Calendar reads, planning saves and reminder actions create no task, project association, goal occurrence or progress entry.
+
+Validation covers schedule/timezone/DST conversion, flexible plans, moving individual/future occurrences, drag cancellation, saved-work styling, explicit recording, persistent reminders, full-history exports, concurrent retries and account isolation. Checks passed: 227 unit tests, four shared-view journeys in each installed Chrome/Edge/Brave browser, and ten existing habit/timer/PiP and recurring-task calendar journeys. Type checking, changed-file lint and the production build pass.
 
 ### Phase 4 — History and useful visuals
 

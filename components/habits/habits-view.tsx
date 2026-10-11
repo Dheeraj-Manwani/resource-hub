@@ -211,11 +211,17 @@ function HabitCard({
     </article>
   )
 }
-export function HabitsView() {
-  const [date, setDate] = useState("")
+export function HabitsView({
+  initialHabitId = null,
+  initialDate = "",
+}: {
+  initialHabitId?: string | null
+  initialDate?: string
+}) {
+  const [date, setDate] = useState(initialDate)
   const query = useHabits(date)
   const [form, setForm] = useState<"new" | string | null>(null)
-  const [details, setDetails] = useState<string | null>(null)
+  const [details, setDetails] = useState<string | null>(initialHabitId)
   const [entry, setEntry] = useState<{
     habitId: string
     log?: HabitLog
@@ -253,14 +259,24 @@ export function HabitsView() {
         title="Habits"
         description="Small efforts. A rhythm of your own."
         actions={
-          <Button
-            className="h-11"
-            disabled={!data}
-            onClick={() => setForm("new")}
-          >
-            <PlusIcon />
-            New habit
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              className="h-11"
+              variant="outline"
+              render={<a href="/api/v1/habits/export" download />}
+              nativeButton={false}
+            >
+              Export CSV
+            </Button>
+            <Button
+              className="h-11"
+              disabled={!data}
+              onClick={() => setForm("new")}
+            >
+              <PlusIcon />
+              New habit
+            </Button>
+          </div>
         }
       />
       <QueryFeedback query={query} label="habits" />
@@ -834,7 +850,7 @@ function HabitDetails({
     </Dialog>
   )
 }
-function LogDialog({
+export function LogDialog({
   habit,
   bundle,
   log,

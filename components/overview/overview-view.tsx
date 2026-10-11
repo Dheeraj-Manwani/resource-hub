@@ -18,6 +18,7 @@ import {
   SheetIcon,
 } from "lucide-react"
 import { QueryFeedback } from "@/components/query-feedback"
+import { HabitsToday } from "@/components/habits/habits-today"
 import { ProjectItemMenu } from "@/components/projects/project-item-menu"
 import { ResourceContextMenu } from "@/components/resources/resource-context-menu"
 import { useResourcePreview } from "@/components/resources/resource-preview-provider"
@@ -566,6 +567,7 @@ export function OverviewView({ userName }: { userName: string }) {
       </section>
       <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1.6fr)_minmax(220px,1fr)]">
         <div className="min-w-0 space-y-7">
+          <HabitsToday />
           <section aria-label="Task priorities">
             <SectionHeader title="What needs doing">
               <PageLink href="/tasks">All tasks</PageLink>

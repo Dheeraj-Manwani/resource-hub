@@ -14,6 +14,7 @@ import {
   TagIcon,
   ExternalLinkIcon,
   PencilIcon,
+  SproutIcon,
 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useMemo, useState } from "react"
@@ -52,6 +53,7 @@ const ENTITY_SECTIONS = [
   { key: "tasks" as const, label: "Tasks", icon: ListTodoIcon },
   { key: "projects" as const, label: "Projects", icon: FolderIcon },
   { key: "tags" as const, label: "Tags", icon: TagIcon },
+  { key: "habits" as const, label: "Habits and entries", icon: SproutIcon },
 ]
 
 export function SearchView() {
@@ -76,7 +78,7 @@ export function SearchView() {
       type:
         type === ALL
           ? undefined
-          : (type as "resource" | "task" | "project" | "tag"),
+          : (type as "resource" | "task" | "project" | "tag" | "habit"),
       resourceType:
         resourceType === ALL ? undefined : (resourceType as ResourceType),
       tag: tag === ALL ? undefined : tag,
@@ -96,13 +98,16 @@ export function SearchView() {
     ? data.resources.length +
       data.tasks.length +
       data.projects.length +
-      data.tags.length
+      data.tags.length +
+      data.habits.length
     : 0
 
   function onSelect(hit: SearchHit) {
     if (hit.entityType === "resource") openResource(hit.id)
     else if (hit.entityType === "task") openTask(hit.id)
     else if (hit.entityType === "project") router.push(`/projects/${hit.id}`)
+    else if (hit.entityType === "habit")
+      router.push(hit.url ?? `/habits?h=${hit.id}`)
     else router.push("/tags")
   }
 
@@ -111,7 +116,7 @@ export function SearchView() {
       <PageHeader
         title="Search"
         actions={<CreationActions />}
-        description="Across resources, tasks, projects and tags, with full-text and fuzzy matching."
+        description="Across resources, tasks, projects, tags and habits, including habit notes."
       />
 
       <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-surface px-3">
@@ -138,7 +143,18 @@ export function SearchView() {
           ].filter(Boolean).length
         }
       >
-        <Select value={type} onValueChange={(v) => setType(v ?? ALL)}>
+        <Select
+          value={type}
+          onValueChange={(v) => {
+            setType(v ?? ALL)
+            if (v === "habit") {
+              setTag(ALL)
+              setResourceType(ALL)
+              setFavorite(false)
+              setLinked(false)
+            }
+          }}
+        >
           <SelectTrigger
             size="sm"
             aria-label="Filter by entity type"
@@ -153,6 +169,7 @@ export function SearchView() {
                       task: "Tasks",
                       project: "Projects",
                       tag: "Tags",
+                      habit: "Habits",
                     }[v]
               }
             </SelectValue>
@@ -163,6 +180,7 @@ export function SearchView() {
             <SelectItem value="task">Tasks</SelectItem>
             <SelectItem value="project">Projects</SelectItem>
             <SelectItem value="tag">Tags</SelectItem>
+            <SelectItem value="habit">Habits</SelectItem>
           </SelectContent>
         </Select>
 
@@ -198,50 +216,54 @@ export function SearchView() {
           </Select>
         ) : null}
 
-        <Select value={tag} onValueChange={(v) => setTag(v ?? ALL)}>
-          <SelectTrigger
-            size="sm"
-            aria-label="Filter by tag"
-            className="min-w-28"
-          >
-            <SelectValue>
-              {(v: string) =>
-                v === ALL
-                  ? "All tags"
-                  : `#${tags.find((t) => t.id === v)?.name ?? "tag"}`
-              }
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All tags</SelectItem>
-            {tags.map((t) => (
-              <SelectItem key={t.id} value={t.id}>
-                #{t.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {type !== "habit" && (
+          <Select value={tag} onValueChange={(v) => setTag(v ?? ALL)}>
+            <SelectTrigger
+              size="sm"
+              aria-label="Filter by tag"
+              className="min-w-28"
+            >
+              <SelectValue>
+                {(v: string) =>
+                  v === ALL
+                    ? "All tags"
+                    : `#${tags.find((t) => t.id === v)?.name ?? "tag"}`
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All tags</SelectItem>
+              {tags.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  #{t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
-        <ToggleGroup
-          value={[
-            ...(favorite ? ["favorite"] : []),
-            ...(linked ? ["linked"] : []),
-          ]}
-          onValueChange={(values: string[]) => {
-            setFavorite(values.includes("favorite"))
-            setLinked(values.includes("linked"))
-          }}
-          size="sm"
-        >
-          <ToggleGroupItem value="favorite" aria-label="Favorites only">
-            <StarIcon className={favorite ? "fill-current" : undefined} />
-            Favorites
-          </ToggleGroupItem>
-          <ToggleGroupItem value="linked" aria-label="Has linked tasks">
-            <ListTodoIcon />
-            Has tasks
-          </ToggleGroupItem>
-        </ToggleGroup>
+        {type !== "habit" && (
+          <ToggleGroup
+            value={[
+              ...(favorite ? ["favorite"] : []),
+              ...(linked ? ["linked"] : []),
+            ]}
+            onValueChange={(values: string[]) => {
+              setFavorite(values.includes("favorite"))
+              setLinked(values.includes("linked"))
+            }}
+            size="sm"
+          >
+            <ToggleGroupItem value="favorite" aria-label="Favorites only">
+              <StarIcon className={favorite ? "fill-current" : undefined} />
+              Favorites
+            </ToggleGroupItem>
+            <ToggleGroupItem value="linked" aria-label="Has linked tasks">
+              <ListTodoIcon />
+              Has tasks
+            </ToggleGroupItem>
+          </ToggleGroup>
+        )}
 
         <Input
           type="date"
@@ -264,7 +286,7 @@ export function SearchView() {
       {search.isError && !data ? null : !enabled ? (
         <EmptyState
           icon={SearchIcon}
-          title="Search resources, tasks, projects and tags"
+          title="Search resources, tasks, projects, tags and habits"
           description="Type a query or set a filter above. Matches on title, notes, description and extracted text are highlighted; typos are tolerated."
         />
       ) : total === 0 && search.isSuccess && !isFetching ? (
@@ -308,7 +330,9 @@ export function SearchView() {
                                       ? `/resources?r=${hit.id}`
                                       : hit.entityType === "task"
                                         ? `/tasks?t=${hit.id}`
-                                        : "/tags"
+                                        : hit.entityType === "habit"
+                                          ? (hit.url ?? "/habits")
+                                          : "/tags"
                                 }
                                 target="_blank"
                                 rel="noopener noreferrer"

@@ -356,6 +356,18 @@
     opacity: 0.5;
     text-decoration: line-through;
   }
+  .fc .fc-habit-event {
+    border: 1px dashed currentColor;
+    border-radius: 6px;
+  }
+  .fc .fc-habit-complete {
+    border-style: solid;
+    background-color: color-mix(
+      in srgb,
+      var(--color-green-500) 12%,
+      transparent
+    );
+  }
   .fc-theme-standard td,
   .fc-theme-standard th {
     border-color: var(--fc-border-color);

@@ -1,4 +1,5 @@
 import { z } from "zod"
+import type { HabitPlanEdit } from "./planning"
 
 export const dateSchema = z.iso
   .date()
@@ -122,12 +123,14 @@ export type HabitLog = {
   source?: "manual" | "timer"
   elapsedMs?: number | null
   sessionId?: string | null
+  timezone?: string
   amount: number
   notes: string
   revision: number
   deleted: boolean
 }
 export type Habit = {
+  plans?: HabitPlanEdit[]
   lastTimerMinutes?: number | null
   id: string
   name: string

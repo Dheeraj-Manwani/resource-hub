@@ -99,6 +99,13 @@
       "when": 1791729116680,
       "tag": "0013_neat_rockslide",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791731560498,
+      "tag": "0014_quick_salo",
+      "breakpoints": true
     }
   ]
 }

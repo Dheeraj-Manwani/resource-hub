@@ -8,6 +8,7 @@ import { listResources } from "./resources"
 import { listTagsWithCounts } from "./tags"
 import { listTasks } from "./tasks"
 import { listQuickNotes } from "./quick-notes"
+import { buildHabitExport } from "./habit-export"
 
 export type ExportDocument = {
   exportedAt: string
@@ -17,6 +18,7 @@ export type ExportDocument = {
   resources: ResourceDto[]
   tasks: TaskDto[]
   tags: Awaited<ReturnType<typeof listTagsWithCounts>>
+  habits: Awaited<ReturnType<typeof buildHabitExport>>
 }
 
 /** The whole library as plain JSON: project tree, every resource (with its
@@ -52,9 +54,10 @@ export async function buildExport(userId: string): Promise<ExportDocument> {
     cursor = page.nextCursor
   } while (cursor)
 
-  const [projects, tags] = await Promise.all([
+  const [projects, tags, habits] = await Promise.all([
     getProjectTree(userId),
     listTagsWithCounts(userId),
+    buildHabitExport(userId),
   ])
 
   return {
@@ -65,5 +68,6 @@ export async function buildExport(userId: string): Promise<ExportDocument> {
     resources,
     tasks,
     tags,
+    habits,
   }
 }

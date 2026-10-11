@@ -2,7 +2,13 @@ import { z } from "zod"
 
 import { resourceTypeSchema } from "./resources"
 
-export const searchEntityTypes = ["resource", "task", "project", "tag"] as const
+export const searchEntityTypes = [
+  "resource",
+  "task",
+  "project",
+  "tag",
+  "habit",
+] as const
 
 const boolParam = z.enum(["true", "false"]).transform((v) => v === "true")
 

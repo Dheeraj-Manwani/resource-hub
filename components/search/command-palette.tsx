@@ -17,6 +17,7 @@ import {
   SettingsIcon,
   TagIcon,
   Trash2Icon,
+  SproutIcon,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -31,6 +32,7 @@ const NAV_ACTIONS = [
   { label: "Overview", href: "/overview", icon: LayoutDashboardIcon },
   { label: "Resources", href: "/resources", icon: LibraryBigIcon },
   { label: "Tasks", href: "/tasks", icon: ListTodoIcon },
+  { label: "Habits", href: "/habits", icon: SproutIcon },
   { label: "Calendar", href: "/calendar", icon: CalendarDaysIcon },
   { label: "Tags", href: "/tags", icon: TagIcon },
   { label: "Trash", href: "/trash", icon: Trash2Icon },
@@ -128,7 +130,8 @@ export function CommandPalette() {
         !data.resources.length &&
         !data.tasks.length &&
         !data.projects.length &&
-        !data.tags.length ? (
+        !data.tags.length &&
+        !data.habits.length ? (
           <p className="py-6 text-center text-sm text-subtle">Nothing found</p>
         ) : null}
 
@@ -237,6 +240,24 @@ export function CommandPalette() {
                     onSelect={() => go(() => router.push("/tags"))}
                   >
                     <TagIcon className="size-4 text-subtle" />
+                    <span className="truncate">{hit.title}</span>
+                  </PaletteItem>
+                ))}
+              </Command.Group>
+            ) : null}
+            {data?.habits.length ? (
+              <Command.Group
+                heading="Habits and entries"
+                className="px-2 py-1.5 text-xs font-medium text-subtle [&_[cmdk-group-items]]:mt-1"
+              >
+                {data.habits.map((hit) => (
+                  <PaletteItem
+                    key={hit.id}
+                    onSelect={() =>
+                      go(() => router.push(hit.url ?? `/habits?h=${hit.id}`))
+                    }
+                  >
+                    <SproutIcon className="size-4 text-subtle" />
                     <span className="truncate">{hit.title}</span>
                   </PaletteItem>
                 ))}
