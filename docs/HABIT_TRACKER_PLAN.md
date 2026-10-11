@@ -163,9 +163,25 @@ Validation covers schedule/timezone/DST conversion, flexible plans, moving indiv
 
 ### Phase 4 — History and useful visuals
 
+**Implemented — 11 October 2026.** Open **Habits → Your work**, or choose **View insights** in a habit's details.
+
 - Build heatmaps, weekly time bars, consistency trends, schedule-aware streaks and the Your work so far view, with day/week/month filters and log drill-down.
 - Make partial effort, rest days and skips understandable. Preserve history for archived habits and update charts after corrections.
 - **Ready when:** chart totals match saved logs across midnight, timezone/DST boundaries and goal changes; weekly targets and streaks use the agreed schedule rules.
+
+What is available now:
+
+- **Your work so far** shows all-time recorded time, distinct days with saved work and goals met. Filter by habit, day, week, month or 12 weeks, browse earlier dates, and include archived habits. All-time totals remain visible while browsing a smaller date range.
+- Each habit has a tappable heatmap, current/best streak, saved quantity totals and recent session notes. Completed goals, partial effort, missed goals, skips, rest/paused days and open goals have separate symbols and colours. Selecting a day opens its saved entries for inspection, correction, deletion or Undo; the charts update after a save.
+- Weekly time bars show actual working minutes, stacked by habit, against time targets. Select a week to see its habit breakdown. Quantity/done habits count confirmed timer time separately from their progress; a unit named "minutes" does not turn a quantity goal into a time goal. Monthly goals and weekly goals only partly within the selected range retain their own period cards instead of an invented weekly allocation.
+- A 12-week consistency trend counts closed scheduled periods only, with gaps when no period was eligible. Future dates, unfinished current periods, rest and skips add no misses or completions. Weekly/monthly goals are counted once per period; day colours show the work actually saved on each day.
+- Flexible habits show daily goals met and weekly targets met separately. Their weekly target counts distinct completed days, never multiple sessions on one day. Their streak and consistency use that weekly target. A short first/last week without enough available days, or an incomplete paused period, stays neutral; completed work remains visible.
+- Streaks follow the habit's planned periods. Rest days and skips preserve the streak without extending it; an unfinished current period does not break it before its deadline. Moving/cancelling a calendar prompt changes its due plan, and multiple prompts never multiply the same goal. Extra work on an unscheduled day stays visible without boosting scheduled consistency.
+- All charts calculate from saved, non-deleted records. Corrections and Undo recalculate totals and streaks; planned time never counts as work. Overnight sessions retain their saved day splits and captured timezone, including DST boundaries. Historical goal versions retain their original targets and units when later settings change.
+
+This phase adds no database migration or association with another entity. The history endpoint is read-only and private to its account; browsing charts creates no occurrence or progress entry. Tablet and narrow layouts use responsive cards, touch controls and a horizontally scrollable heatmap.
+
+Checks passed: 249 unit tests, all four history journeys in installed Chrome/Edge/Brave, and 13 existing habit/timer/PiP/shared-view journeys. History checks cover older work, correction/delete/Undo, quantity timer accounting, archived effort, weekly/flexible targets, week boundaries and account privacy. Type checking, changed-file lint, the production build and tablet/narrow-layout checks pass.
 
 ### Phase 5 — Motivation and light gamification
 

@@ -47,3 +47,5 @@ next-env.d.ts
 /playwright-report-habit-browsers/
 /test-results-habit-views/
 /playwright-report-habit-views/
+/test-results-habit-history/
+/playwright-report-habit-history/

@@ -130,7 +130,10 @@ export function recordedMinutes(habit: Habit, date: string) {
     ) / 1000
   )
 }
-export type HabitPlannedSlot = Pick<HabitCalendarBlock, "versionId" | "sourceDate" | "sourceSlot" | "date" | "time" | "minutes">
+export type HabitPlannedSlot = Pick<
+  HabitCalendarBlock,
+  "versionId" | "sourceDate" | "sourceSlot" | "date" | "time" | "minutes"
+>
 export function plannedHabitSlots(
   habit: Habit,
   from: string,
@@ -150,7 +153,12 @@ export function plannedHabitSlots(
     if (date < from || date > to || statusOn(habit, date, today) !== "active")
       return
     const current = versionOn(habit, date)
-    if (!current || date < current.config.startDate || (current.config.endDate && date > current.config.endDate)) return
+    if (
+      !current ||
+      date < current.config.startDate ||
+      (current.config.endDate && date > current.config.endDate)
+    )
+      return
     result.push({
       versionId,
       sourceDate,
@@ -245,19 +253,51 @@ export function plannedHabitSlots(
       )
   }
   return result.sort(
-    (a, b) => a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? "") || a.sourceDate.localeCompare(b.sourceDate) || a.sourceSlot.localeCompare(b.sourceSlot)
+    (a, b) =>
+      a.date.localeCompare(b.date) ||
+      (a.time ?? "").localeCompare(b.time ?? "") ||
+      a.sourceDate.localeCompare(b.sourceDate) ||
+      a.sourceSlot.localeCompare(b.sourceSlot)
   )
 }
-export function calendarBlocks(habit: Habit, from: string, to: string, today: string, timezone: string): HabitCalendarBlock[] {
-  return plannedHabitSlots(habit, from, to, today).map((slot) => {
-    const progress = progressOn(habit, slot.date)!, start = slot.time ? wallTime(slot.date, slot.time, timezone) : null
-    return {
-      ...slot, kind: "habit", id: `habit:${habit.id}:${slot.versionId}:${slot.sourceDate}:${slot.sourceSlot}`, habitId: habit.id, title: habit.name, icon: habit.icon, color: habitColors[habit.color],
-      start: start?.toISOString() ?? slot.date, end: start ? new Date(start.getTime() + slot.minutes * 60000).toISOString() : null, allDay: !slot.time,
-      amount: progress.amount, target: progress.target, goal: goalLabel(progress.version.config), recordedMinutes: recordedMinutes(habit, slot.date), complete: progress.complete, partial: progress.amount > 0 && !progress.complete, skipped: progress.skipped,
-      editable: slot.date >= today && !progress.complete && !habit.logs.some(log => !log.deleted && log.date === slot.date),
-    }
-  }).sort((a,b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id))
+export function calendarBlocks(
+  habit: Habit,
+  from: string,
+  to: string,
+  today: string,
+  timezone: string
+): HabitCalendarBlock[] {
+  return plannedHabitSlots(habit, from, to, today)
+    .map((slot) => {
+      const progress = progressOn(habit, slot.date)!,
+        start = slot.time ? wallTime(slot.date, slot.time, timezone) : null
+      return {
+        ...slot,
+        kind: "habit" as const,
+        id: `habit:${habit.id}:${slot.versionId}:${slot.sourceDate}:${slot.sourceSlot}`,
+        habitId: habit.id,
+        title: habit.name,
+        icon: habit.icon,
+        color: habitColors[habit.color],
+        start: start?.toISOString() ?? slot.date,
+        end: start
+          ? new Date(start.getTime() + slot.minutes * 60000).toISOString()
+          : null,
+        allDay: !slot.time,
+        amount: progress.amount,
+        target: progress.target,
+        goal: goalLabel(progress.version.config),
+        recordedMinutes: recordedMinutes(habit, slot.date),
+        complete: progress.complete,
+        partial: progress.amount > 0 && !progress.complete,
+        skipped: progress.skipped,
+        editable:
+          slot.date >= today &&
+          !progress.complete &&
+          !habit.logs.some((log) => !log.deleted && log.date === slot.date),
+      }
+    })
+    .sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id))
 }
 export function flexibleTargets(
   habit: Habit,

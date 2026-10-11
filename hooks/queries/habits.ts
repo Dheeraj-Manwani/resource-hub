@@ -28,11 +28,24 @@ export function invalidateHabitViews(client: QueryClient) {
     ].map((key) => client.invalidateQueries({ queryKey: [key] }))
   )
 }
-export function useHabitHistory(date: string, view: HistoryView, habitId?: string) {
+export function useHabitHistory(
+  date: string,
+  view: HistoryView,
+  habitId?: string
+) {
   const params = new URLSearchParams({ view })
   if (date) params.set("date", date)
   if (habitId) params.set("habitId", habitId)
-  return useQuery({ queryKey: ["habit-history", date, view, habitId], queryFn: ({signal}) => api<Awaited<ReturnType<typeof habitHistory>>>(`/api/v1/habits/history?${params}`,{signal}), staleTime: 15000, refetchInterval: 60000 })
+  return useQuery({
+    queryKey: ["habit-history", date, view, habitId],
+    queryFn: ({ signal }) =>
+      api<Awaited<ReturnType<typeof habitHistory>>>(
+        `/api/v1/habits/history?${params}`,
+        { signal }
+      ),
+    staleTime: 15000,
+    refetchInterval: 60000,
+  })
 }
 export function useHabitCalendar(from: string, to: string, enabled = true) {
   return useQuery({

@@ -41,6 +41,7 @@ import {
 } from "@/lib/habits/model"
 import { HabitForm } from "./habit-form"
 import { useHabitTimer } from "./habit-timer-provider"
+import { HabitHistoryView } from "./habit-history-view"
 
 const colors = {
   orange: "#f97316",
@@ -219,6 +220,8 @@ export function HabitsView({
   initialDate?: string
 }) {
   const [date, setDate] = useState(initialDate)
+  const [tab, setTab] = useState("today")
+  const [historyHabit, setHistoryHabit] = useState(initialHabitId ?? "")
   const query = useHabits(date)
   const [form, setForm] = useState<"new" | string | null>(null)
   const [details, setDetails] = useState<string | null>(initialHabitId)
@@ -342,7 +345,7 @@ export function HabitsView({
               </Button>
             </div>
           ) : (
-            <Tabs defaultValue="today">
+            <Tabs value={tab} onValueChange={setTab}>
               <TabsList variant="line" className="!h-12">
                 <TabsTrigger className="min-h-11" value="today">
                   Today
@@ -352,6 +355,9 @@ export function HabitsView({
                 </TabsTrigger>
                 <TabsTrigger className="min-h-11" value="all">
                   All habits
+                </TabsTrigger>
+                <TabsTrigger className="min-h-11" value="history">
+                  Your work
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="today" className="space-y-5">
@@ -466,6 +472,14 @@ export function HabitsView({
                   </button>
                 ))}
               </TabsContent>
+              <TabsContent value="history">
+                <HabitHistoryView
+                  habits={data.items}
+                  selectedId={historyHabit}
+                  onSelect={setHistoryHabit}
+                  onEdit={(id) => setForm(id)}
+                />
+              </TabsContent>
             </Tabs>
           )}
           {form && (
@@ -491,6 +505,11 @@ export function HabitsView({
                 setEntry({ habitId: selected.id, log })
               }}
               onDate={setDate}
+              onInsights={() => {
+                setDetails(null)
+                setHistoryHabit(selected.id)
+                setTab("history")
+              }}
             />
           )}
           {entry && entryHabit && (
@@ -624,13 +643,15 @@ function WeekRow({
     </article>
   )
 }
-function HabitDetails({
+export function HabitDetails({
   habit,
   bundle,
   onClose,
   onEdit,
   onLog,
   onDate,
+  onInsights,
+  dayOnly = false,
 }: {
   habit: Habit
   bundle: HabitBundle
@@ -638,13 +659,21 @@ function HabitDetails({
   onEdit: () => void
   onLog: (log?: HabitLog) => void
   onDate: (date: string) => void
+  onInsights?: () => void
+  dayOnly?: boolean
 }) {
   const status = useHabitWrite("habit.status")
   const timer = useHabitTimer()
   const correct = useHabitWrite("habit.correct")
   const current = progressOn(habit, bundle.date)
   const logs = habit.logs
-    .filter((l) => !l.deleted && l.date.slice(0, 7) === bundle.date.slice(0, 7))
+    .filter(
+      (l) =>
+        !l.deleted &&
+        (dayOnly
+          ? l.date === bundle.date
+          : l.date.slice(0, 7) === bundle.date.slice(0, 7))
+    )
     .reverse()
   const pending = habit.versions.at(-1)!
   async function changeStatus(next: HabitStatus) {
@@ -723,6 +752,11 @@ function HabitDetails({
           </p>
         )}
         <div className="flex flex-wrap gap-2">
+          {onInsights && (
+            <Button className="h-11" variant="outline" onClick={onInsights}>
+              View insights
+            </Button>
+          )}
           {habit.status === "active" &&
             bundle.date === bundle.today &&
             current && (
@@ -768,7 +802,7 @@ function HabitDetails({
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-medium">
-            Saved effort · {bundle.date.slice(0, 7)}
+            Saved effort · {dayOnly ? bundle.date : bundle.date.slice(0, 7)}
           </h3>
           <Input
             className="h-11 w-40"
@@ -782,8 +816,10 @@ function HabitDetails({
           />
         </div>
         <p className="text-xs text-text-muted">
-          Choose a date to browse its month. Manual entries only; planned time
-          adds nothing.
+          {dayOnly
+            ? "Inspect or correct this day's saved entries."
+            : "Choose a date to browse its month."}{" "}
+          Manual and timer entries; planned time adds nothing.
         </p>
         {current &&
           bundle.date <= bundle.today &&
@@ -802,7 +838,9 @@ function HabitDetails({
           )}
         {!logs.length && (
           <p className="py-4 text-sm text-text-muted">
-            No entries in this month yet.
+            {dayOnly
+              ? "No entries on this day."
+              : "No entries in this month yet."}
           </p>
         )}
         <div className="space-y-2">
