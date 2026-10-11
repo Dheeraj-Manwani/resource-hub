@@ -4,6 +4,8 @@ import { Suspense, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useSyncController } from "@/components/sync-provider"
 import { SyncStatus } from "./sync-status"
+import { HabitTimerProvider } from "@/components/habits/habit-timer-provider"
+import { HabitTimerUI } from "@/components/habits/habit-timer-ui"
 
 import { QuickAddProjectDialog } from "@/components/projects/quick-add-project-dialog"
 import { QuickAddNoteDialog } from "@/components/quick-notes/quick-add-note-dialog"
@@ -52,35 +54,38 @@ export function AppShell({
   }, [sync, queryClient, user.id])
   return (
     <ShellProvider user={user}>
-      <LightboxProvider>
-        <ResourcePreviewProvider>
-          <ProjectDndProvider>
-            <div className="flex min-h-svh">
-              <aside className="sticky top-0 hidden h-svh w-60 shrink-0 border-r border-sidebar-border bg-sidebar md:block">
-                <SidebarContent draggable />
-              </aside>
-              <div className="flex min-w-0 flex-1 flex-col">
-                <TopBar />
-                <SyncStatus className="sticky top-14 z-20 border-b border-border bg-background px-3 md:hidden" />
-                <main className="flex-1 px-4 pt-6 pb-28 md:px-8 md:pb-12">
-                  {children}
-                </main>
+      <HabitTimerProvider key={user.id} userId={user.id}>
+        <LightboxProvider>
+          <ResourcePreviewProvider>
+            <ProjectDndProvider>
+              <div className="flex min-h-svh">
+                <aside className="sticky top-0 hidden h-svh w-60 shrink-0 border-r border-sidebar-border bg-sidebar md:block">
+                  <SidebarContent draggable />
+                </aside>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <TopBar />
+                  <SyncStatus className="sticky top-14 z-20 border-b border-border bg-background px-3 md:hidden" />
+                  <main className="flex-1 px-4 pt-6 pb-28 md:px-8 md:pb-12">
+                    {children}
+                  </main>
+                </div>
               </div>
-            </div>
-            <MobileNav />
-            <MobileFab />
-            <AppTour />
-            <QuickAddProjectDialog />
-            <QuickAddNoteDialog />
-            <Suspense>
-              <AddResourceDialog />
-              <DetailDrawer />
-              <TaskShortcuts />
-              <CommandPalette />
-            </Suspense>
-          </ProjectDndProvider>
-        </ResourcePreviewProvider>
-      </LightboxProvider>
+              <MobileNav />
+              <MobileFab />
+              <HabitTimerUI />
+              <AppTour />
+              <QuickAddProjectDialog />
+              <QuickAddNoteDialog />
+              <Suspense>
+                <AddResourceDialog />
+                <DetailDrawer />
+                <TaskShortcuts />
+                <CommandPalette />
+              </Suspense>
+            </ProjectDndProvider>
+          </ResourcePreviewProvider>
+        </LightboxProvider>
+      </HabitTimerProvider>
     </ShellProvider>
   )
 }

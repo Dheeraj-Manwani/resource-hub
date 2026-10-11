@@ -69,6 +69,9 @@ async function details(
         notes: habitLogs.notes,
         revision: habitLogs.revision,
         deletedAt: habitLogs.deletedAt,
+        source: habitLogs.source,
+        elapsedMs: habitLogs.elapsedMs,
+        sessionId: habitLogs.sessionId,
       })
       .from(habitLogs)
       .innerJoin(
@@ -97,6 +100,7 @@ async function details(
     color: row.color,
     status: row.status,
     revision: row.revision,
+    lastTimerMinutes: row.lastTimerMinutes,
     versions: versions.map((v) => ({
       id: v.id,
       revision: v.revision,
@@ -379,6 +383,11 @@ export async function changeHabitLog(
       .update(habitLogs)
       .set({
         ...(input.amount !== undefined ? { amount: input.amount } : {}),
+        ...(input.amount !== undefined &&
+        log.source === "timer" &&
+        version.config.goalType === "minutes"
+          ? { elapsedMs: Math.round(input.amount * 60000) }
+          : {}),
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
         ...(input.deleted !== undefined
           ? { deletedAt: input.deleted ? new Date() : null }
@@ -394,7 +403,9 @@ export async function changeHabitLog(
         notes: updated.notes,
         deleted: !!updated.deletedAt,
         revision: updated.revision,
+        elapsedMs: updated.elapsedMs,
       },
     }
   })
 }
+export { owned as ownedHabit, details as habitDetails }

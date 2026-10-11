@@ -1,6 +1,6 @@
 # Habit tracker and focus timer — proposed plan
 
-11 October 2026. Phase 1 is implemented; Phases 2–6 remain planned. Desktop Edge, Chrome and Brave come first, with practical tablet support.
+11 October 2026. Phases 1–2 are implemented; Phases 3–6 remain planned. Desktop Edge, Chrome and Brave come first, with practical tablet support.
 
 ## The experience
 
@@ -107,7 +107,7 @@ What is available now:
 - Manual entries, backdating, notes, corrections, delete with Undo, and Undo after adding progress. History can be browsed by month, including archived habits.
 - Pause, archive and restart with retained history. Metadata changes apply immediately; goal/schedule changes begin with the next goal period (tomorrow, next week or next month). Further edits to a pending schedule replace its future settings while retaining the version history.
 - Account-scoped records, revision checks for stale edits, and idempotent progress saves. No existing entity is associated with a habit. Future plans add no progress; retries and corrections cannot repeat a goal-completion celebration.
-- Preferred times, reminder times and default session duration are saved. **There is no running timer or reminder delivery yet.** Calendar and Overview display remain Phase 3.
+- Preferred times, reminder times and default session duration are saved. Timer support is available in Phase 2 below. Reminder delivery, Calendar and Overview display remain Phase 3.
 
 Implementation uses habit-owned schedule versions, saved goal occurrences, manual logs and pause/archive history. Planned dates are calculated from the schedule; a goal occurrence is saved when its first entry is recorded. Account timezone determines the recording date. The goal week defaults to the account's week-start setting and can be changed in the habit form; schedule versions retain their week boundary so older results do not shift when settings change.
 
@@ -115,9 +115,28 @@ Validation includes schedule/goal unit tests and authenticated browser/API journ
 
 ### Phase 2 — Reliable timer and desktop PiP
 
+**Implemented — 11 October 2026.** Choose **Start timer** on a habit.
+
 - Add countdown/stopwatch, chosen duration, pause/resume, add time, finish early, discard and an in-app mini timer. Save elapsed work against the habit.
 - Add desktop Pop out timer with feature detection and fallback. Share one active timer across tabs/devices; handle offline saves, interrupted sessions and recovery.
 - **Ready when:** refresh, background tabs, sleep/recovery, competing tabs, repeated saves and PiP closure cannot lose or duplicate time. Test Edge, Chrome and Brave individually.
+
+What is available now:
+
+- Countdown or stopwatch, a chosen duration remembered per habit, pause/resume, five-minute extensions, early finish and discard. A session can track up to 24 hours; pauses and gaps after an expired countdown are excluded.
+- An in-app timer across app pages, with large touch controls. **Pop out timer** opens a desktop Document PiP window when supported; its controls operate the same session. Closing it returns the timer to the app without ending the session. Unsupported browsers retain the in-app timer.
+- One active session per account, enforced by the server and database. Other tabs share changes immediately where supported; other devices refresh the saved state periodically. Habits remain independent of every other entity.
+- **Finish → review → Save session.** Confirm or reduce actual working minutes and add a note before any progress is recorded. Expiry, refresh, recovery and PiP closure never save progress automatically. A recovered session shows a reminder to review elapsed work, including time when the device was asleep or the timer was abandoned.
+- Minutes goals receive the confirmed working time. Quantity and done/not-done habits retain a time-only session; their quantity or completion must be logged separately. Saved sessions appear in habit history and are labelled as timer entries. Partial time receives saved feedback; reaching a goal celebrates once after the save succeeds.
+- Timestamp-based recovery, pause intervals and account-scoped local storage. Existing sessions can be paused, reviewed, finished or discarded offline; pending changes survive refresh and retry with the same action IDs. Starting a new session requires a connection so the account cannot accidentally run two timers.
+- If another device has changed the session, keep the unsent work and note visible. Offer **Save unsent copy** before the user explicitly switches to the latest timer; stale changes never silently overwrite newer records.
+- Split confirmed overnight work across civil dates in the session's captured timezone, including daylight-saving changes. Existing schedule versions determine each day's goal. Reducing confirmed time removes work from the end of the working intervals, without counting paused gaps.
+
+The additive database migration is `drizzle/0013_neat_rockslide.sql`. Timer records and generated progress entries are committed together; retries cannot generate a second copy of the same session.
+
+Validation covers timestamp accounting, pauses, recovery, countdown limits, overnight/DST boundaries, concurrent starts, account privacy, repeated finish requests, offline saving and lost-response retries. Browser checks exercise navigation, refresh, cross-tab controls, PiP closure and tablet layout.
+
+Checks passed: 211 unit tests, the four existing habit browser journeys, and timer journeys in installed Chrome, Edge and Brave. A competing-device journey also verifies that an unsent note can be downloaded before explicit reconciliation. Type checking, changed-file lint and the production build pass.
 
 ### Phase 3 — Calendar and shared app views
 

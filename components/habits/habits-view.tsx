@@ -40,6 +40,7 @@ import {
   type HabitStatus,
 } from "@/lib/habits/model"
 import { HabitForm } from "./habit-form"
+import { useHabitTimer } from "./habit-timer-provider"
 
 const colors = {
   orange: "#f97316",
@@ -125,6 +126,7 @@ function HabitCard({
   onDetails: () => void
 }) {
   const progress = progressOn(habit, bundle.date)
+  const timer = useHabitTimer()
   if (!progress) return null
   const { config } = progress.version
   const flex = flexibleProgress(habit, bundle.date)
@@ -138,7 +140,7 @@ function HabitCard({
         target={progress.target}
         color={colors[habit.color]}
       />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-[min(100%,12rem)] flex-1">
         <button
           className="flex min-h-11 items-center gap-2 text-left font-medium hover:text-brand focus-visible:outline-2 focus-visible:outline-ring"
           onClick={onDetails}
@@ -179,21 +181,33 @@ function HabitCard({
           </p>
         )}
       </div>
-      <Button
-        className="h-11"
-        variant={progress.complete ? "outline" : "default"}
-        disabled={
-          bundle.date > bundle.today ||
-          statusOn(habit, bundle.date, bundle.today) !== "active"
-        }
-        onClick={onLog}
-      >
-        {config.goalType === "done"
-          ? progress.complete
-            ? "View entry"
-            : "Mark done"
-          : "Log progress"}
-      </Button>
+      <div className="flex w-full flex-wrap gap-2 xl:w-auto">
+        {bundle.date === bundle.today && habit.status === "active" && (
+          <Button
+            className="h-11"
+            variant="outline"
+            disabled={!!timer.session || timer.pending}
+            onClick={() => timer.chooseHabit(habit)}
+          >
+            Start timer
+          </Button>
+        )}
+        <Button
+          className="h-11"
+          variant={progress.complete ? "outline" : "default"}
+          disabled={
+            bundle.date > bundle.today ||
+            statusOn(habit, bundle.date, bundle.today) !== "active"
+          }
+          onClick={onLog}
+        >
+          {config.goalType === "done"
+            ? progress.complete
+              ? "View entry"
+              : "Mark done"
+            : "Log progress"}
+        </Button>
+      </div>
     </article>
   )
 }
@@ -610,6 +624,7 @@ function HabitDetails({
   onDate: (date: string) => void
 }) {
   const status = useHabitWrite("habit.status")
+  const timer = useHabitTimer()
   const correct = useHabitWrite("habit.correct")
   const current = progressOn(habit, bundle.date)
   const logs = habit.logs
@@ -692,6 +707,20 @@ function HabitDetails({
           </p>
         )}
         <div className="flex flex-wrap gap-2">
+          {habit.status === "active" &&
+            bundle.date === bundle.today &&
+            current && (
+              <Button
+                className="h-11"
+                disabled={!!timer.session || timer.pending}
+                onClick={() => {
+                  onClose()
+                  timer.chooseHabit(habit)
+                }}
+              >
+                Start timer
+              </Button>
+            )}
           <Button
             className="h-11"
             variant="outline"
@@ -766,9 +795,11 @@ function HabitDetails({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">
                   {shortDate(log.date)} ·{" "}
-                  {log.kind === "skip"
-                    ? "Skipped"
-                    : `${log.amount} ${unit(habit, log.date)}`}
+                  {log.source === "timer"
+                    ? `${Math.round((log.elapsedMs ?? 0) / 60) / 1000} minutes · timer${log.kind === "progress" && unit(habit, log.date) !== "minutes" ? ` · ${log.amount} ${unit(habit, log.date)}` : ""}`
+                    : log.kind === "skip"
+                      ? "Skipped"
+                      : `${log.amount} ${unit(habit, log.date)}`}
                 </p>
                 <div className="flex gap-1">
                   {log.kind === "progress" && (

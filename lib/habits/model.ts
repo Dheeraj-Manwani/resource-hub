@@ -118,13 +118,17 @@ export type HabitLog = {
   date: string
   periodStart: string
   periodEnd: string
-  kind: "progress" | "skip"
+  kind: "progress" | "skip" | "session"
+  source?: "manual" | "timer"
+  elapsedMs?: number | null
+  sessionId?: string | null
   amount: number
   notes: string
   revision: number
   deleted: boolean
 }
 export type Habit = {
+  lastTimerMinutes?: number | null
   id: string
   name: string
   reason: string
