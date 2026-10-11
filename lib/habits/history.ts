@@ -326,7 +326,7 @@ export function analyseHabitHistory(
       periods.set(key, period)
     }
     const due = flexible
-      ? active
+      ? active || (dailyComplete && !!dailyWork?.firstWorkDate)
       : planned.has(date) ||
         (dailyComplete && !!dailyWork?.firstWorkDate && rawDates.has(date))
     if (due) period.dueDays++

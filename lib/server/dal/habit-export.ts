@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import {
   habits,
   habitOccurrences,
+  habitMilestones,
   habitReminderStates,
   habitTimerSessions,
 } from "@/lib/db/schema"
@@ -17,31 +18,40 @@ export async function buildHabitExport(userId: string) {
       .orderBy(asc(habits.createdAt))
     return Promise.all(
       rows.map(async (row) => {
-        const [habit, sessions, reminders, occurrences] = await Promise.all([
-          habitDetails(tx, row, "1900-01-01", "2200-12-31"),
-          tx
-            .select()
-            .from(habitTimerSessions)
-            .where(
-              and(
-                eq(habitTimerSessions.habitId, row.id),
-                eq(habitTimerSessions.userId, userId)
+        const [habit, sessions, reminders, occurrences, milestones] =
+          await Promise.all([
+            habitDetails(tx, row, "1900-01-01", "2200-12-31"),
+            tx
+              .select()
+              .from(habitTimerSessions)
+              .where(
+                and(
+                  eq(habitTimerSessions.habitId, row.id),
+                  eq(habitTimerSessions.userId, userId)
+                )
               )
-            )
-            .orderBy(asc(habitTimerSessions.createdAt)),
-          tx
-            .select()
-            .from(habitReminderStates)
-            .where(eq(habitReminderStates.habitId, row.id)),
-          tx
-            .select()
-            .from(habitOccurrences)
-            .where(eq(habitOccurrences.habitId, row.id)),
-        ])
+              .orderBy(asc(habitTimerSessions.createdAt)),
+            tx
+              .select()
+              .from(habitReminderStates)
+              .where(eq(habitReminderStates.habitId, row.id)),
+            tx
+              .select()
+              .from(habitOccurrences)
+              .where(eq(habitOccurrences.habitId, row.id)),
+            tx
+              .select()
+              .from(habitMilestones)
+              .where(eq(habitMilestones.habitId, row.id)),
+          ])
         return {
           ...habit,
           createdAt: row.createdAt.toISOString(),
           updatedAt: row.updatedAt.toISOString(),
+          milestones: milestones.map((m) => ({
+            key: m.key,
+            celebratedAt: m.celebratedAt.toISOString(),
+          })),
           occurrences: occurrences.map((occurrence) => ({
             ...occurrence,
             celebratedAt: occurrence.celebratedAt?.toISOString() ?? null,

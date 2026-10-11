@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/schema"
 import { ApiError, badRequest, notFound } from "@/lib/server/api"
 import { getSettings } from "./settings"
+import { claimHabitRewards } from "./habit-rewards"
 import {
   addDays,
   goalPeriod,
@@ -277,7 +278,7 @@ export async function addHabitLog(
   const today = todayIn(settings.timezone)
   return db.transaction(async (tx) => {
     const row = await owned(tx, userId, id, true)
-    const habit = await details(tx, row, input.date)
+    const habit = await details(tx, row, "1900-01-01", "2200-12-31")
     const existing = habit.logs.find((log) => log.id === input.id)
     if (existing) {
       if (
@@ -348,7 +349,7 @@ export async function addHabitLog(
       occurrenceId: occurrence.id,
       timezone: settings.timezone,
     })
-    const afterHabit = await details(tx, row, input.date)
+    const afterHabit = await details(tx, row, "1900-01-01", "2200-12-31")
     const after = progressOn(afterHabit, input.date)!
     const completed =
       !before.complete && after.complete && !occurrence.celebratedAt
@@ -361,6 +362,16 @@ export async function addHabitLog(
       log: afterHabit.logs.find((log) => log.id === input.id)!,
       created: true,
       completed,
+      reward:
+        input.kind === "progress"
+          ? await claimHabitRewards(
+              tx,
+              habit,
+              afterHabit,
+              today,
+              settings.weekStart
+            )
+          : { milestones: [], returning: false },
       progress: { amount: after.amount, target: after.target },
     }
   })

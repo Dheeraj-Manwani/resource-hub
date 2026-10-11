@@ -49,3 +49,5 @@ next-env.d.ts
 /playwright-report-habit-views/
 /test-results-habit-history/
 /playwright-report-habit-history/
+/test-results-habit-motivation/
+/playwright-report-habit-motivation/

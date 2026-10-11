@@ -42,6 +42,12 @@ import {
 import { HabitForm } from "./habit-form"
 import { useHabitTimer } from "./habit-timer-provider"
 import { HabitHistoryView } from "./habit-history-view"
+import { announceHabitReward } from "@/lib/habits/motivation"
+import {
+  HabitNudge,
+  HabitMotivationPanel,
+  HabitExperienceSettings,
+} from "./habit-motivation"
 
 const colors = {
   orange: "#f97316",
@@ -181,6 +187,9 @@ function HabitCard({
             {habit.reason}
           </p>
         )}
+        {bundle.date === bundle.today && (
+          <HabitNudge habitId={habit.id} hasReason={!!habit.reason} />
+        )}
       </div>
       <div className="flex w-full flex-wrap gap-2 xl:w-auto">
         {bundle.date === bundle.today && habit.status === "active" && (
@@ -263,6 +272,7 @@ export function HabitsView({
         description="Small efforts. A rhythm of your own."
         actions={
           <div className="flex flex-wrap gap-2">
+            <HabitExperienceSettings />
             <Button
               className="h-11"
               variant="outline"
@@ -361,6 +371,7 @@ export function HabitsView({
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="today" className="space-y-5">
+                {data.date === data.today && <HabitMotivationPanel recap />}
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <h2 className="text-lg font-medium">
                     {data.date === data.today
@@ -946,6 +957,13 @@ export function LogDialog({
           : parsed.data,
       })
       if (log || result.created) {
+        if (!log && kind === "progress")
+          announceHabitReward({
+            name: habit.name,
+            completed: !!result.completed,
+            milestones: result.reward?.milestones ?? [],
+            returning: result.reward?.returning ?? false,
+          })
         const total =
           result.progress?.amount ??
           (progress?.amount ?? 0) +

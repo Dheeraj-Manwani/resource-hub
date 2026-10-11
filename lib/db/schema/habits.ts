@@ -7,6 +7,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -17,6 +18,18 @@ import { user } from "./auth"
 import type { HabitConfig, HabitInput, HabitStatus } from "@/lib/habits/model"
 import type { TimerStatus, WorkSegment } from "@/lib/habits/timer"
 import type { HabitPlanInput } from "@/lib/habits/planning"
+
+export const habitPreferences = pgTable("habit_preferences", {
+  userId: text()
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  quiet: boolean().notNull().default(false),
+  celebrations: boolean().notNull().default(true),
+  sound: boolean().notNull().default(false),
+  nudges: boolean().notNull().default(true),
+  recaps: boolean().notNull().default(true),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+})
 
 export const habits = pgTable(
   "habits",
@@ -40,6 +53,18 @@ export const habits = pgTable(
   },
   (t) => [index("habits_user_idx").on(t.userId)]
 )
+export const habitMilestones = pgTable(
+  "habit_milestones",
+  {
+    habitId: uuid()
+      .notNull()
+      .references(() => habits.id, { onDelete: "cascade" }),
+    key: text().notNull(),
+    celebratedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.habitId, t.key] })]
+)
+
 export const habitVersions = pgTable(
   "habit_versions",
   {

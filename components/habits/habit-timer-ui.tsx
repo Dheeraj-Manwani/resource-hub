@@ -22,6 +22,8 @@ import {
 import { todayIn, versionOn } from "@/lib/habits/model"
 import { useSettings } from "@/hooks/queries/settings"
 import { controlClass } from "./habit-form"
+import { HabitNudge } from "./habit-motivation"
+import { useHabitPreferences } from "@/hooks/queries/habits"
 
 type PiPWindowApi = {
   requestWindow: (options: { width: number; height: number }) => Promise<Window>
@@ -208,6 +210,7 @@ function StartDialog() {
               />
             </label>
           )}
+          <HabitNudge habitId={habit.id} hasReason={!!habit.reason} />
           <p className="text-xs text-text-muted">
             Time is recorded only after you finish and confirm it.
             {current.config.goalType !== "minutes" &&
@@ -264,6 +267,7 @@ function TimerPanel({
 }) {
   const timer = useHabitTimer()
   const session = timer.session!
+  const preferences = useHabitPreferences().data
   const [discard, setDiscard] = useState(false)
   const elapsed = timerElapsed(session, timer.now)
   const remaining = Math.max(0, session.targetMs - elapsed)
@@ -272,6 +276,15 @@ function TimerPanel({
   const disabled = timer.conflict || !isActiveTimer(session.status)
   return (
     <div className="grid gap-3" aria-label={pip ? "Habit timer" : undefined}>
+      {preferences?.nudges && !preferences.quiet && elapsed >= 300000 && (
+        <p
+          className="text-xs text-text-muted"
+          aria-label="Session encouragement"
+        >
+          {Math.floor(elapsed / 60000)} minutes of working time. Finish when you
+          are ready; review and save to keep it.
+        </p>
+      )}
       <div className="flex items-center justify-between gap-2">
         <p className="min-w-0 truncate text-sm font-medium">
           {session.icon} {session.name}

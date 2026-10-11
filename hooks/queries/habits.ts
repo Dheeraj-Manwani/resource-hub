@@ -16,6 +16,11 @@ import type {
 import type { habitCalendar } from "@/lib/server/dal/habit-planning"
 import type { habitHistory } from "@/lib/server/dal/habit-history"
 import type { HistoryView } from "@/lib/habits/history"
+import type {
+  HabitReward,
+  MotivationPreferences,
+} from "@/lib/habits/motivation"
+import type { habitMotivation } from "@/lib/server/dal/habit-motivation"
 export function invalidateHabitViews(client: QueryClient) {
   return Promise.all(
     [
@@ -23,6 +28,7 @@ export function invalidateHabitViews(client: QueryClient) {
       "habit-calendar",
       "habit-reminders",
       "habit-history",
+      "habit-motivation",
       "search",
       "command-search",
     ].map((key) => client.invalidateQueries({ queryKey: [key] }))
@@ -95,12 +101,52 @@ export function useHabits(date: string, enabled = true) {
   })
 }
 type WriteResult = {
+  reward?: HabitReward
   habit?: Habit
   log?: HabitLog
   created?: boolean
   completed?: boolean
   effectiveFrom?: string
   progress?: { amount: number; target: number }
+}
+
+export function useHabitMotivation(enabled = true) {
+  return useQuery({
+    queryKey: ["habit-motivation"],
+    queryFn: ({ signal }) =>
+      api<Awaited<ReturnType<typeof habitMotivation>>>(
+        "/api/v1/habits/motivation",
+        { signal }
+      ),
+    staleTime: 15000,
+    refetchInterval: 60000,
+    enabled,
+  })
+}
+export function useHabitPreferences() {
+  return useQuery({
+    queryKey: ["habit-preferences"],
+    queryFn: ({ signal }) =>
+      api<MotivationPreferences>("/api/v1/habits/preferences", { signal }),
+    staleTime: 15000,
+    refetchInterval: 60000,
+  })
+}
+export function useUpdateHabitPreferences() {
+  const client = useQueryClient()
+  return useMutation({
+    ...syncMutation("habit.preferences"),
+    mutationFn: (body: Partial<MotivationPreferences>) =>
+      api<MotivationPreferences>("/api/v1/habits/preferences", {
+        method: "PATCH",
+        body,
+      }),
+    onSuccess: (data) => {
+      client.setQueryData(["habit-preferences"], data)
+      void client.invalidateQueries({ queryKey: ["habit-motivation"] })
+    },
+    onError: (error) => toast.error(error.message),
+  })
 }
 export function useHabitWrite(
   operation:

@@ -7,6 +7,7 @@ import { SyncStatus } from "./sync-status"
 import { HabitTimerProvider } from "@/components/habits/habit-timer-provider"
 import { HabitTimerUI } from "@/components/habits/habit-timer-ui"
 import { HabitActionsProvider } from "@/components/habits/habit-actions-provider"
+import { HabitRewardFeedback } from "@/components/habits/habit-reward-feedback"
 
 import { QuickAddProjectDialog } from "@/components/projects/quick-add-project-dialog"
 import { QuickAddNoteDialog } from "@/components/quick-notes/quick-add-note-dialog"
@@ -75,6 +76,7 @@ export function AppShell({
                 <MobileNav />
                 <MobileFab />
                 <HabitTimerUI />
+                <HabitRewardFeedback key={user.id} />
                 <AppTour />
                 <QuickAddProjectDialog />
                 <QuickAddNoteDialog />

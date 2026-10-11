@@ -87,6 +87,7 @@ export function useUpdateSettings() {
           qc.invalidateQueries({ queryKey: ["habit-calendar"] }),
           qc.invalidateQueries({ queryKey: ["habit-reminders"] }),
           qc.invalidateQueries({ queryKey: ["habit-history"] }),
+          qc.invalidateQueries({ queryKey: ["habit-motivation"] }),
         ])
     },
   })

@@ -17,6 +17,11 @@ export type SyncMutationMeta = {
   safeRetry?: boolean
 }
 const operations = {
+  "habit.preferences": {
+    label: "Saving habit experience",
+    entity: "habit",
+    safeRetry: true,
+  },
   "habit.save": { label: "Saving habit", entity: "habit" },
   "habit.log": {
     label: "Saving habit progress",

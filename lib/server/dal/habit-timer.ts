@@ -11,6 +11,8 @@ import {
 } from "@/lib/db/schema"
 import { ApiError, badRequest, notFound } from "@/lib/server/api"
 import { getSettings } from "./settings"
+import { claimHabitRewards } from "./habit-rewards"
+import type { HabitReward } from "@/lib/habits/motivation"
 import { ownedHabit, habitDetails } from "./habits"
 import { goalPeriod, progressOn, todayIn, versionOn } from "@/lib/habits/model"
 import {
@@ -138,6 +140,8 @@ export async function commandHabitTimer(
   id: string,
   command: TimerCommand
 ) {
+  const rewardSettings =
+    command.action === "finish" ? await getSettings(userId) : null
   return db.transaction(async (tx) => {
     await lockAccount(tx, userId)
     const [row] = await tx
@@ -176,7 +180,9 @@ export async function commandHabitTimer(
       )
     }
     let completed = false
+    let reward: HabitReward | undefined
     if (command.action === "finish") {
+      const before = await habitDetails(tx, habit, "1900-01-01", "2200-12-31")
       const work = splitWorkByDate(
         trimSegments(next.segments, command.confirmedMs),
         row.timezone
@@ -244,6 +250,13 @@ export async function commandHabitTimer(
           completed = true
         }
       }
+      reward = await claimHabitRewards(
+        tx,
+        before,
+        await habitDetails(tx, habit, "1900-01-01", "2200-12-31"),
+        todayIn(rewardSettings!.timezone, new Date(now)),
+        rewardSettings!.weekStart
+      )
     }
     const [updated] = await tx
       .update(habitTimerSessions)
@@ -265,6 +278,7 @@ export async function commandHabitTimer(
       serverNow: now,
       saved: command.action === "finish",
       completed,
+      reward,
     }
   })
 }

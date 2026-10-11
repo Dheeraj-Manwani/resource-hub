@@ -31,6 +31,7 @@ import {
 import { habitColors } from "@/lib/habits/planning"
 import { HabitDetails, LogDialog } from "./habits-view"
 import { controlClass } from "./habit-form"
+import { HabitMotivationPanel } from "./habit-motivation"
 
 const viewNames: Record<HistoryView, string> = {
   day: "Day",
@@ -641,6 +642,7 @@ export function HabitHistoryView({
                     weekStart={data.weekStart}
                     onDay={(anchor) => setDay({ habitId: h.id, date: anchor })}
                   />
+                  <HabitMotivationPanel habitId={h.id} />
                   {!!h.summary.totals.length && (
                     <p className="text-sm">
                       Saved totals:{" "}

@@ -28,6 +28,7 @@ import {
 import type { Habit } from "@/lib/habits/model"
 import { useSyncController } from "@/components/sync-provider"
 import { invalidateHabitViews } from "@/hooks/queries/habits"
+import { announceHabitReward, type HabitReward } from "@/lib/habits/motivation"
 type CommandInput =
   | { action: "pause" | "resume" | "review" | "discard" }
   | { action: "add_time"; minutes: number }
@@ -165,7 +166,11 @@ export function HabitTimerProvider({
         if (!first || !timer || current.conflict) break
         await client.cancelQueries({ queryKey: ["habit-timer", userId] })
         const result = await api<
-          TimerSnapshot & { saved: boolean; completed: boolean }
+          TimerSnapshot & {
+            saved: boolean
+            completed: boolean
+            reward?: HabitReward
+          }
         >(`/api/v1/habits/timer/${timer.id}`, { method: "PATCH", body: first })
         const latest = readStoredTimer(userId)
         if (latest?.commands[0]?.id === first.id)
@@ -185,7 +190,13 @@ export function HabitTimerProvider({
         setNotice("")
         if (first.action === "finish") {
           await invalidateHabitViews(client)
-          if (result.saved)
+          if (result.saved) {
+            announceHabitReward({
+              name: timer.name,
+              completed: result.completed,
+              milestones: result.reward?.milestones ?? [],
+              returning: result.reward?.returning ?? false,
+            })
             showToast(
               result.completed ? `${timer.name}: goal met!` : "Session saved",
               {
@@ -196,6 +207,7 @@ export function HabitTimerProvider({
               },
               "success"
             )
+          }
         }
         if (first.action === "discard")
           showToast("Session discarded", {
