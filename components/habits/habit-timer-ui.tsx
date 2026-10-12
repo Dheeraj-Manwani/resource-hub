@@ -1,6 +1,7 @@
 "use client"
 import {
   useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
   type ComponentProps,
@@ -11,7 +12,9 @@ import {
   CheckIcon,
   CoffeeIcon,
   DownloadIcon,
+  Maximize2Icon,
   MessageSquareIcon,
+  Minimize2Icon,
   PauseIcon,
   PictureInPicture2Icon,
   PlayIcon,
@@ -60,6 +63,16 @@ export function HabitTimerUI() {
   const timer = useHabitTimer()
   const [popup, setPopup] = useState<Window | null>(null)
   const [pipError, setPipError] = useState("")
+  const timerElement = useRef<HTMLElement>(null)
+  const [fullscreen, setFullscreen] = useState(false)
+  const [fullscreenError, setFullscreenError] = useState("")
+  const fullscreenSupported = useSyncExternalStore(
+    subscribeNoop,
+    () =>
+      document.fullscreenEnabled &&
+      typeof HTMLElement.prototype.requestFullscreen === "function",
+    () => false
+  )
   const supported = useSyncExternalStore(
     subscribeNoop,
     () => window.isSecureContext && !!pipApi(),
@@ -77,9 +90,54 @@ export function HabitTimerUI() {
   useEffect(() => {
     if (!timer.session && popup) popup.close()
   }, [timer.session, popup])
+  useEffect(() => {
+    const updateFullscreen = () =>
+      setFullscreen(
+        !!timerElement.current &&
+          document.fullscreenElement === timerElement.current
+      )
+    const exitWithEscape = (event: KeyboardEvent) => {
+      if (
+        event.key === "Escape" &&
+        timerElement.current &&
+        document.fullscreenElement === timerElement.current
+      ) {
+        void document
+          .exitFullscreen()
+          .catch(() =>
+            setFullscreenError(
+              "Couldn't exit fullscreen. Use the browser's fullscreen control."
+            )
+          )
+      }
+    }
+    document.addEventListener("fullscreenchange", updateFullscreen)
+    document.addEventListener("keydown", exitWithEscape)
+    return () => {
+      document.removeEventListener("fullscreenchange", updateFullscreen)
+      document.removeEventListener("keydown", exitWithEscape)
+    }
+  }, [])
+  async function toggleFullscreen() {
+    setFullscreenError("")
+    const element = timerElement.current
+    if (!element) return
+    try {
+      if (document.fullscreenElement === element)
+        await document.exitFullscreen()
+      else await element.requestFullscreen()
+    } catch {
+      setFullscreenError("Fullscreen couldn't open. Your timer stays here.")
+    }
+  }
   async function popOut() {
     setPipError("")
     try {
+      if (
+        timerElement.current &&
+        document.fullscreenElement === timerElement.current
+      )
+        await document.exitFullscreen()
       const api = pipApi()
       if (!api)
         throw new Error(
@@ -131,18 +189,35 @@ export function HabitTimerUI() {
             )
           ) : (
             <aside
+              ref={timerElement}
               aria-label="Habit timer"
-              className="fixed right-4 bottom-24 z-40 max-h-[calc(100dvh-8rem)] w-[380px] max-w-[calc(100%-2rem)] overflow-y-auto rounded-xl border bg-card p-4 shadow-xl md:bottom-4 md:max-h-[calc(100dvh-2rem)]"
+              className={
+                fullscreen
+                  ? "fixed inset-0 z-50 grid overflow-y-auto bg-background p-4 text-foreground sm:p-8"
+                  : "fixed right-4 bottom-24 z-40 max-h-[calc(100dvh-8rem)] w-[380px] max-w-[calc(100%-2rem)] overflow-y-auto rounded-xl border bg-card p-4 shadow-xl md:bottom-4 md:max-h-[calc(100dvh-2rem)]"
+              }
             >
-              <TimerPanel
-                supported={supported}
-                onPopOut={() => void popOut()}
-              />
-              {pipError && (
-                <p role="status" className="mt-2 text-xs text-text-muted">
-                  {pipError}
-                </p>
-              )}
+              <div
+                className={fullscreen ? "m-auto w-full max-w-2xl" : undefined}
+              >
+                <TimerPanel
+                  supported={supported}
+                  onPopOut={() => void popOut()}
+                  fullscreen={fullscreen}
+                  fullscreenSupported={fullscreenSupported}
+                  onFullscreen={() => void toggleFullscreen()}
+                />
+                {pipError && (
+                  <p role="status" className="mt-2 text-xs text-text-muted">
+                    {pipError}
+                  </p>
+                )}
+                {fullscreenError && (
+                  <p role="status" className="mt-2 text-xs text-text-muted">
+                    {fullscreenError}
+                  </p>
+                )}
+              </div>
             </aside>
           )}
           {popup && (
@@ -372,10 +447,16 @@ function TimerPanel({
   pip = false,
   supported,
   onPopOut,
+  fullscreen = false,
+  fullscreenSupported = false,
+  onFullscreen,
 }: {
   pip?: boolean
   supported: boolean
   onPopOut: () => void
+  fullscreen?: boolean
+  fullscreenSupported?: boolean
+  onFullscreen?: () => void
 }) {
   const timer = useHabitTimer()
   const session = timer.session!
@@ -388,10 +469,14 @@ function TimerPanel({
   const disabled = timer.conflict || !isActiveTimer(session.status)
   return (
     <div
-      className={cn("grid min-w-0", pip ? "gap-2" : "gap-3")}
+      className={cn(
+        "grid min-w-0",
+        pip ? "gap-2" : fullscreen ? "gap-6" : "gap-3"
+      )}
       aria-label={pip ? "Habit timer" : undefined}
     >
       {!pip &&
+        !fullscreen &&
         preferences?.nudges &&
         !preferences.quiet &&
         elapsed >= 300000 && (
@@ -407,28 +492,57 @@ function TimerPanel({
         <p
           className={cn(
             "min-w-0 truncate font-medium",
-            pip ? "text-xs" : "text-sm"
+            pip ? "text-xs" : fullscreen ? "text-lg" : "text-sm"
           )}
           title={session.name}
         >
           {session.icon} {session.name}
         </p>
-        <Button
-          size="icon"
-          className={cn(
-            "shrink-0",
-            pip ? "size-7 [&_svg]:size-3.5" : "size-11"
+        <div className="flex shrink-0 items-center gap-1">
+          {!pip && onFullscreen && (
+            <Button
+              size="icon"
+              className="size-11"
+              variant="ghost"
+              aria-label={
+                fullscreen ? "Exit fullscreen timer" : "Fullscreen timer"
+              }
+              title={
+                fullscreen
+                  ? "Exit fullscreen (Esc)"
+                  : fullscreenSupported
+                    ? "Fullscreen timer"
+                    : "Fullscreen is unavailable in this browser"
+              }
+              disabled={!fullscreenSupported}
+              onClick={onFullscreen}
+            >
+              {fullscreen ? <Minimize2Icon /> : <Maximize2Icon />}
+            </Button>
           )}
-          variant="ghost"
-          aria-label={pip ? "Bring timer back" : "Pop out timer"}
-          title={pip ? "Bring timer back" : "Picture-in-picture"}
-          disabled={!supported}
-          onClick={onPopOut}
-        >
-          <PictureInPicture2Icon />
-        </Button>
+          <Button
+            size="icon"
+            className={cn(
+              "shrink-0",
+              pip ? "size-7 [&_svg]:size-3.5" : "size-11"
+            )}
+            variant="ghost"
+            aria-label={pip ? "Bring timer back" : "Pop out timer"}
+            title={pip ? "Bring timer back" : "Picture-in-picture"}
+            disabled={!supported}
+            onClick={onPopOut}
+          >
+            <PictureInPicture2Icon />
+          </Button>
+        </div>
       </div>
-      <div className="flex items-end justify-between gap-2">
+      <div
+        className={
+          fullscreen
+            ? "flex flex-col items-center gap-3 py-4"
+            : "flex items-end justify-between gap-2"
+        }
+      >
         <span
           role="timer"
           aria-live="off"
@@ -441,7 +555,11 @@ function TimerPanel({
           }
           className={cn(
             "font-heading font-medium tabular-nums",
-            pip ? "text-2xl leading-none" : "text-4xl"
+            pip
+              ? "text-2xl leading-none"
+              : fullscreen
+                ? "text-[clamp(3rem,12vw,8rem)] leading-none tracking-tight"
+                : "text-4xl"
           )}
         >
           {formatTimer(session.mode !== "stopwatch" ? remaining : elapsed)}
@@ -468,7 +586,8 @@ function TimerPanel({
         <div
           className={cn(
             "space-y-1 text-text-muted",
-            pip ? "text-[11px]" : "text-xs"
+            pip ? "text-[11px]" : "text-xs",
+            fullscreen && "text-center"
           )}
         >
           <p role="status">
@@ -485,11 +604,14 @@ function TimerPanel({
           )}
         </div>
       )}
-      {!pip && timer.recovered && isActiveTimer(session.status) && (
-        <p className="text-xs text-text-muted">
-          Recovered or synced timer. Review elapsed work before saving.
-        </p>
-      )}
+      {!pip &&
+        !fullscreen &&
+        timer.recovered &&
+        isActiveTimer(session.status) && (
+          <p className="text-xs text-text-muted">
+            Recovered or synced timer. Review elapsed work before saving.
+          </p>
+        )}
       {session.status === "review" && !timer.conflict ? (
         <ReviewSession
           key={session.id}
@@ -500,7 +622,13 @@ function TimerPanel({
       ) : (
         isActiveTimer(session.status) &&
         (!pip || !discard) && (
-          <div className={cn("flex flex-wrap", pip ? "gap-1.5" : "gap-2")}>
+          <div
+            className={cn(
+              "flex flex-wrap",
+              pip ? "gap-1.5" : "gap-2",
+              fullscreen && "justify-center"
+            )}
+          >
             <TimerAction
               compact={pip}
               label={session.status === "running" ? "Pause" : "Resume"}

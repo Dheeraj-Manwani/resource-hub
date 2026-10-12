@@ -384,6 +384,98 @@ test("a lost finish response and refresh retry without duplicating recorded work
   expect(logs[0].notes).toBe("Keep my work after a lost response")
 })
 
+test("fullscreen timer keeps its controls and reviewed work in the tab", async ({
+  page,
+  testAccount,
+}, testInfo) => {
+  const { id } = await createHabit(page.request)
+  expect(
+    (
+      await page.request.post("/api/v1/habits/timer", {
+        data: { id: randomUUID(), habitId: id, mode: "countdown", minutes: 5 },
+      })
+    ).ok()
+  ).toBe(true)
+  await page.goto("/habits")
+  const dock = page.getByRole("complementary", {
+    name: "Habit timer",
+    exact: true,
+  })
+  await dock
+    .getByRole("button", { name: "Fullscreen timer", exact: true })
+    .click()
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document.fullscreenElement?.getAttribute("aria-label")
+      )
+    )
+    .toBe("Habit timer")
+  await expect
+    .poll(() =>
+      dock.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        return (
+          Math.abs(bounds.width - innerWidth) < 1 &&
+          Math.abs(bounds.height - innerHeight) < 1
+        )
+      })
+    )
+    .toBe(true)
+  await expect(
+    dock.getByRole("button", { name: "Exit fullscreen timer", exact: true })
+  ).toBeVisible()
+  await expect(
+    dock.getByRole("button", { name: "Pop out timer", exact: true })
+  ).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath("habit-timer-fullscreen.png"),
+    animations: "disabled",
+  })
+  await dock.getByRole("button", { name: "Pause", exact: true }).click()
+  await settle(page, testAccount.id)
+  const paused = await dock.getByRole("timer").textContent()
+  await page.keyboard.press("Escape")
+  await expect
+    .poll(() => page.evaluate(() => !!document.fullscreenElement))
+    .toBe(false)
+  await expect(dock.getByRole("timer")).toHaveText(paused!)
+  await dock
+    .getByRole("button", { name: "Fullscreen timer", exact: true })
+    .click()
+  await dock.getByRole("button", { name: "Finish", exact: true }).click()
+  await settle(page, testAccount.id)
+  await dock
+    .getByLabel("Session note (optional)")
+    .fill("Review survives fullscreen changes")
+  const amount = await dock.getByLabel("Actual working minutes").inputValue()
+  await dock
+    .getByRole("button", { name: "Exit fullscreen timer", exact: true })
+    .click()
+  await expect(dock.getByLabel("Session note (optional)")).toHaveValue(
+    "Review survives fullscreen changes"
+  )
+  await expect(dock.getByLabel("Actual working minutes")).toHaveValue(amount)
+  await dock
+    .getByRole("button", { name: "Fullscreen timer", exact: true })
+    .click()
+  await expect
+    .poll(() => page.evaluate(() => !!document.fullscreenElement))
+    .toBe(true)
+  await dock
+    .getByRole("button", { name: "Discard session", exact: true })
+    .click()
+  await settle(page, testAccount.id)
+  await expect(dock).toHaveCount(0)
+  await expect
+    .poll(() => page.evaluate(() => !!document.fullscreenElement))
+    .toBe(false)
+  const bundle: HabitBundle = await (
+    await page.request.get("/api/v1/habits")
+  ).json()
+  expect(bundle.items.find((habit) => habit.id === id)!.logs).toHaveLength(0)
+})
+
 test("compact PiP countdown uses icon controls and preserves reviewed work", async ({
   page,
   testAccount,
@@ -442,8 +534,17 @@ test("compact PiP countdown uses icon controls and preserves reviewed work", asy
     exact: true,
   })
   const popupReady = page.waitForEvent("popup")
+  await dock
+    .getByRole("button", { name: "Fullscreen timer", exact: true })
+    .click()
+  await expect
+    .poll(() => page.evaluate(() => !!document.fullscreenElement))
+    .toBe(true)
   await dock.getByRole("button", { name: "Pop out timer", exact: true }).click()
   const popup = await popupReady
+  await expect
+    .poll(() => page.evaluate(() => !!document.fullscreenElement))
+    .toBe(false)
   await popup.setViewportSize({ width: 280, height: 180 })
   await expect(popup.getByRole("timer")).toBeVisible()
   await expect
