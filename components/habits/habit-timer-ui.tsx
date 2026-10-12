@@ -10,6 +10,7 @@ import {
 import { createPortal } from "react-dom"
 import {
   CheckIcon,
+  ChevronDownIcon,
   CoffeeIcon,
   DownloadIcon,
   Maximize2Icon,
@@ -28,6 +29,12 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -50,6 +57,7 @@ import { controlClass } from "./habit-form"
 import { HabitNudge } from "./habit-motivation"
 import { useHabitPreferences } from "@/hooks/queries/habits"
 import { cn } from "@/lib/utils"
+import { useMinimalTimerPip } from "./use-minimal-timer-pip"
 
 type PiPWindowApi = {
   requestWindow: (options: { width: number; height: number }) => Promise<Window>
@@ -61,6 +69,7 @@ function pipApi() {
 const subscribeNoop = () => () => {}
 export function HabitTimerUI() {
   const timer = useHabitTimer()
+  const minimalPip = useMinimalTimerPip()
   const [popup, setPopup] = useState<Window | null>(null)
   const [pipError, setPipError] = useState("")
   const timerElement = useRef<HTMLElement>(null)
@@ -125,7 +134,10 @@ export function HabitTimerUI() {
     try {
       if (document.fullscreenElement === element)
         await document.exitFullscreen()
-      else await element.requestFullscreen()
+      else {
+        await minimalPip.close()
+        await element.requestFullscreen()
+      }
     } catch {
       setFullscreenError("Fullscreen couldn't open. Your timer stays here.")
     }
@@ -133,6 +145,7 @@ export function HabitTimerUI() {
   async function popOut() {
     setPipError("")
     try {
+      await minimalPip.close()
       if (
         timerElement.current &&
         document.fullscreenElement === timerElement.current
@@ -177,6 +190,24 @@ export function HabitTimerUI() {
       )
     }
   }
+  async function popOutMinimal() {
+    setPipError("")
+    if (minimalPip.active) {
+      await minimalPip.close()
+      return
+    }
+    if (!minimalPip.supported) {
+      await popOut()
+      return
+    }
+    try {
+      if (document.fullscreenElement === timerElement.current)
+        await document.exitFullscreen()
+      await minimalPip.open()
+    } catch {
+      setPipError("PiP couldn't open. Your timer stays in the tab.")
+    }
+  }
   return (
     <>
       {timer.startHabit && <StartDialog key={timer.startHabit.id} />}
@@ -201,8 +232,13 @@ export function HabitTimerUI() {
                 className={fullscreen ? "m-auto w-full max-w-2xl" : undefined}
               >
                 <TimerPanel
-                  supported={supported}
-                  onPopOut={() => void popOut()}
+                  supported={supported || minimalPip.supported}
+                  onPopOut={() => void popOutMinimal()}
+                  minimalActive={minimalPip.active}
+                  pipOpening={minimalPip.opening}
+                  onInteractivePopOut={
+                    supported ? () => void popOut() : undefined
+                  }
                   fullscreen={fullscreen}
                   fullscreenSupported={fullscreenSupported}
                   onFullscreen={() => void toggleFullscreen()}
@@ -210,6 +246,11 @@ export function HabitTimerUI() {
                 {pipError && (
                   <p role="status" className="mt-2 text-xs text-text-muted">
                     {pipError}
+                  </p>
+                )}
+                {minimalPip.error && (
+                  <p role="status" className="mt-2 text-xs text-text-muted">
+                    {minimalPip.error}
                   </p>
                 )}
                 {fullscreenError && (
@@ -450,6 +491,9 @@ function TimerPanel({
   fullscreen = false,
   fullscreenSupported = false,
   onFullscreen,
+  minimalActive = false,
+  pipOpening = false,
+  onInteractivePopOut,
 }: {
   pip?: boolean
   supported: boolean
@@ -457,6 +501,9 @@ function TimerPanel({
   fullscreen?: boolean
   fullscreenSupported?: boolean
   onFullscreen?: () => void
+  minimalActive?: boolean
+  pipOpening?: boolean
+  onInteractivePopOut?: () => void
 }) {
   const timer = useHabitTimer()
   const session = timer.session!
@@ -527,13 +574,43 @@ function TimerPanel({
               pip ? "size-7 [&_svg]:size-3.5" : "size-11"
             )}
             variant="ghost"
-            aria-label={pip ? "Bring timer back" : "Pop out timer"}
-            title={pip ? "Bring timer back" : "Picture-in-picture"}
-            disabled={!supported}
+            aria-label={
+              pip || minimalActive ? "Bring timer back" : "Pop out timer"
+            }
+            title={
+              pip || minimalActive
+                ? "Bring timer back"
+                : "Minimal picture-in-picture"
+            }
+            aria-pressed={!pip ? minimalActive : undefined}
+            disabled={!supported || pipOpening}
             onClick={onPopOut}
           >
             <PictureInPicture2Icon />
           </Button>
+          {!pip && !fullscreen && onInteractivePopOut && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    className="w-6"
+                    aria-label="PiP options"
+                    title="PiP options"
+                    disabled={pipOpening}
+                  />
+                }
+              >
+                <ChevronDownIcon className="size-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={onInteractivePopOut}>
+                  <PictureInPicture2Icon /> Interactive PiP
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
       <div

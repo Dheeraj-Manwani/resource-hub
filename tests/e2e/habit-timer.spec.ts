@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { readFile } from "node:fs/promises"
+import { readFile, writeFile } from "node:fs/promises"
 import postgres from "postgres"
 import { drizzle } from "drizzle-orm/postgres-js"
 import { and, eq } from "drizzle-orm"
@@ -476,6 +476,330 @@ test("fullscreen timer keeps its controls and reviewed work in the tab", async (
   expect(bundle.items.find((habit) => habit.id === id)!.logs).toHaveLength(0)
 })
 
+test("minimal video PiP stays live in the background and preserves reviewed work", async ({
+  page,
+  context,
+  testAccount,
+}, testInfo) => {
+  // Observe real canvas rendering and native Media Session registrations,
+  // without replacing video playback, streams or the browser's PiP API.
+  await page.addInitScript(() => {
+    const fillRect = CanvasRenderingContext2D.prototype.fillRect
+    const fillText = CanvasRenderingContext2D.prototype.fillText
+    CanvasRenderingContext2D.prototype.fillRect = function (...args) {
+      if (this.canvas.dataset.habitTimerPip === "minimal")
+        this.canvas.dataset.renderedText = "[]"
+      return fillRect.apply(this, args)
+    }
+    CanvasRenderingContext2D.prototype.fillText = function (...args) {
+      if (this.canvas.dataset.habitTimerPip === "minimal") {
+        const text: string[] = JSON.parse(
+          this.canvas.dataset.renderedText ?? "[]"
+        )
+        this.canvas.dataset.renderedText = JSON.stringify([...text, args[0]])
+      }
+      return fillText.apply(this, args)
+    }
+    const handlers: Record<string, MediaSessionActionHandler | null> = {}
+    Object.defineProperty(window, "timerMediaHandlers", { value: handlers })
+    const setHandler = MediaSession.prototype.setActionHandler
+    MediaSession.prototype.setActionHandler = function (action, handler) {
+      handlers[action] = handler
+      return setHandler.call(this, action, handler)
+    }
+  })
+  const { id } = await createHabit(page.request)
+  const sessionId = randomUUID()
+  expect(
+    (
+      await page.request.post("/api/v1/habits/timer", {
+        data: { id: sessionId, habitId: id, mode: "countdown", minutes: 5 },
+      })
+    ).ok()
+  ).toBe(true)
+  const connection = postgres(process.env.DATABASE_URL!, { max: 1 })
+  const database = drizzle(connection, { schema, casing: "snake_case" })
+  try {
+    await database
+      .update(schema.habitTimerSessions)
+      .set({ runningSince: new Date(Date.now() - 120000) })
+      .where(
+        and(
+          eq(schema.habitTimerSessions.id, sessionId),
+          eq(schema.habitTimerSessions.userId, testAccount.id)
+        )
+      )
+  } finally {
+    await connection.end()
+  }
+  await page.goto("/habits")
+  const dock = page.getByRole("complementary", {
+    name: "Habit timer",
+    exact: true,
+  })
+  const canvas = page.locator('canvas[data-habit-timer-pip="minimal"]')
+  const video = page.locator('video[data-habit-timer-pip="minimal"]')
+  const renderedText = () =>
+    canvas.evaluate(
+      (element) =>
+        JSON.parse(
+          (element as HTMLCanvasElement).dataset.renderedText ?? "[]"
+        ) as string[]
+    )
+  await dock
+    .getByRole("button", { name: "Fullscreen timer", exact: true })
+    .click()
+  await dock.getByRole("button", { name: "Pop out timer", exact: true }).click()
+  await expect
+    .poll(() => page.evaluate(() => !!document.fullscreenElement))
+    .toBe(false)
+  await expect(
+    dock.getByRole("button", { name: "Bring timer back", exact: true })
+  ).toHaveAttribute("aria-pressed", "true")
+  await expect
+    .poll(() =>
+      video.evaluate((element) => {
+        const player = element as HTMLVideoElement
+        return (
+          document.pictureInPictureElement === player &&
+          player.readyState >= 2 &&
+          !player.paused &&
+          (player.srcObject as MediaStream).getVideoTracks()[0].readyState ===
+            "live"
+        )
+      })
+    )
+    .toBe(true)
+  await expect
+    .poll(renderedText)
+    .toEqual([
+      expect.stringContaining("Read with a timer"),
+      expect.stringMatching(/^\d{2}:\d{2}$/),
+    ])
+  const image = await canvas.evaluate((element) =>
+    (element as HTMLCanvasElement).toDataURL()
+  )
+  await writeFile(
+    testInfo.outputPath("habit-pip-minimal.png"),
+    Buffer.from(image.split(",")[1], "base64")
+  )
+
+  const otherTab = await context.newPage()
+  await otherTab.goto("about:blank")
+  await otherTab.bringToFront()
+  if (process.argv.includes("--headed")) {
+    await expect
+      .poll(() => page.evaluate(() => document.visibilityState))
+      .toBe("hidden")
+  } else {
+    testInfo.annotations.push({
+      type: "PiP background",
+      description:
+        "Headless keeps tabs visible; hidden-tab behavior is checked in the headed run.",
+    })
+  }
+  const before = (await renderedText())[1]
+  const frameCount = await video.evaluate(
+    (element) =>
+      (element as HTMLVideoElement).getVideoPlaybackQuality().totalVideoFrames
+  )
+  await expect
+    .poll(async () => (await renderedText())[1], { timeout: 12000 })
+    .not.toBe(before)
+  await expect
+    .poll(() =>
+      video.evaluate(
+        (element) =>
+          (element as HTMLVideoElement).getVideoPlaybackQuality()
+            .totalVideoFrames
+      )
+    )
+    .toBeGreaterThan(frameCount + 1)
+  await page.bringToFront()
+  await otherTab.close()
+  if (process.argv.includes("--headed")) {
+    const browser = await context.newCDPSession(page)
+    const { windowId } = await browser.send("Browser.getWindowForTarget")
+    try {
+      await browser.send("Browser.setWindowBounds", {
+        windowId,
+        bounds: { windowState: "minimized" },
+      })
+      await expect
+        .poll(() => page.evaluate(() => document.visibilityState))
+        .toBe("hidden")
+      const minimized = (await renderedText())[1]
+      await expect
+        .poll(async () => (await renderedText())[1], { timeout: 12000 })
+        .not.toBe(minimized)
+      await expect
+        .poll(() => page.evaluate(() => !!document.pictureInPictureElement))
+        .toBe(true)
+    } finally {
+      await browser.send("Browser.setWindowBounds", {
+        windowId,
+        bounds: { windowState: "normal" },
+      })
+      await browser.detach()
+      await page.bringToFront()
+    }
+  }
+  // Native pause/resume callbacks must operate on the actual shared session.
+  async function mediaAction(action: "play" | "pause") {
+    await page.evaluate((action) => {
+      const handlers = (
+        window as Window & {
+          timerMediaHandlers?: Record<string, MediaSessionActionHandler | null>
+        }
+      ).timerMediaHandlers!
+      if (!handlers[action]) throw new Error(`Missing native ${action} handler`)
+      handlers[action]!({ action })
+    }, action)
+    await settle(page, testAccount.id)
+  }
+  await mediaAction("pause")
+  await expect
+    .poll(renderedText)
+    .toEqual([expect.any(String), expect.any(String), "Paused"])
+  const paused = (await renderedText())[1]
+  await expect(video).toHaveJSProperty("paused", false)
+  await expect(dock.getByRole("timer")).toHaveText(paused)
+  await mediaAction("play")
+  await expect.poll(renderedText).toHaveLength(2)
+  await dock.getByRole("button", { name: "+5 min", exact: true }).click()
+  await settle(page, testAccount.id)
+  expect(
+    (await (await page.request.get("/api/v1/habits/timer")).json()).session
+      .targetMs
+  ).toBe(600000)
+  await page.getByRole("link", { name: "Docs", exact: true }).first().click()
+  await expect(
+    dock.getByRole("button", { name: "Bring timer back", exact: true })
+  ).toBeVisible()
+  await dock.getByRole("button", { name: "Finish", exact: true }).click()
+  await settle(page, testAccount.id)
+  await dock.getByLabel("Actual working minutes").fill("1")
+  await dock
+    .getByLabel("Session note (optional)")
+    .fill("Minimal PiP preserves this draft")
+  await dock
+    .getByRole("button", { name: "Bring timer back", exact: true })
+    .click()
+  await expect(canvas).toHaveCount(0)
+  await expect(video).toHaveCount(0)
+  await expect(dock.getByLabel("Session note (optional)")).toHaveValue(
+    "Minimal PiP preserves this draft"
+  )
+  await dock.getByRole("button", { name: "Pop out timer", exact: true }).click()
+  await expect
+    .poll(renderedText)
+    .toEqual([expect.any(String), expect.any(String), "Review in tab"])
+  await dock.getByRole("button", { name: "Save session", exact: true }).click()
+  await settle(page, testAccount.id)
+  await expect(canvas).toHaveCount(0)
+  await expect
+    .poll(() => page.evaluate(() => document.pictureInPictureElement))
+    .toBeNull()
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as Window & {
+              timerMediaHandlers?: Record<string, unknown>
+            }
+          ).timerMediaHandlers
+      )
+    )
+    .toEqual({ play: null, pause: null })
+  const bundle: HabitBundle = await (
+    await page.request.get("/api/v1/habits")
+  ).json()
+  expect(bundle.items.find((habit) => habit.id === id)!.logs).toEqual([
+    expect.objectContaining({
+      source: "timer",
+      elapsedMs: 60000,
+      notes: "Minimal PiP preserves this draft",
+    }),
+  ])
+})
+
+test("rejected minimal PiP cleans up playback and keeps the review draft", async ({
+  page,
+  testAccount,
+}) => {
+  await page.addInitScript(() => {
+    const streams: MediaStream[] = []
+    Object.defineProperty(window, "timerPipStreams", { value: streams })
+    const capture = HTMLCanvasElement.prototype.captureStream
+    HTMLCanvasElement.prototype.captureStream = function (...args) {
+      const stream = capture.apply(this, args)
+      streams.push(stream)
+      return stream
+    }
+    HTMLVideoElement.prototype.requestPictureInPicture = async () => {
+      throw new DOMException("PiP blocked for this test", "NotAllowedError")
+    }
+  })
+  const { id } = await createHabit(page.request)
+  expect(
+    (
+      await page.request.post("/api/v1/habits/timer", {
+        data: { id: randomUUID(), habitId: id, mode: "countdown", minutes: 5 },
+      })
+    ).ok()
+  ).toBe(true)
+  await page.goto("/habits")
+  const dock = page.getByRole("complementary", {
+    name: "Habit timer",
+    exact: true,
+  })
+  await expect(dock.getByRole("timer")).not.toHaveText("05:00")
+  await dock.getByRole("button", { name: "Finish", exact: true }).click()
+  await settle(page, testAccount.id)
+  await dock
+    .getByLabel("Session note (optional)")
+    .fill("Keep this draft when PiP is blocked")
+  const amount = await dock.getByLabel("Actual working minutes").inputValue()
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await dock
+      .getByRole("button", { name: "Pop out timer", exact: true })
+      .click()
+    await expect(dock.getByRole("status")).toHaveText(
+      "Minimal PiP couldn't open. Your timer stays in the tab."
+    )
+    await expect(page.locator("[data-habit-timer-pip]")).toHaveCount(0)
+    await expect(
+      dock.getByRole("button", { name: "Pop out timer", exact: true })
+    ).toBeEnabled()
+    await expect(dock.getByLabel("Session note (optional)")).toHaveValue(
+      "Keep this draft when PiP is blocked"
+    )
+    await expect(dock.getByLabel("Actual working minutes")).toHaveValue(amount)
+  }
+  expect(
+    await page.evaluate(() =>
+      (
+        window as Window & {
+          timerPipStreams?: MediaStream[]
+        }
+      ).timerPipStreams!.map((stream) =>
+        stream.getTracks().every((track) => track.readyState === "ended")
+      )
+    )
+  ).toEqual([true, true])
+  await dock.getByRole("button", { name: "PiP options", exact: true }).click()
+  await expect(
+    page.getByRole("menuitem", { name: "Interactive PiP" })
+  ).toBeVisible()
+  await page.keyboard.press("Escape")
+  await dock
+    .getByRole("button", { name: "Discard session", exact: true })
+    .click()
+  await settle(page, testAccount.id)
+  await expect(dock).toHaveCount(0)
+})
+
 test("compact PiP countdown uses icon controls and preserves reviewed work", async ({
   page,
   testAccount,
@@ -483,6 +807,8 @@ test("compact PiP countdown uses icon controls and preserves reviewed work", asy
   // Exercise the PiP portal in a browser popup at its default dimensions, even
   // on platforms where native always-on-top windows are unavailable in CI.
   await page.addInitScript(() => {
+    // The main icon falls back to interactive PiP if video PiP is unsupported.
+    Object.defineProperty(document, "pictureInPictureEnabled", { value: false })
     Object.defineProperty(window, "documentPictureInPicture", {
       configurable: true,
       value: {
@@ -636,6 +962,9 @@ test("pop-out controls share the timer and closing PiP returns it to the app", a
   page,
   testAccount,
 }, testInfo) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(document, "pictureInPictureEnabled", { value: false })
+  })
   const { id } = await createHabit(page.request)
   await page.goto("/habits")
   await page

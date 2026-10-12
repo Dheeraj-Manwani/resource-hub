@@ -3,6 +3,7 @@
 import { TaskItem, TaskList } from "@tiptap/extension-list"
 import { Placeholder } from "@tiptap/extensions"
 import { Fragment, Slice } from "@tiptap/pm/model"
+import { TextSelection } from "@tiptap/pm/state"
 import type { EditorView } from "@tiptap/pm/view"
 import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import { BubbleMenu } from "@tiptap/react/menus"
@@ -413,8 +414,26 @@ export default function NoteEditor({
       ],
       content: content ?? undefined,
       editorProps: {
-        handleKeyDown: (_view, event) =>
-          !event.isComposing && (slashKeyHandler.current?.(event) ?? false),
+        handleKeyDown: (view, event) => {
+          if (event.isComposing) return false
+          if (slashKeyHandler.current?.(event)) return true
+          // Match a text editor: Tab inserts spaces instead of moving focus.
+          // Shift+Tab and modified Tab retain their normal keyboard behaviour.
+          if (
+            view.editable &&
+            event.key === "Tab" &&
+            !event.shiftKey &&
+            !event.ctrlKey &&
+            !event.metaKey &&
+            !event.altKey &&
+            view.state.selection instanceof TextSelection
+          ) {
+            event.preventDefault()
+            view.dispatch(view.state.tr.insertText("    ").scrollIntoView())
+            return true
+          }
+          return false
+        },
         attributes: {
           class: cn(
             "prose-dark outline-none [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:text-subtle [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",

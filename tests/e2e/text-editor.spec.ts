@@ -10,6 +10,85 @@ const paragraph = (text: string) => ({
   content: [{ type: "text", text }],
 })
 
+test("Tab inserts four spaces in doc text and code, with undo and save persistence", async ({
+  page,
+  testAccount,
+}) => {
+  void testAccount
+  const created = await page.request.post("/api/v1/quick-notes", {
+    data: {
+      kind: "text",
+      title: "Tab indentation",
+      bodyJson: {
+        type: "doc",
+        content: [
+          {
+            type: "paragraph",
+            content: [
+              { type: "text", text: "Read", marks: [{ type: "bold" }] },
+            ],
+          },
+          { type: "codeBlock", content: [{ type: "text", text: "code" }] },
+        ],
+      },
+      bodyText: "Read\ncode",
+    },
+  })
+  expect(created.ok()).toBe(true)
+  const doc = await created.json()
+  await page.goto("/docs")
+  await page
+    .getByRole("heading", { name: "Tab indentation", exact: true })
+    .click()
+  const editor = page.locator(".tiptap")
+  const text = editor.locator("p").first()
+  await expect(editor).toHaveCSS("white-space", /^(pre-wrap|break-spaces)$/)
+  await text.click()
+  await page.keyboard.press("Control+Home")
+  await page.keyboard.press("Tab")
+  await expect(editor).toBeFocused()
+  expect(await text.textContent()).toBe("    Read")
+  await page.keyboard.press("Control+z")
+  expect(await text.textContent()).toBe("Read")
+  await page.keyboard.press("Control+Shift+z")
+  expect(await text.textContent()).toBe("    Read")
+  await page.keyboard.press("Shift+Tab")
+  await expect(editor).not.toBeFocused()
+  expect(await text.textContent()).toBe("    Read")
+  await text.click()
+  await editor.evaluate((element) => {
+    const instance = (element as HTMLElement & { editor: Editor }).editor
+    instance.commands.setTextSelection(6) // Immediately after R, keeping four leading spaces.
+  })
+  await page.keyboard.press("Tab")
+  expect(await text.textContent()).toBe("    R    ead")
+  expect(await editor.locator("strong").textContent()).toBe("    R    ead")
+  await editor.locator("pre").click()
+  await editor.evaluate((element) => {
+    const instance = (element as HTMLElement & { editor: Editor }).editor
+    instance.state.doc.descendants((node, pos) => {
+      if (node.type.name === "codeBlock")
+        instance.commands.setTextSelection(pos + 1 + node.content.size)
+    })
+  })
+  await page.keyboard.press("Tab")
+  expect(await editor.locator("pre").textContent()).toBe("code    ")
+  await write(page, "PATCH", `/quick-notes/${doc.id}`, () =>
+    page.getByRole("button", { name: "Save", exact: true }).click()
+  )
+  const saved = await (await page.request.get(`/api/v1/docs/${doc.id}`)).json()
+  expect(saved.bodyText.startsWith("    R    ead\ncode    ")).toBe(true)
+  expect(saved.bodyJson.content[1].content[0].text).toBe("code    ")
+  expect(saved.bodyJson.content[0].content[0].marks).toContainEqual({
+    type: "bold",
+  })
+  await page
+    .getByRole("heading", { name: "Tab indentation", exact: true })
+    .click()
+  expect(await text.textContent()).toBe("    R    ead")
+  expect(await editor.locator("pre").textContent()).toBe("code    ")
+})
+
 test("image controls preserve layout, captions, undo and replacement across saves", async ({
   page,
   testAccount,
