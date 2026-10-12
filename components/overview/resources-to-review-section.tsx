@@ -1,6 +1,6 @@
 "use client"
 
-import { LibraryBigIcon } from "lucide-react"
+import { LibraryBigIcon, StarIcon } from "lucide-react"
 import { ResourceContextMenu } from "@/components/resources/resource-context-menu"
 import { TypeIcon } from "@/components/resources/type-icon"
 import { Button } from "@/components/ui/button"
@@ -11,16 +11,18 @@ import { displayTitle, type ResourceDto } from "@/lib/resources/dto"
 import type { OverviewSectionProps } from "./section-context"
 import { pathFor, TOUCH_LINK, SectionHeader, PageLink } from "./section-ui"
 
-function ReviewResourceRow({
+export function OverviewResourceRow({
   resource,
   data,
   openResource,
   openPreview,
+  mode = "review",
 }: {
   resource: ResourceDto
   data: OverviewSummary
   openResource: (id: string) => void
   openPreview: (id: string) => void
+  mode?: "review" | "favorite"
 }) {
   const update = useUpdateResource()
   return (
@@ -73,11 +75,28 @@ function ReviewResourceRow({
           variant="ghost"
           className="min-h-11 text-xs text-brand"
           loading={update.isPending}
+          aria-label={
+            mode === "favorite"
+              ? `Remove ${displayTitle(resource)} from favorites`
+              : undefined
+          }
           onClick={() =>
-            update.mutate({ id: resource.id, patch: { isReviewed: true } })
+            update.mutate({
+              id: resource.id,
+              patch:
+                mode === "favorite"
+                  ? { isFavorite: false }
+                  : { isReviewed: true },
+            })
           }
         >
-          Mark reviewed
+          {mode === "favorite" ? (
+            <>
+              <StarIcon className="fill-brand" /> Remove favorite
+            </>
+          ) : (
+            "Mark reviewed"
+          )}
         </Button>
       </div>
     </ResourceContextMenu>
@@ -101,7 +120,7 @@ export function ResourcesToReviewSection({
       </SectionHeader>
       {resources.toReview.length ? (
         resources.toReview.map((resource) => (
-          <ReviewResourceRow
+          <OverviewResourceRow
             key={resource.id}
             resource={resource}
             data={data}

@@ -29,6 +29,7 @@ export function invalidateHabitViews(client: QueryClient) {
       "habit-reminders",
       "habit-history",
       "habit-motivation",
+      "overview",
       "search",
       "command-search",
     ].map((key) => client.invalidateQueries({ queryKey: [key] }))

@@ -21,6 +21,7 @@ import {
   type FocusSignal,
   type FocusTask,
   type OverviewSummary,
+  type TaskSignal,
 } from "@/lib/overview/model"
 import { getProjectTree } from "./projects"
 import { listResources, resourceOverviewCounts } from "./resources"
@@ -29,10 +30,50 @@ import { getTasksByIds } from "./tasks"
 
 export type { OverviewSummary } from "@/lib/overview/model"
 
+/** Lightweight rows shared by the overview's recurrence-aware sections. */
+export async function getOverviewTaskSignals(
+  userId: string
+): Promise<TaskSignal[]> {
+  const rows = await db
+    .select({
+      id: tasks.id,
+      title: tasks.title,
+      projectId: tasks.projectId,
+      status: tasks.status,
+      priority: tasks.priority,
+      dueAt: tasks.dueAt,
+      dueDate: tasks.dueDate,
+      startAt: tasks.startAt,
+      startDate: tasks.startDate,
+      allDay: tasks.allDay,
+      rrule: tasks.rrule,
+      seriesId: tasks.seriesId,
+      exdates: tasks.exdates,
+      updatedAt: tasks.updatedAt,
+      completedAt: tasks.completedAt,
+    })
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.userId, userId),
+        isNull(tasks.deletedAt),
+        isNull(tasks.archivedAt)
+      )
+    )
+  return rows.map((task) => ({
+    ...task,
+    dueAt: task.dueAt?.toISOString() ?? null,
+    startAt: task.startAt?.toISOString() ?? null,
+    completedAt: task.completedAt?.toISOString() ?? null,
+    updatedAt: task.updatedAt.toISOString(),
+    exdates: (task.exdates ?? []).map((date) => date.toISOString()),
+  }))
+}
+
 export async function getOverview(userId: string): Promise<OverviewSummary> {
   const [
     settings,
-    taskRows,
+    taskSignals,
     tree,
     docs,
     resourceActivity,
@@ -41,32 +82,7 @@ export async function getOverview(userId: string): Promise<OverviewSummary> {
     toReview,
   ] = await Promise.all([
     getSettings(userId),
-    db
-      .select({
-        id: tasks.id,
-        title: tasks.title,
-        projectId: tasks.projectId,
-        status: tasks.status,
-        priority: tasks.priority,
-        dueAt: tasks.dueAt,
-        dueDate: tasks.dueDate,
-        startAt: tasks.startAt,
-        startDate: tasks.startDate,
-        allDay: tasks.allDay,
-        rrule: tasks.rrule,
-        seriesId: tasks.seriesId,
-        exdates: tasks.exdates,
-        updatedAt: tasks.updatedAt,
-        completedAt: tasks.completedAt,
-      })
-      .from(tasks)
-      .where(
-        and(
-          eq(tasks.userId, userId),
-          isNull(tasks.deletedAt),
-          isNull(tasks.archivedAt)
-        )
-      ),
+    getOverviewTaskSignals(userId),
     getProjectTree(userId),
     db
       .select({
@@ -116,14 +132,6 @@ export async function getOverview(userId: string): Promise<OverviewSummary> {
   ])
   const now = new Date()
   const window = overviewWindow(settings.timezone, now)
-  const taskSignals = taskRows.map((t) => ({
-    ...t,
-    dueAt: t.dueAt?.toISOString() ?? null,
-    startAt: t.startAt?.toISOString() ?? null,
-    completedAt: t.completedAt?.toISOString() ?? null,
-    updatedAt: t.updatedAt.toISOString(),
-    exdates: (t.exdates ?? []).map((date) => date.toISOString()),
-  }))
   const docSummaries = docs.map((d) => ({
     ...d,
     updatedAt: d.updatedAt.toISOString(),

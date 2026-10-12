@@ -328,6 +328,7 @@ export function LibraryView({
   independentFilter,
   initialIndependent,
   initialReviewed,
+  initialFavorite,
   emptyTitleIndependent,
   emptyDescriptionIndependent,
   extraFilters,
@@ -348,6 +349,7 @@ export function LibraryView({
   independentFilter?: boolean
   initialIndependent?: boolean
   initialReviewed?: boolean
+  initialFavorite?: boolean
   /** Empty-state copy shown while the Independent filter is active. */
   emptyTitleIndependent?: string
   emptyDescriptionIndependent?: string
@@ -366,7 +368,7 @@ export function LibraryView({
   )
   const [type, setType] = useState<ResourceType | undefined>()
   const [tag, setTag] = useState<string | undefined>()
-  const [favorite, setFavorite] = useState(false)
+  const [favorite, setFavorite] = useState(initialFavorite ?? false)
   const [hasTasks, setHasTasks] = useState(false)
   const [reviewed, setReviewed] = useState<"all" | "reviewed" | "unreviewed">(
     initialReviewed === undefined

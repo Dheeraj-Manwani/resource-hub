@@ -220,7 +220,9 @@ test("an empty overview stays customizable and reset requires Save", async ({
     name: "Customize overview",
     exact: true,
   })
-  for (const section of createDefaultOverviewConfiguration().sections)
+  for (const section of createDefaultOverviewConfiguration().sections.filter(
+    (section) => section.enabled
+  ))
     await editor
       .getByRole("button", {
         name: `Hide ${OVERVIEW_SECTION_REGISTRY[section.id].label}`,

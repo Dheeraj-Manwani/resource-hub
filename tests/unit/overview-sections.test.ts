@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   createDefaultOverviewConfiguration,
   OVERVIEW_SECTION_REGISTRY,
+  OVERVIEW_SECTION_IDS,
   sectionsForRegion,
   overviewConfigurationSchema,
   readOverviewConfiguration,
@@ -60,7 +61,7 @@ describe("overview section configuration", () => {
     first.sections[0].enabled = false
     first.sections.pop()
 
-    expect(second.sections).toHaveLength(7)
+    expect(second.sections).toHaveLength(OVERVIEW_SECTION_IDS.length)
     expect(second.sections[0].enabled).toBe(true)
     expect(
       second.sections.find((s) => s.id === "task-priorities")?.options
@@ -105,7 +106,7 @@ describe("overview section configuration", () => {
       layout: "ordered",
       sections: [],
     })
-    expect(empty.sections).toHaveLength(7)
+    expect(empty.sections).toHaveLength(OVERVIEW_SECTION_IDS.length)
     expect(empty.sections.every((s) => !s.enabled)).toBe(true)
     const restored = setOverviewSectionEnabled(empty, "recent-docs", true)
     expect(restored.sections.filter((s) => s.enabled).map((s) => s.id)).toEqual(
@@ -145,5 +146,41 @@ describe("overview section configuration", () => {
     const phaseOne = { version: defaults.version, sections: defaults.sections }
     expect(readOverviewConfiguration(phaseOne)).toEqual(defaults)
     expect(readOverviewConfiguration(null)).toEqual(defaults)
+  })
+
+  it("adds new entity sections to old saved configurations without enabling them", () => {
+    const defaults = createDefaultOverviewConfiguration()
+    const previous = { ...defaults, sections: defaults.sections.slice(0, 7) }
+    const restored = readOverviewConfiguration(previous)
+    expect(restored.sections.slice(0, 7)).toEqual(previous.sections)
+    expect(
+      restored.sections
+        .slice(7, 11)
+        .map((section) => [section.id, section.enabled])
+    ).toEqual([
+      ["recently-completed-tasks", false],
+      ["projects-needing-attention", false],
+      ["favorite-resources", false],
+      ["docs-by-project", false],
+    ])
+  })
+  it("keeps new habit sections hidden when restoring Phase 3 preferences", () => {
+    const defaults = createDefaultOverviewConfiguration()
+    const saved = {
+      ...defaults,
+      layout: "ordered",
+      sections: defaults.sections.slice(0, 11).reverse(),
+    }
+    const restored = readOverviewConfiguration(saved)
+    expect(restored.sections.slice(0, 11)).toEqual(saved.sections)
+    expect(
+      restored.sections
+        .slice(11)
+        .map((section) => [section.id, section.enabled])
+    ).toEqual([
+      ["habit-streaks", false],
+      ["weekly-habit-progress", false],
+      ["recent-habit-activity", false],
+    ])
   })
 })

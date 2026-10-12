@@ -9,6 +9,13 @@ export const OVERVIEW_SECTION_IDS = [
   "needs-attention",
   "recent-docs",
   "resources-to-review",
+  "recently-completed-tasks",
+  "projects-needing-attention",
+  "favorite-resources",
+  "docs-by-project",
+  "habit-streaks",
+  "weekly-habit-progress",
+  "recent-habit-activity",
 ] as const
 
 export type OverviewSectionId = (typeof OVERVIEW_SECTION_IDS)[number]
@@ -88,6 +95,48 @@ export const OVERVIEW_SECTION_REGISTRY = {
     label: "Saved to revisit",
     entity: "resources",
     defaults: { enabled: true, region: "bottom", options: {} },
+    supportedOptions: [],
+  },
+  "recently-completed-tasks": {
+    label: "Recently completed tasks",
+    entity: "tasks",
+    defaults: { enabled: false, region: "main", options: {} },
+    supportedOptions: [],
+  },
+  "projects-needing-attention": {
+    label: "Projects needing attention",
+    entity: "projects",
+    defaults: { enabled: false, region: "main", options: {} },
+    supportedOptions: [],
+  },
+  "favorite-resources": {
+    label: "Favorite resources",
+    entity: "resources",
+    defaults: { enabled: false, region: "bottom", options: {} },
+    supportedOptions: [],
+  },
+  "docs-by-project": {
+    label: "Docs by project",
+    entity: "docs",
+    defaults: { enabled: false, region: "aside", options: {} },
+    supportedOptions: [],
+  },
+  "habit-streaks": {
+    label: "Habit streaks",
+    entity: "habits",
+    defaults: { enabled: false, region: "aside", options: {} },
+    supportedOptions: [],
+  },
+  "weekly-habit-progress": {
+    label: "Weekly habit progress",
+    entity: "habits",
+    defaults: { enabled: false, region: "main", options: {} },
+    supportedOptions: [],
+  },
+  "recent-habit-activity": {
+    label: "Recent habit activity",
+    entity: "habits",
+    defaults: { enabled: false, region: "main", options: {} },
     supportedOptions: [],
   },
 } satisfies Record<OverviewSectionId, OverviewSectionDefinition>

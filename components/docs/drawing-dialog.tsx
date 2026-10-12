@@ -26,6 +26,7 @@ import {
   MAX_DRAWING_BYTES,
 } from "@/lib/docs/drawing"
 import { api } from "@/lib/api-client"
+import { useDocEscape } from "./use-doc-escape"
 
 const DrawingEditor = dynamic(() => import("./drawing-editor"), {
   ssr: false,
@@ -119,6 +120,10 @@ export function DrawingDialog({
       setBusy(false)
     }
   }
+  const dialog = useDocEscape(
+    ready && !busy && !closing && !importOpen && history === null,
+    () => void requestClose()
+  )
   async function save(commitEditing = true) {
     if (saving.current || !getSnapshot.current) return false
     saving.current = true
@@ -280,123 +285,120 @@ export function DrawingDialog({
   }
 
   return (
-    <>
-      <Dialog open modal={false}>
-        <DialogContent
-          showCloseButton={false}
-          className="flex h-[100dvh] max-h-none w-screen max-w-none flex-col gap-0 rounded-none p-0 sm:max-w-none"
-        >
-          <DialogTitle className="sr-only">Drawing doc</DialogTitle>
-          <DialogDescription className="sr-only">
-            A freehand canvas with autosave, shapes, text, and Excalidraw import
-            and export.
-          </DialogDescription>
-          <div className="flex flex-wrap items-center gap-2 border-b p-3">
-            <Input
-              aria-label="Document title"
-              maxLength={200}
-              placeholder="Untitled drawing"
-              value={title}
-              className="min-w-44 flex-1"
-              onChange={(e) => {
-                setTitle(e.target.value)
-                live.current.title = e.target.value
-                changed()
-              }}
-            />
-            <span role="status" className="text-xs text-text-muted">
-              {status}
-            </span>
-            <ProjectSinglePicker
-              value={projectId}
-              render={<Button size="sm" variant="outline" />}
-              onChange={(value) => {
-                setProjectId(value)
-                live.current.projectId = value
-                changed()
-              }}
-            >
-              {projectId ? "Change project" : "No project"}
-            </ProjectSinglePicker>
-            <Button
-              size="sm"
-              disabled={busy || !ready}
-              onClick={() => setImportOpen(true)}
-            >
-              Import
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!ready || busy}
-              onClick={() => void download()}
-            >
-              Export drawing
-            </Button>
+    <Dialog open modal={false}>
+      <DialogContent
+        ref={dialog}
+        showCloseButton={false}
+        className="flex h-[100dvh] max-h-none w-screen max-w-none flex-col gap-0 rounded-none p-0 sm:max-w-none"
+      >
+        <DialogTitle className="sr-only">Drawing doc</DialogTitle>
+        <DialogDescription className="sr-only">
+          A freehand canvas with autosave, shapes, text, and Excalidraw import
+          and export.
+        </DialogDescription>
+        <div className="flex flex-wrap items-center gap-2 border-b p-3">
+          <Input
+            aria-label="Document title"
+            maxLength={200}
+            placeholder="Untitled drawing"
+            value={title}
+            className="min-w-44 flex-1"
+            onChange={(e) => {
+              setTitle(e.target.value)
+              live.current.title = e.target.value
+              changed()
+            }}
+          />
+          <span role="status" className="text-xs text-text-muted">
+            {status}
+          </span>
+          <ProjectSinglePicker
+            value={projectId}
+            render={<Button size="sm" variant="outline" />}
+            onChange={(value) => {
+              setProjectId(value)
+              live.current.projectId = value
+              changed()
+            }}
+          >
+            {projectId ? "Change project" : "No project"}
+          </ProjectSinglePicker>
+          <Button
+            size="sm"
+            disabled={busy || !ready}
+            onClick={() => setImportOpen(true)}
+          >
+            Import
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!ready || busy}
+            onClick={() => void download()}
+          >
+            Export drawing
+          </Button>
 
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!ready || busy}
-              onClick={() => void showHistory()}
-            >
-              History
-            </Button>
-            <Button
-              size="sm"
-              loading={busy}
-              disabled={!ready || busy}
-              onClick={() => void save()}
-            >
-              Save
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={busy || !ready}
-              onClick={() => void requestClose()}
-            >
-              Close
-            </Button>
-          </div>
-          {error && !importOpen && !closing && history === null && (
-            <p role="alert" className="px-4 py-2 text-sm text-destructive">
-              {error}
-            </p>
-          )}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!ready || busy}
+            onClick={() => void showHistory()}
+          >
+            History
+          </Button>
+          <Button
+            size="sm"
+            loading={busy}
+            disabled={!ready || busy}
+            onClick={() => void save()}
+          >
+            Save
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy || !ready}
+            onClick={() => void requestClose()}
+          >
+            Close
+          </Button>
+        </div>
+        {error && !importOpen && !closing && history === null && (
+          <p role="alert" className="px-4 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
-          <div className="min-h-0 flex-1 bg-[#18181b] text-[#f4f4f5]">
-            <DrawingEditor
-              key={editorKey}
-              initial={initial}
-              onReady={(getter, baseline) => {
-                live.current.bodyJson = baseline
-                if (normalizeBaseline.current && lastSaved.current) {
-                  lastSaved.current = JSON.stringify({
-                    ...JSON.parse(lastSaved.current),
-                    bodyJson: baseline,
-                  })
-                }
-                normalizeBaseline.current = false
-                dirty.current =
-                  lastSaved.current !== JSON.stringify(live.current)
-                setStatus(dirty.current ? "Unsaved changes" : "Saved")
-                getSnapshot.current = getter
-                setReady(true)
-              }}
-              onChange={(value) => {
-                if (
-                  JSON.stringify(value) ===
-                  JSON.stringify(live.current.bodyJson)
-                )
-                  return
-                live.current.bodyJson = value
-                changed()
-              }}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+        <div className="min-h-0 flex-1 bg-[#18181b] text-[#f4f4f5]">
+          <DrawingEditor
+            key={editorKey}
+            initial={initial}
+            onReady={(getter, baseline) => {
+              live.current.bodyJson = baseline
+              if (normalizeBaseline.current && lastSaved.current) {
+                lastSaved.current = JSON.stringify({
+                  ...JSON.parse(lastSaved.current),
+                  bodyJson: baseline,
+                })
+              }
+              normalizeBaseline.current = false
+              dirty.current = lastSaved.current !== JSON.stringify(live.current)
+              setStatus(dirty.current ? "Unsaved changes" : "Saved")
+              getSnapshot.current = getter
+              setReady(true)
+            }}
+            onChange={(value) => {
+              if (
+                JSON.stringify(value) === JSON.stringify(live.current.bodyJson)
+              )
+                return
+              live.current.bodyJson = value
+              changed()
+            }}
+          />
+        </div>
+      </DialogContent>
       <Dialog open={closing} onOpenChange={setClosing}>
         <DialogContent>
           <DialogTitle>Close drawing?</DialogTitle>
@@ -498,6 +500,6 @@ export function DrawingDialog({
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </Dialog>
   )
 }

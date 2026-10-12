@@ -15,6 +15,13 @@ import { ProjectNextStepsSection } from "./project-next-steps-section"
 import { RecentDocsSection } from "./recent-docs-section"
 import { ResourcesToReviewSection } from "./resources-to-review-section"
 import { TaskPrioritiesSection } from "./task-priorities-section"
+import { RecentlyCompletedTasksSection } from "./recently-completed-tasks-section"
+import { ProjectsNeedingAttentionSection } from "./projects-needing-attention-section"
+import { FavoriteResourcesSection } from "./favorite-resources-section"
+import { DocsByProjectSection } from "./docs-by-project-section"
+import { HabitStreaksSection } from "./habit-streaks-section"
+import { WeeklyHabitProgressSection } from "./weekly-habit-progress-section"
+import { RecentHabitActivitySection } from "./recent-habit-activity-section"
 import type {
   OverviewSectionContext,
   OverviewSectionProps,
@@ -29,6 +36,13 @@ const SECTION_RENDERERS = {
   "needs-attention": NeedsAttentionSection,
   "recent-docs": RecentDocsSection,
   "resources-to-review": ResourcesToReviewSection,
+  "recently-completed-tasks": RecentlyCompletedTasksSection,
+  "projects-needing-attention": ProjectsNeedingAttentionSection,
+  "favorite-resources": FavoriteResourcesSection,
+  "docs-by-project": DocsByProjectSection,
+  "habit-streaks": HabitStreaksSection,
+  "weekly-habit-progress": WeeklyHabitProgressSection,
+  "recent-habit-activity": RecentHabitActivitySection,
 } satisfies Record<OverviewSectionId, ComponentType<OverviewSectionProps>>
 
 function OverviewSection({

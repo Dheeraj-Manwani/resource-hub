@@ -8,7 +8,7 @@ export type OverviewSectionActions = {
   openDoc: (id: string) => void
   openAddTask: () => void
   openAddProject: () => void
-  openAddQuickNote: () => void
+  openAddQuickNote: (projectId?: string) => void
   openAddResource: () => void
   reviewResources: () => void
 }

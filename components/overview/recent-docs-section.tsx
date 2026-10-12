@@ -12,7 +12,7 @@ import type { DocSummary, OverviewSummary } from "@/lib/overview/model"
 import type { OverviewSectionProps } from "./section-context"
 import { pathFor, SectionHeader, PageLink } from "./section-ui"
 
-function DocRow({
+export function DocRow({
   doc,
   data,
   openDoc,

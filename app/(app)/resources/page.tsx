@@ -7,7 +7,11 @@ import { requireUser } from "@/lib/server/dal/session"
 export const metadata: Metadata = { title: "Resources" }
 
 export default async function ResourcesPage(props: {
-  searchParams: Promise<{ filter?: string; reviewed?: string }>
+  searchParams: Promise<{
+    filter?: string
+    reviewed?: string
+    favorite?: string
+  }>
 }) {
   const user = await requireUser()
   const settings = await getSettings(user.id)
@@ -19,6 +23,7 @@ export default async function ResourcesPage(props: {
       initialSettings={settings}
       independentFilter
       initialIndependent={searchParams.filter === "independent"}
+      initialFavorite={searchParams.favorite === "true"}
       initialReviewed={
         searchParams.reviewed === "false"
           ? false
