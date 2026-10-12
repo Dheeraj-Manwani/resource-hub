@@ -330,7 +330,7 @@ export default function NoteEditor({
   const imageInsertPosition = useRef<number | undefined>(undefined)
   const pendingUploads = useRef(0)
   const [uploading, setUploading] = useState(false)
-  const [writingWidth, setWritingWidth] = useState("comfortable")
+  const [writingWidth, setWritingWidth] = useState("wide")
   const uploadStateCallback = useRef(onUploadStateChange)
   const uploadImage = (
     editor: Editor,
