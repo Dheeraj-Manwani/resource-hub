@@ -1,5 +1,7 @@
 "use client"
 
+import { overviewSectionLimit } from "@/lib/overview/sections"
+
 import { CheckCircle2Icon } from "lucide-react"
 import { QueryFeedback } from "@/components/query-feedback"
 import { TaskItemMenu } from "@/components/tasks/task-item-menu"
@@ -59,7 +61,9 @@ function CompletedTaskRow({
 export function RecentlyCompletedTasksSection({
   data,
   actions,
+  options,
 }: OverviewSectionProps) {
+  const limit = overviewSectionLimit("recently-completed-tasks", options)
   const query = useOverviewSection("recently-completed-tasks")
   return (
     <section aria-label="Recently completed tasks">
@@ -69,14 +73,16 @@ export function RecentlyCompletedTasksSection({
       <QueryFeedback query={query} label="recently completed tasks" />
       {query.data &&
         (query.data.items.length ? (
-          query.data.items.map((task) => (
-            <CompletedTaskRow
-              key={task.id}
-              task={task}
-              data={data}
-              actions={actions}
-            />
-          ))
+          query.data.items
+            .slice(0, limit)
+            .map((task) => (
+              <CompletedTaskRow
+                key={task.id}
+                task={task}
+                data={data}
+                actions={actions}
+              />
+            ))
         ) : (
           <p className="py-4 text-sm text-text-muted">
             Completed tasks will appear here. Choose a task to work on today.

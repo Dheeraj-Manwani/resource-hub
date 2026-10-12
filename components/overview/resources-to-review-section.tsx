@@ -1,5 +1,7 @@
 "use client"
 
+import { overviewSectionLimit } from "@/lib/overview/sections"
+
 import { LibraryBigIcon, StarIcon } from "lucide-react"
 import { ResourceContextMenu } from "@/components/resources/resource-context-menu"
 import { TypeIcon } from "@/components/resources/type-icon"
@@ -106,7 +108,9 @@ export function OverviewResourceRow({
 export function ResourcesToReviewSection({
   data,
   actions,
+  options,
 }: OverviewSectionProps) {
+  const limit = overviewSectionLimit("resources-to-review", options)
   const { resources } = data
   const { openResource, openPreview, openAddResource } = actions
   return (
@@ -119,15 +123,17 @@ export function ResourcesToReviewSection({
         <PageLink href="/resources?reviewed=false">Not reviewed yet</PageLink>
       </SectionHeader>
       {resources.toReview.length ? (
-        resources.toReview.map((resource) => (
-          <OverviewResourceRow
-            key={resource.id}
-            resource={resource}
-            data={data}
-            openResource={openResource}
-            openPreview={openPreview}
-          />
-        ))
+        resources.toReview
+          .slice(0, limit)
+          .map((resource) => (
+            <OverviewResourceRow
+              key={resource.id}
+              resource={resource}
+              data={data}
+              openResource={openResource}
+              openPreview={openPreview}
+            />
+          ))
       ) : (
         <div className="flex flex-wrap items-center gap-3 border-b border-border py-5">
           <LibraryBigIcon className="size-4 text-subtle" />

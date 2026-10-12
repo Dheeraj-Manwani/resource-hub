@@ -8,6 +8,7 @@ import {
   addDays,
   defaultConfig,
   weekday,
+  weekDates,
   type Habit,
   type HabitBundle,
   type HabitConfig,
@@ -71,7 +72,15 @@ test("habit overview sections are opt-in, reorderable and share recording and hi
     await page.request.get("/api/v1/habits")
   ).json()
   const today = bundle.today,
-    weekStart = weekday(addDays(today, -3))
+    weekStart = weekday(today) === 6 ? 1 : 0
+  const week = weekDates(today, weekStart)
+  const readingEligible = week.filter(
+    (date) =>
+      date <= today && date >= addDays(today, -3) && date !== addDays(today, -2)
+  ).length
+  const readingCompleted = [addDays(today, -3), addDays(today, -1)].filter(
+    (date) => week.includes(date)
+  ).length
   const configuration = createDefaultOverviewConfiguration()
   configuration.sections.forEach((section) => {
     section.enabled = section.id === "habits-today"
@@ -92,17 +101,17 @@ test("habit overview sections are opt-in, reorderable and share recording and hi
   await record(page.request, read, addDays(today, -3), 1)
   await record(page.request, read, addDays(today, -2), 0, "Rest day", "skip")
   await record(page.request, read, addDays(today, -1), 1)
-  await record(
+  const practiceLog = await record(
     page.request,
     practice,
-    addDays(today, -1),
+    today,
     10,
     "Morning practice"
   )
-  await record(page.request, paused, addDays(today, -1), 5, "Earlier walk")
+  await record(page.request, paused, today, 5, "Earlier walk")
   expect(
     (
-      await page.request.post(`/api/v1/habits/${paused.id}/status`, {
+      await page.request.patch(`/api/v1/habits/${paused.id}/status`, {
         data: { status: "paused", expectedRevision: paused.revision },
       })
     ).ok()
@@ -164,7 +173,9 @@ test("habit overview sections are opt-in, reorderable and share recording and hi
   const readingRow = weekly.locator('[aria-label="Read chapters this week"]')
   await expect(streaks).toContainText("2 goal periods")
   await expect(streaks).not.toContainText("Paused walks")
-  await expect(readingRow).toContainText("2 / 3 goals met so far")
+  await expect(readingRow).toContainText(
+    `${readingCompleted} / ${readingEligible} goals met so far`
+  )
   await expect(weekly).toContainText("Paused")
   await expect(weekly).toContainText("10 min recorded")
   await expect(recent).toContainText("Morning practice")
@@ -202,7 +213,9 @@ test("habit overview sections are opt-in, reorderable and share recording and hi
   )
   await expect(entry).toHaveCount(0)
   await expect(streaks).toContainText("3 goal periods")
-  await expect(readingRow).toContainText("3 / 3 goals met so far")
+  await expect(readingRow).toContainText(
+    `${readingCompleted + 1} / ${readingEligible} goals met so far`
+  )
   await expect(
     recent.getByRole("button", { name: "Read chapters", exact: true }).first()
   ).toBeVisible()
@@ -230,13 +243,13 @@ test("habit overview sections are opt-in, reorderable and share recording and hi
     .getByRole("button", { name: "View day", exact: true })
     .click()
   const day = page.getByRole("dialog", { name: "📖 Practice", exact: true })
-  await expect(day).toContainText(addDays(today, -1))
+  await expect(day).toContainText(today)
   await expect(day).toContainText("10 min recorded on this day")
   await day
     .getByRole("link", { name: "Open habit history →", exact: true })
     .click()
   await expect(page).toHaveURL(
-    new RegExp(`/habits\\?h=${practice.id}&date=${addDays(today, -1)}$`)
+    new RegExp(`/habits\\?h=${practice.id}&date=${today}$`)
   )
   const details = page.getByRole("dialog", { name: "📖 Practice", exact: true })
   await expect(details).toContainText("Morning practice")
@@ -246,10 +259,14 @@ test("habit overview sections are opt-in, reorderable and share recording and hi
     exact: true,
   })
   await correction.getByLabel("Amount (minutes)", { exact: true }).fill("30")
-  await write(page, "PATCH", `/habits/${practice.id}/logs/`, () =>
-    correction
-      .getByRole("button", { name: "Save correction", exact: true })
-      .click()
+  await write(
+    page,
+    "PATCH",
+    `/habits/${practice.id}/logs/${practiceLog.log.id}`,
+    () =>
+      correction
+        .getByRole("button", { name: "Save correction", exact: true })
+        .click()
   )
   await page.keyboard.press("Escape")
   await page.goto("/overview")
@@ -328,45 +345,37 @@ test("habit section reads have empty states, isolated retry, bounded payloads an
     await db
       .insert(schema.user)
       .values({ id: foreignId, name: "Other account", email: foreignEmail })
-    await db
-      .insert(schema.habits)
-      .values({
-        id: foreignHabitId,
-        userId: foreignId,
-        name: "Private habit",
-        icon: "📖",
-        color: "orange",
-      })
-    await db
-      .insert(schema.habitVersions)
-      .values({
-        id: versionId,
-        habitId: foreignHabitId,
-        revision: 1,
-        effectiveFrom: bundle.today,
-        config: defaultConfig(bundle.today, bundle.weekStart),
-      })
-    await db
-      .insert(schema.habitOccurrences)
-      .values({
-        id: occurrenceId,
-        habitId: foreignHabitId,
-        versionId,
-        periodStart: bundle.today,
-        periodEnd: bundle.today,
-      })
-    await db
-      .insert(schema.habitLogs)
-      .values({
-        id: randomUUID(),
-        habitId: foreignHabitId,
-        occurrenceId,
-        date: bundle.today,
-        amount: 30,
-        kind: "progress",
-        timezone: bundle.timezone,
-        notes: "Private note",
-      })
+    await db.insert(schema.habits).values({
+      id: foreignHabitId,
+      userId: foreignId,
+      name: "Private habit",
+      icon: "📖",
+      color: "orange",
+    })
+    await db.insert(schema.habitVersions).values({
+      id: versionId,
+      habitId: foreignHabitId,
+      revision: 1,
+      effectiveFrom: bundle.today,
+      config: defaultConfig(bundle.today, bundle.weekStart),
+    })
+    await db.insert(schema.habitOccurrences).values({
+      id: occurrenceId,
+      habitId: foreignHabitId,
+      versionId,
+      periodStart: bundle.today,
+      periodEnd: bundle.today,
+    })
+    await db.insert(schema.habitLogs).values({
+      id: randomUUID(),
+      habitId: foreignHabitId,
+      occurrenceId,
+      date: bundle.today,
+      amount: 30,
+      kind: "progress",
+      timezone: bundle.timezone,
+      notes: "Private note",
+    })
     const [occurrence] = await db
       .select()
       .from(schema.habitOccurrences)

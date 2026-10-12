@@ -8,9 +8,6 @@ for (const kind of ["spreadsheet", "drawing"] as const) {
     testAccount,
   }) => {
     void testAccount
-    page.on("console", (message) => {
-      if (message.text().startsWith("doc ")) console.log(message.text())
-    })
     const title = `Saved ${kind}`
     const response = await page.request.post("/api/v1/quick-notes", {
       data: {

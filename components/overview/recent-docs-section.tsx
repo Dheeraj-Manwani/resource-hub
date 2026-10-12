@@ -1,5 +1,7 @@
 "use client"
 
+import { overviewSectionLimit } from "@/lib/overview/sections"
+
 import {
   FileTextIcon,
   NotebookPenIcon,
@@ -57,7 +59,12 @@ export function DocRow({
   )
 }
 
-export function RecentDocsSection({ data, actions }: OverviewSectionProps) {
+export function RecentDocsSection({
+  data,
+  actions,
+  options,
+}: OverviewSectionProps) {
+  const limit = overviewSectionLimit("recent-docs", options)
   const { docs } = data
   const { openDoc, openAddQuickNote } = actions
   return (
@@ -66,9 +73,11 @@ export function RecentDocsSection({ data, actions }: OverviewSectionProps) {
         <PageLink href="/docs">Docs</PageLink>
       </SectionHeader>
       {docs.recent.length ? (
-        docs.recent.map((doc) => (
-          <DocRow key={doc.id} doc={doc} data={data} openDoc={openDoc} />
-        ))
+        docs.recent
+          .slice(0, limit)
+          .map((doc) => (
+            <DocRow key={doc.id} doc={doc} data={data} openDoc={openDoc} />
+          ))
       ) : (
         <div className="py-3">
           <p className="text-sm text-text-muted">

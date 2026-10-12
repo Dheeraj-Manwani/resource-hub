@@ -105,7 +105,6 @@ export function SpreadsheetDialog({
     try {
       // Commit the active cell before checking; its mutation callback is delayed.
       live.current.bodyJson = await getSnapshot.current()
-      console.log("doc snapshot", workbookText(live.current.bodyJson))
       dirty.current = lastSaved.current !== JSON.stringify(live.current)
       if (dirty.current) setClosing(true)
       else onClose()

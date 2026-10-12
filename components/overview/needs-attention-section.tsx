@@ -1,11 +1,18 @@
 "use client"
 
+import { overviewSectionLimit } from "@/lib/overview/sections"
+
 import { ArrowRightIcon, ArrowUpRightIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { OverviewSectionProps } from "./section-context"
 import { countLabel, pathFor, TOUCH_LINK } from "./section-ui"
 
-export function NeedsAttentionSection({ data, actions }: OverviewSectionProps) {
+export function NeedsAttentionSection({
+  data,
+  actions,
+  options,
+}: OverviewSectionProps) {
+  const limit = overviewSectionLimit("needs-attention", options)
   const { tasks, resources } = data
   const { openTask, reviewResources } = actions
   if (!tasks.blockedCount && !resources.toReviewCount) return null
@@ -22,7 +29,7 @@ export function NeedsAttentionSection({ data, actions }: OverviewSectionProps) {
               ? "Resolve a blocked task"
               : `${tasks.blockedCount} blocked tasks`}
           </p>
-          {tasks.blocked.map((task) => (
+          {tasks.blocked.slice(0, limit).map((task) => (
             <div key={task.id} className="mt-2">
               <p className="text-xs text-subtle">
                 {task.title} · {pathFor(data, task.projectId)}

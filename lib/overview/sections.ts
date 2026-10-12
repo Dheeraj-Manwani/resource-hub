@@ -26,7 +26,44 @@ export type OverviewSectionEntity =
 export type OverviewSectionRegion = "top" | "main" | "aside" | "bottom"
 
 export type OverviewSectionOptions = {
+  width?: "standard" | "full"
+  limit?: number
   initialHorizon?: "today" | "week"
+  projectId?: string
+}
+
+/** Overview lists are bounded summaries; their full views remain available. */
+export const OVERVIEW_SECTION_LIMITS: Partial<
+  Record<OverviewSectionId, number>
+> = {
+  "habits-today": 4,
+  "task-priorities": 6,
+  "project-next-steps": 3,
+  "needs-attention": 2,
+  "recent-docs": 3,
+  "resources-to-review": 3,
+  "recently-completed-tasks": 5,
+  "projects-needing-attention": 4,
+  "favorite-resources": 5,
+  "docs-by-project": 3,
+  "habit-streaks": 5,
+  "weekly-habit-progress": 5,
+  "recent-habit-activity": 6,
+}
+
+export function overviewSectionLimit(
+  id: OverviewSectionId,
+  options: OverviewSectionOptions
+): number {
+  return options.limit ?? OVERVIEW_SECTION_LIMITS[id] ?? 0
+}
+
+export function overviewSectionIsFullWidth(
+  section: OverviewSectionConfig
+): boolean {
+  return section.options.width
+    ? section.options.width === "full"
+    : section.region === "top" || section.region === "bottom"
 }
 
 export type OverviewSectionConfig = {
@@ -55,13 +92,13 @@ export const OVERVIEW_SECTION_REGISTRY = {
     label: "Daily brief",
     entity: "mixed",
     defaults: { enabled: true, region: "top", options: {} },
-    supportedOptions: [],
+    supportedOptions: ["width"],
   },
   "habits-today": {
     label: "Habits today",
     entity: "habits",
     defaults: { enabled: true, region: "main", options: {} },
-    supportedOptions: [],
+    supportedOptions: ["width", "limit"],
   },
   "task-priorities": {
     label: "What needs doing",
@@ -71,73 +108,73 @@ export const OVERVIEW_SECTION_REGISTRY = {
       region: "main",
       options: { initialHorizon: "today" },
     },
-    supportedOptions: ["initialHorizon"],
+    supportedOptions: ["width", "limit", "initialHorizon"],
   },
   "project-next-steps": {
     label: "Move a project forward",
     entity: "projects",
     defaults: { enabled: true, region: "main", options: {} },
-    supportedOptions: [],
+    supportedOptions: ["width", "limit"],
   },
   "needs-attention": {
     label: "Needs attention",
     entity: "mixed",
     defaults: { enabled: true, region: "aside", options: {} },
-    supportedOptions: [],
+    supportedOptions: ["width", "limit"],
   },
   "recent-docs": {
     label: "Continue editing",
     entity: "docs",
     defaults: { enabled: true, region: "aside", options: {} },
-    supportedOptions: [],
+    supportedOptions: ["width", "limit"],
   },
   "resources-to-review": {
     label: "Saved to revisit",
     entity: "resources",
     defaults: { enabled: true, region: "bottom", options: {} },
-    supportedOptions: [],
+    supportedOptions: ["width", "limit"],
   },
   "recently-completed-tasks": {
     label: "Recently completed tasks",
     entity: "tasks",
     defaults: { enabled: false, region: "main", options: {} },
-    supportedOptions: [],
+    supportedOptions: ["width", "limit"],
   },
   "projects-needing-attention": {
     label: "Projects needing attention",
     entity: "projects",
     defaults: { enabled: false, region: "main", options: {} },
-    supportedOptions: [],
+    supportedOptions: ["width", "limit"],
   },
   "favorite-resources": {
     label: "Favorite resources",
     entity: "resources",
     defaults: { enabled: false, region: "bottom", options: {} },
-    supportedOptions: [],
+    supportedOptions: ["width", "limit"],
   },
   "docs-by-project": {
     label: "Docs by project",
     entity: "docs",
     defaults: { enabled: false, region: "aside", options: {} },
-    supportedOptions: [],
+    supportedOptions: ["width", "limit", "projectId"],
   },
   "habit-streaks": {
     label: "Habit streaks",
     entity: "habits",
     defaults: { enabled: false, region: "aside", options: {} },
-    supportedOptions: [],
+    supportedOptions: ["width", "limit"],
   },
   "weekly-habit-progress": {
     label: "Weekly habit progress",
     entity: "habits",
     defaults: { enabled: false, region: "main", options: {} },
-    supportedOptions: [],
+    supportedOptions: ["width", "limit"],
   },
   "recent-habit-activity": {
     label: "Recent habit activity",
     entity: "habits",
     defaults: { enabled: false, region: "main", options: {} },
-    supportedOptions: [],
+    supportedOptions: ["width", "limit"],
   },
 } satisfies Record<OverviewSectionId, OverviewSectionDefinition>
 
@@ -166,7 +203,14 @@ export const overviewConfigurationSchema = z
             enabled: z.boolean(),
             region: z.enum(["top", "main", "aside", "bottom"]),
             options: z
-              .object({ initialHorizon: z.enum(["today", "week"]).optional() })
+              .object({
+                width: z.enum(["standard", "full"]).optional(),
+                limit: z.number().int().min(1).optional(),
+                initialHorizon: z.enum(["today", "week"]).optional(),
+                projectId: z
+                  .union([z.uuid(), z.literal("unassigned")])
+                  .optional(),
+              })
               .strict(),
           })
           .strict()
@@ -184,15 +228,32 @@ export const overviewConfigurationSchema = z
           path: ["sections", index, "id"],
         })
       seen.add(section.id)
+      const maximum = OVERVIEW_SECTION_LIMITS[section.id]
       if (
-        section.id !== "task-priorities" &&
-        section.options.initialHorizon !== undefined
+        section.options.limit !== undefined &&
+        (!maximum || section.options.limit > maximum)
       )
         context.addIssue({
           code: "custom",
-          message: "This section does not support a task view",
-          path: ["sections", index, "options", "initialHorizon"],
+          message: maximum
+            ? `This section supports up to ${maximum} items`
+            : "This section does not support an item limit",
+          path: ["sections", index, "options", "limit"],
         })
+      const supported: readonly (keyof OverviewSectionOptions)[] =
+        OVERVIEW_SECTION_REGISTRY[section.id].supportedOptions
+      for (const option of Object.keys(
+        section.options
+      ) as (keyof OverviewSectionOptions)[])
+        if (
+          section.options[option] !== undefined &&
+          !supported.includes(option)
+        )
+          context.addIssue({
+            code: "custom",
+            message: `This section does not support ${option}`,
+            path: ["sections", index, "options", option],
+          })
     })
   })
 
@@ -253,6 +314,27 @@ export function reorderOverviewSection(
   const [section] = sections.splice(from, 1)
   sections.splice(to, 0, section)
   return { ...configuration, layout: "ordered", sections }
+}
+
+export function setOverviewSectionOptions(
+  configuration: OverviewConfiguration,
+  id: OverviewSectionId,
+  patch: OverviewSectionOptions
+): OverviewConfiguration {
+  return {
+    ...configuration,
+    layout: "width" in patch ? "ordered" : configuration.layout,
+    sections: configuration.sections.map((section) => {
+      if (section.id !== id) return section
+      const options = { ...section.options, ...patch }
+      // Removing an override restores the default and leaves a serializable draft.
+      for (const key of Object.keys(
+        options
+      ) as (keyof OverviewSectionOptions)[])
+        if (options[key] === undefined) delete options[key]
+      return { ...section, options }
+    }),
+  }
 }
 
 export function sectionsForRegion(

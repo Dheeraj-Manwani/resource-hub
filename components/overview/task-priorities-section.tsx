@@ -1,5 +1,7 @@
 "use client"
 
+import { overviewSectionLimit } from "@/lib/overview/sections"
+
 import { CheckCheckIcon, CheckCircle2Icon, Loader2Icon } from "lucide-react"
 import { TaskItemMenu } from "@/components/tasks/task-item-menu"
 import { Button } from "@/components/ui/button"
@@ -113,6 +115,7 @@ export function TaskPrioritiesSection({
   actions,
   options,
 }: OverviewSectionProps) {
+  const limit = overviewSectionLimit("task-priorities", options)
   const { tasks } = data
   const { openTask, openAddTask } = actions
   return (
@@ -120,7 +123,10 @@ export function TaskPrioritiesSection({
       <SectionHeader title="What needs doing">
         <PageLink href="/tasks">All tasks</PageLink>
       </SectionHeader>
-      <Tabs defaultValue={options.initialHorizon ?? "today"}>
+      <Tabs
+        key={options.initialHorizon ?? "today"}
+        defaultValue={options.initialHorizon ?? "today"}
+      >
         <TabsList variant="line" className="h-11 border-b border-border">
           <TabsTrigger value="today" className="min-h-11">
             Today{" "}
@@ -133,14 +139,16 @@ export function TaskPrioritiesSection({
         {(["today", "week"] as const).map((horizon) => (
           <TabsContent key={horizon} value={horizon}>
             {tasks[horizon].length ? (
-              tasks[horizon].map((row) => (
-                <FocusTaskRow
-                  key={row.key}
-                  row={row}
-                  data={data}
-                  onOpen={openTask}
-                />
-              ))
+              tasks[horizon]
+                .slice(0, limit)
+                .map((row) => (
+                  <FocusTaskRow
+                    key={row.key}
+                    row={row}
+                    data={data}
+                    onOpen={openTask}
+                  />
+                ))
             ) : (
               <div className="border-b border-border py-6">
                 <p className="flex items-center gap-2 text-sm">
@@ -154,7 +162,7 @@ export function TaskPrioritiesSection({
                     <p className="mt-3 text-xs text-subtle">
                       Tasks you can choose to work on
                     </p>
-                    {tasks.suggested.map((row) => (
+                    {tasks.suggested.slice(0, limit).map((row) => (
                       <FocusTaskRow
                         key={row.key}
                         row={row}
@@ -175,7 +183,7 @@ export function TaskPrioritiesSection({
               </div>
             )}
             {(horizon === "today" ? tasks.todayCount : tasks.weekCount) >
-              tasks[horizon].length && (
+              Math.min(limit, tasks[horizon].length) && (
               <PageLink href="/tasks">View all tasks</PageLink>
             )}
           </TabsContent>

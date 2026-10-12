@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import { HabitsToday } from "@/components/habits/habits-today"
 import {
   sectionsForRegion,
+  overviewSectionIsFullWidth,
   type OverviewConfiguration,
   type OverviewSectionConfig,
   type OverviewSectionId,
@@ -53,7 +54,17 @@ function OverviewSection({
   context: OverviewSectionContext
 }) {
   const Component = SECTION_RENDERERS[section.id]
-  return <Component {...context} options={section.options} />
+  return (
+    <Component
+      key={
+        section.id === "docs-by-project"
+          ? (section.options.projectId ?? "all")
+          : section.id
+      }
+      {...context}
+      options={section.options}
+    />
+  )
 }
 
 export function OverviewSections({
@@ -80,7 +91,10 @@ export function OverviewSections({
     )
 
   // The DOM and visual order match; avoid dense placement or independent columns.
-  if (configuration.layout === "ordered")
+  if (
+    configuration.layout === "ordered" ||
+    shown.some((section) => section.options.width !== undefined)
+  )
     return (
       <div
         className="grid items-start gap-7 lg:grid-cols-2"
@@ -92,8 +106,7 @@ export function OverviewSections({
             data-overview-section={section.id}
             className={cn(
               "min-w-0",
-              (section.region === "top" || section.region === "bottom") &&
-                "lg:col-span-2"
+              overviewSectionIsFullWidth(section) && "lg:col-span-2"
             )}
           >
             <OverviewSection section={section} context={context} />

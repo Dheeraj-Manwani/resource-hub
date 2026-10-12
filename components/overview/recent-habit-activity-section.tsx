@@ -1,5 +1,8 @@
 "use client"
 
+import type { OverviewSectionProps } from "./section-context"
+import { overviewSectionLimit } from "@/lib/overview/sections"
+
 import { QueryFeedback } from "@/components/query-feedback"
 import { useHabitActions } from "@/components/habits/habit-actions-provider"
 import { useOverviewSection } from "@/hooks/queries/overview"
@@ -7,7 +10,10 @@ import { formatRelative } from "@/lib/format"
 import { HabitName, habitDateLabel, habitWorkLabel } from "./habit-section-ui"
 import { PageLink, SectionHeader } from "./section-ui"
 
-export function RecentHabitActivitySection() {
+export function RecentHabitActivitySection({
+  options,
+}: Pick<OverviewSectionProps, "options">) {
+  const limit = overviewSectionLimit("recent-habit-activity", options)
   const query = useOverviewSection("recent-habit-activity")
   const actions = useHabitActions()
   return (
@@ -19,7 +25,7 @@ export function RecentHabitActivitySection() {
       <QueryFeedback query={query} label="recent habit activity" />
       {query.data &&
         (query.data.items.length ? (
-          query.data.items.map((entry) => (
+          query.data.items.slice(0, limit).map((entry) => (
             <div key={entry.id} className="border-b border-border py-3">
               <HabitName
                 habit={entry.habit}

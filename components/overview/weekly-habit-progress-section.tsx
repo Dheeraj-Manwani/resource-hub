@@ -1,5 +1,8 @@
 "use client"
 
+import type { OverviewSectionProps } from "./section-context"
+import { overviewSectionLimit } from "@/lib/overview/sections"
+
 import { CheckIcon, MinusIcon } from "lucide-react"
 import { QueryFeedback } from "@/components/query-feedback"
 import { useHabitActions } from "@/components/habits/habit-actions-provider"
@@ -7,7 +10,7 @@ import { useOverviewSection } from "@/hooks/queries/overview"
 import { historyStateLabels } from "@/lib/habits/history"
 import { cn } from "@/lib/utils"
 import { HabitName, habitDateLabel, habitWorkLabel } from "./habit-section-ui"
-import { PageLink, SectionHeader } from "./section-ui"
+import { countLabel, PageLink, SectionHeader } from "./section-ui"
 
 const stateClasses = {
   complete: "border-green-500/50 bg-green-500/15 text-green-400",
@@ -17,7 +20,10 @@ const stateClasses = {
   rest: "border-border text-subtle",
   pending: "border-dashed border-border text-text-muted",
 }
-export function WeeklyHabitProgressSection() {
+export function WeeklyHabitProgressSection({
+  options,
+}: Pick<OverviewSectionProps, "options">) {
+  const limit = overviewSectionLimit("weekly-habit-progress", options)
   const query = useOverviewSection("weekly-habit-progress")
   const actions = useHabitActions()
   return (
@@ -35,7 +41,7 @@ export function WeeklyHabitProgressSection() {
       {query.data &&
         (query.data.items.length ? (
           <>
-            {query.data.items.map((habit) => (
+            {query.data.items.slice(0, limit).map((habit) => (
               <div
                 key={habit.id}
                 className="border-b border-border py-3"
@@ -54,9 +60,10 @@ export function WeeklyHabitProgressSection() {
                 <div className="grid grid-cols-7 gap-1">
                   {habit.days.map((day) => {
                     const future = day.date > query.data!.today
-                    const label = future
-                      ? "Future plan"
-                      : historyStateLabels[day.state]
+                    const label =
+                      future && day.state === "pending"
+                        ? "Future plan"
+                        : historyStateLabels[day.state]
                     return (
                       <button
                         key={day.date}
@@ -95,12 +102,14 @@ export function WeeklyHabitProgressSection() {
               </div>
             ))}
             <p className="mt-3 text-xs text-subtle">
-              ✓ Goal met · ◐ Saved effort · ↷ Skipped · — Rest. Weekly and
-              monthly goals count once per goal period.
+              ✓ Goal met · ◐ Saved effort · ↷ Skipped · — Rest. Flexible, weekly
+              and monthly goals count once per goal period.
             </p>
-            {query.data.total > query.data.items.length && (
+            {query.data.total > Math.min(limit, query.data.items.length) && (
               <p className="mt-2 text-xs text-subtle">
-                Showing five habits. Browse all habits for more progress.
+                Showing{" "}
+                {countLabel(Math.min(limit, query.data.items.length), "habit")}.
+                Browse all habits for more progress.
               </p>
             )}
           </>

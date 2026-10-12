@@ -1,5 +1,7 @@
 "use client"
 
+import { overviewSectionLimit } from "@/lib/overview/sections"
+
 import Link from "next/link"
 import { FolderIcon } from "lucide-react"
 import { QueryFeedback } from "@/components/query-feedback"
@@ -11,7 +13,9 @@ import { countLabel, pathFor, SectionHeader } from "./section-ui"
 export function ProjectsNeedingAttentionSection({
   data,
   actions,
+  options,
 }: OverviewSectionProps) {
+  const limit = overviewSectionLimit("projects-needing-attention", options)
   const query = useOverviewSection("projects-needing-attention")
   return (
     <section aria-label="Projects needing attention">
@@ -22,7 +26,7 @@ export function ProjectsNeedingAttentionSection({
       {query.data &&
         (query.data.items.length ? (
           <>
-            {query.data.items.map((project) => (
+            {query.data.items.slice(0, limit).map((project) => (
               <div key={project.id} className="border-b border-border py-3">
                 <Link
                   href={`/projects/${project.id}?tab=tasks`}
@@ -54,10 +58,11 @@ export function ProjectsNeedingAttentionSection({
                 )}
               </div>
             ))}
-            {query.data.total > query.data.items.length && (
+            {query.data.total > Math.min(limit, query.data.items.length) && (
               <p className="mt-3 text-xs text-subtle">
-                Showing {query.data.items.length} of {query.data.total} projects
-                needing attention. Find more projects in the sidebar.
+                Showing {Math.min(limit, query.data.items.length)} of{" "}
+                {query.data.total} projects needing attention. Find more
+                projects in the sidebar.
               </p>
             )}
           </>

@@ -135,6 +135,7 @@ export function OverviewView({
       {draft && (
         <OverviewCustomizer
           configuration={draft}
+          projectPaths={data.projectPaths}
           onChange={setDraft}
           onCancel={() => {
             setDraft(null)

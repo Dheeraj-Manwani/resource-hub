@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { overviewSectionLimit } from "@/lib/overview/sections"
 import { QueryFeedback } from "@/components/query-feedback"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,8 +16,13 @@ import { DocRow } from "./recent-docs-section"
 import type { OverviewSectionProps } from "./section-context"
 import { countLabel, PageLink, pathFor, SectionHeader } from "./section-ui"
 
-export function DocsByProjectSection({ data, actions }: OverviewSectionProps) {
-  const [projectId, setProjectId] = useState("all")
+export function DocsByProjectSection({
+  data,
+  actions,
+  options,
+}: OverviewSectionProps) {
+  const limit = overviewSectionLimit("docs-by-project", options)
+  const [projectId, setProjectId] = useState(options.projectId ?? "all")
   // A deleted project should not leave the picker stuck on an unavailable filter.
   const selected =
     projectId === "unassigned" || data.projectPaths[projectId]
@@ -61,7 +67,7 @@ export function DocsByProjectSection({ data, actions }: OverviewSectionProps) {
       </Select>
       <p className="mt-2 text-xs text-subtle">
         {selected === "all"
-          ? "Latest four groups · Up to three docs per group"
+          ? `Latest four groups · Up to ${limit} docs per group`
           : selected === "unassigned"
             ? "Docs without a project"
             : "Docs filed directly in this project"}
@@ -77,7 +83,7 @@ export function DocsByProjectSection({ data, actions }: OverviewSectionProps) {
                   · {countLabel(group.total, "doc")}
                 </span>
               </h3>
-              {group.docs.map((doc) => (
+              {group.docs.slice(0, limit).map((doc) => (
                 <DocRow
                   key={doc.id}
                   doc={doc}
@@ -85,7 +91,7 @@ export function DocsByProjectSection({ data, actions }: OverviewSectionProps) {
                   openDoc={actions.openDoc}
                 />
               ))}
-              {group.total > group.docs.length && (
+              {group.total > Math.min(limit, group.docs.length) && (
                 <PageLink
                   href={
                     group.projectId

@@ -1,5 +1,7 @@
 "use client"
 
+import { overviewSectionLimit } from "@/lib/overview/sections"
+
 import { useState } from "react"
 import Link from "next/link"
 import { ChevronDownIcon, FileTextIcon, FolderIcon } from "lucide-react"
@@ -158,7 +160,9 @@ function ProjectRow({
 export function ProjectNextStepsSection({
   data,
   actions,
+  options,
 }: OverviewSectionProps) {
+  const limit = overviewSectionLimit("project-next-steps", options)
   const { projects } = data
   const { openTask, openResource, openDoc, openAddProject } = actions
   return (
@@ -167,16 +171,18 @@ export function ProjectNextStepsSection({
         <span className="text-xs text-subtle">Includes sub-projects</span>
       </SectionHeader>
       {projects.top.length ? (
-        projects.top.map((project) => (
-          <ProjectRow
-            key={project.id}
-            project={project}
-            data={data}
-            openTask={openTask}
-            openResource={openResource}
-            openDoc={openDoc}
-          />
-        ))
+        projects.top
+          .slice(0, limit)
+          .map((project) => (
+            <ProjectRow
+              key={project.id}
+              project={project}
+              data={data}
+              openTask={openTask}
+              openResource={openResource}
+              openDoc={openDoc}
+            />
+          ))
       ) : (
         <div className="py-4">
           <p className="text-sm text-text-muted">

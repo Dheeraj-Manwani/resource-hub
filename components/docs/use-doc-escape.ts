@@ -1,34 +1,35 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffectEvent, useLayoutEffect, useRef } from "react"
 
 export function useDocEscape(enabled: boolean, onClose: () => void) {
   const dialog = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!enabled) return
-    function keyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") console.log("doc escape", enabled, dialog.current?.id, (event.target as Element)?.closest('[role="dialog"]')?.id)
-      if (
-        event.key !== "Escape" ||
-        event.isComposing ||
-        event.defaultPrevented ||
-        !dialog.current ||
-        !(event.target instanceof Element) ||
-        (event.target !== document.body &&
-          event.target.closest(
-            '[role="dialog"], [role="menu"], [role="listbox"]'
-          ) !== dialog.current)
-      )
-        return
-      // Run before editor shortcuts can cancel a pending cell or text edit.
-      event.preventDefault()
-      event.stopPropagation()
-      onClose()
-    }
+  const keyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (
+      !enabled ||
+      event.key !== "Escape" ||
+      event.isComposing ||
+      event.defaultPrevented ||
+      !dialog.current ||
+      !(event.target instanceof Element) ||
+      (event.target !== document.body &&
+        event.target.closest(
+          '[role="dialog"], [role="menu"], [role="listbox"]'
+        ) !== dialog.current)
+    )
+      return
+    // Run before editor shortcuts can cancel a pending cell or text edit.
+    event.preventDefault()
+    event.stopPropagation()
+    onClose()
+  })
+  // Register before the editors mount their own shortcuts; retain that ordering
+  // as readiness and pending edits change.
+  useLayoutEffect(() => {
     window.addEventListener("keydown", keyDown, true)
     return () => window.removeEventListener("keydown", keyDown, true)
-  }, [enabled, onClose])
+  }, [])
 
   return dialog
 }

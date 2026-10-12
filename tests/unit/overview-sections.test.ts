@@ -8,9 +8,99 @@ import {
   readOverviewConfiguration,
   reorderOverviewSection,
   setOverviewSectionEnabled,
+  setOverviewSectionOptions,
+  OVERVIEW_SECTION_LIMITS,
+  overviewSectionLimit,
+  overviewSectionIsFullWidth,
 } from "@/lib/overview/sections"
 
 describe("overview section configuration", () => {
+  it("validates bounded limits and options supported by each section", () => {
+    const defaults = createDefaultOverviewConfiguration()
+    for (const section of defaults.sections) {
+      const maximum = OVERVIEW_SECTION_LIMITS[section.id]
+      const parse = (options: unknown) =>
+        overviewConfigurationSchema.safeParse({
+          ...defaults,
+          sections: [{ ...section, options }],
+        }).success
+      expect(parse({ width: "full" })).toBe(true)
+      expect(parse({ width: "standard" })).toBe(true)
+      expect(parse({ width: "wide" })).toBe(false)
+      expect(parse({ limit: 1 })).toBe(!!maximum)
+      if (maximum) {
+        expect(parse({ limit: maximum })).toBe(true)
+        expect(parse({ limit: maximum + 1 })).toBe(false)
+        expect(overviewSectionLimit(section.id, {})).toBe(maximum)
+      }
+      for (const limit of [0, -1, 1.5, "1", 100])
+        expect(parse({ limit })).toBe(false)
+      expect(parse({ initialHorizon: "week" })).toBe(
+        section.id === "task-priorities"
+      )
+      expect(parse({ projectId: "unassigned" })).toBe(
+        section.id === "docs-by-project"
+      )
+      expect(parse({ projectId: "not-a-project" })).toBe(false)
+      expect(parse({ projectId: "5ed93a54-0338-4894-9969-6982df8396b1" })).toBe(
+        section.id === "docs-by-project"
+      )
+    }
+  })
+
+  it("preserves options through reorder and hide, and restores defaults without mutating the source", () => {
+    const original = createDefaultOverviewConfiguration()
+    const before = JSON.stringify(original)
+    const configured = setOverviewSectionOptions(original, "docs-by-project", {
+      limit: 1,
+      projectId: "unassigned",
+      width: "full",
+    })
+    expect(configured.layout).toBe("ordered")
+    const shown = setOverviewSectionEnabled(configured, "docs-by-project", true)
+    const moved = reorderOverviewSection(
+      shown,
+      "docs-by-project",
+      "daily-brief"
+    )
+    const restored = setOverviewSectionEnabled(
+      setOverviewSectionEnabled(moved, "docs-by-project", false),
+      "docs-by-project",
+      true
+    )
+    expect(
+      readOverviewConfiguration(restored).sections.find(
+        (s) => s.id === "docs-by-project"
+      )?.options
+    ).toEqual({ limit: 1, projectId: "unassigned", width: "full" })
+    const cleared = setOverviewSectionOptions(restored, "docs-by-project", {
+      limit: undefined,
+      projectId: undefined,
+      width: undefined,
+    })
+    expect(
+      cleared.sections.find((s) => s.id === "docs-by-project")?.options
+    ).toEqual({})
+    expect(JSON.stringify(original)).toBe(before)
+    expect(overviewSectionIsFullWidth(original.sections[0])).toBe(true)
+    expect(
+      overviewSectionIsFullWidth({
+        ...original.sections[0],
+        options: { width: "standard" },
+      })
+    ).toBe(false)
+    expect(
+      overviewSectionIsFullWidth({
+        ...original.sections[2],
+        options: { width: "full" },
+      })
+    ).toBe(true)
+    expect(
+      setOverviewSectionOptions(original, "task-priorities", {
+        initialHorizon: "week",
+      }).layout
+    ).toBe("default")
+  })
   it("keeps the existing default layout and task horizon", () => {
     const configuration = createDefaultOverviewConfiguration()
     expect(sectionsForRegion(configuration, "top").map((s) => s.id)).toEqual([

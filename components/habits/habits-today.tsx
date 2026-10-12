@@ -12,8 +12,14 @@ import {
 import { calendarBlocks } from "@/lib/habits/planning"
 import { useHabitActions } from "./habit-actions-provider"
 import { useHabitTimer } from "./habit-timer-provider"
+import {
+  overviewSectionLimit,
+  type OverviewSectionOptions,
+} from "@/lib/overview/sections"
 
-export function HabitsToday() {
+export function HabitsToday({
+  options = {},
+}: { options?: OverviewSectionOptions } = {}) {
   const query = useHabits(""),
     actions = useHabitActions(),
     timer = useHabitTimer()
@@ -51,7 +57,7 @@ export function HabitsToday() {
         Number(progressOn(a, bundle!.today)?.complete) -
         Number(progressOn(b, bundle!.today)?.complete)
     )
-    .slice(0, 4)
+    .slice(0, overviewSectionLimit("habits-today", options))
   return (
     <section
       aria-label="Habits today"

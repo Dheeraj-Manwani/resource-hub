@@ -23,6 +23,7 @@ import {
   EyeOffIcon,
   GripVerticalIcon,
   PlusIcon,
+  Settings2Icon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,12 +37,15 @@ import {
   OVERVIEW_SECTION_REGISTRY,
   reorderOverviewSection,
   setOverviewSectionEnabled,
+  setOverviewSectionOptions,
   type OverviewConfiguration,
   type OverviewSectionConfig,
   type OverviewSectionEntity,
   type OverviewSectionId,
+  type OverviewSectionOptions,
 } from "@/lib/overview/sections"
 import { cn } from "@/lib/utils"
+import { OverviewSectionOptionsEditor } from "./overview-section-options"
 
 const ENTITY_LABELS: Record<OverviewSectionEntity, string> = {
   mixed: "Daily overview",
@@ -59,6 +63,8 @@ type RowProps = {
   disabled: boolean
   onMove: (direction: -1 | 1) => void
   onHide: () => void
+  projectPaths: Record<string, string>
+  onOptionsChange: (patch: OverviewSectionOptions) => void
 }
 type DragWiring = {
   setNodeRef: (element: HTMLElement | null) => void
@@ -76,9 +82,12 @@ function SectionRowView({
   disabled,
   onMove,
   onHide,
+  projectPaths,
+  onOptionsChange,
   drag,
 }: RowProps & { drag?: DragWiring }) {
   const definition = OVERVIEW_SECTION_REGISTRY[section.id]
+  const [optionsOpen, setOptionsOpen] = useState(false)
   return (
     <li
       ref={drag?.setNodeRef}
@@ -100,13 +109,25 @@ function SectionRowView({
       >
         <GripVerticalIcon className="size-4" />
       </button>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-[min(100%,10rem)] flex-1">
         <p className="text-sm font-medium">{definition.label}</p>
         <p className="text-xs text-subtle">
           {ENTITY_LABELS[definition.entity]}
         </p>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="ml-auto flex items-center gap-1">
+        <Button
+          variant="ghost"
+          className="size-11"
+          aria-label={`Options for ${definition.label}`}
+          title="Section options"
+          aria-expanded={optionsOpen}
+          aria-controls={`overview-options-${section.id}`}
+          disabled={disabled}
+          onClick={() => setOptionsOpen(!optionsOpen)}
+        >
+          <Settings2Icon className="size-4" />
+        </Button>
         <Button
           variant="ghost"
           className="size-11"
@@ -136,6 +157,16 @@ function SectionRowView({
           Hide
         </Button>
       </div>
+      {optionsOpen && (
+        <div id={`overview-options-${section.id}`} className="w-full min-w-0">
+          <OverviewSectionOptionsEditor
+            section={section}
+            projectPaths={projectPaths}
+            disabled={disabled}
+            onChange={onOptionsChange}
+          />
+        </div>
+      )}
     </li>
   )
 }
@@ -165,6 +196,7 @@ function SortableSectionRow(props: RowProps) {
 
 export function OverviewCustomizer({
   configuration,
+  projectPaths,
   onChange,
   onSave,
   onCancel,
@@ -173,6 +205,7 @@ export function OverviewCustomizer({
   error,
 }: {
   configuration: OverviewConfiguration
+  projectPaths: Record<string, string>
   onChange: (configuration: OverviewConfiguration) => void
   onSave: () => void
   onCancel: () => void
@@ -208,8 +241,8 @@ export function OverviewCustomizer({
         <div>
           <h2 className="text-base font-semibold">Customize overview</h2>
           <p className="mt-1 text-sm text-text-muted">
-            Choose sections and their order. Preview your changes below before
-            saving.
+            Choose sections, their order, and options. Preview your changes
+            below before saving.
           </p>
           <p id="overview-reorder-help" className="mt-1 text-xs text-subtle">
             Drag a handle, use the arrow buttons, or press Space on a handle and
@@ -253,6 +286,16 @@ export function OverviewCustomizer({
                   index={index}
                   count={visible.length}
                   disabled={saving}
+                  projectPaths={projectPaths}
+                  onOptionsChange={(patch) =>
+                    onChange(
+                      setOverviewSectionOptions(
+                        configuration,
+                        section.id,
+                        patch
+                      )
+                    )
+                  }
                   onMove={(direction) => {
                     const target = visible[index + direction]
                     if (target) move(section.id, target.id)
