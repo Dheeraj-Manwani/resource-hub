@@ -52,6 +52,7 @@ test("right-click actions work across resources, docs, tasks, projects, tags, se
   await page.goto("/docs")
   await item(page, doc.title).click({ button: "right" })
   await page.getByRole("menuitem", { name: "Open / edit", exact: true }).click()
+  await page.getByRole("button", { name: "Edit title", exact: true }).click()
   await expect(page.getByPlaceholder("Untitled", { exact: true })).toHaveValue(
     doc.title
   )
@@ -167,6 +168,7 @@ test("touch holds open options without opening items; scrolling cancels and tapp
     0
   )
   await page.getByRole("menuitem", { name: "Open / edit", exact: true }).click()
+  await page.getByRole("button", { name: "Edit title", exact: true }).click()
   await expect(page.getByPlaceholder("Untitled", { exact: true })).toHaveValue(
     doc.title
   )
@@ -179,6 +181,7 @@ test("touch holds open options without opening items; scrolling cancels and tapp
     0
   )
   await card.tap({ position: { x: 30, y: 30 } })
+  await page.getByRole("button", { name: "Edit title", exact: true }).click()
   await expect(page.getByPlaceholder("Untitled", { exact: true })).toHaveValue(
     doc.title
   )

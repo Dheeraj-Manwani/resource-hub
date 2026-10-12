@@ -63,8 +63,67 @@ test("starter to calendar Pomodoro, explicit save, correction, archive and expor
   await page.goto("/habits")
   await page.getByRole("button", { name: "Create your first habit" }).click()
   const form = page.getByRole("dialog", { name: "New habit", exact: true })
-  await form.getByLabel("Starter template (optional)").selectOption("reading")
-  await form.getByRole("button", { name: "Use starter", exact: true }).click()
+  await form.getByLabel("Habit name", { exact: true }).fill("Draft habit")
+  await form.getByLabel("Your reason (optional)").fill("Draft reason")
+  await form.getByLabel("Preferred times (optional)").fill("19:00")
+  await form.getByLabel("Reminder times (optional)").fill("18:55")
+  await form.getByRole("button", { name: "About habits", exact: true }).click()
+  const help = page.getByRole("dialog", { name: "About habits", exact: true })
+  await help
+    .getByRole("button", { name: "Use Movement template", exact: true })
+    .click()
+  await expect(help).toHaveCount(0)
+  await expect(form.getByLabel("Habit name", { exact: true })).toHaveValue(
+    "Make time to move"
+  )
+  await expect(form.getByLabel("Days per week", { exact: true })).toHaveValue(
+    "3"
+  )
+  await expect(form.getByLabel("Goal period", { exact: true })).toBeDisabled()
+  await expect(form.getByLabel("Goal period", { exact: true })).toContainText(
+    "Daily"
+  )
+  await expect(form.getByLabel("Preferred times (optional)")).toHaveValue("")
+  await expect(form.getByLabel("Reminder times (optional)")).toHaveValue("")
+  await expect(form.getByLabel("Your reason (optional)")).toHaveValue("")
+  await page.setViewportSize({ width: 390, height: 844 })
+  await form.getByRole("button", { name: "About habits", exact: true }).click()
+  await expect
+    .poll(() =>
+      help.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        return (
+          bounds.left >= 0 &&
+          bounds.right <= window.innerWidth &&
+          element.scrollWidth <= element.clientWidth
+        )
+      })
+    )
+    .toBe(true)
+  await page.screenshot({
+    path: testInfo.outputPath("habit-help-mobile.png"),
+    animations: "disabled",
+  })
+  await help
+    .getByRole("button", { name: "Use Read pages template", exact: true })
+    .click()
+  await expect(form.getByLabel("Target quantity", { exact: true })).toHaveValue(
+    "10"
+  )
+  await expect(form.getByLabel("Unit", { exact: true })).toHaveValue("pages")
+  await form.getByLabel("Habit name", { exact: true }).scrollIntoViewIfNeeded()
+  await expect(
+    form.getByRole("button", { name: "Create habit", exact: true })
+  ).toBeInViewport()
+  await page.screenshot({
+    path: testInfo.outputPath("habit-form-mobile.png"),
+    animations: "disabled",
+  })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await form.getByRole("button", { name: "About habits", exact: true }).click()
+  await help
+    .getByRole("button", { name: "Use Reading template", exact: true })
+    .click()
   await expect(form.getByLabel("Habit name", { exact: true })).toHaveValue(
     "Read a little"
   )
@@ -354,10 +413,11 @@ test("loading, retry, keyboard dialog access and timer fallback fit tablet layou
       await form.evaluate((node) => node.contains(document.activeElement))
     ).toBe(true)
   }
-  await form
-    .getByLabel("Starter template (optional)")
-    .selectOption("reflection")
-  await form.getByRole("button", { name: "Use starter", exact: true }).click()
+  await form.getByRole("button", { name: "About habits", exact: true }).click()
+  await page
+    .getByRole("dialog", { name: "About habits", exact: true })
+    .getByRole("button", { name: "Use Daily reflection template", exact: true })
+    .click()
   await form.getByRole("button", { name: "Create habit", exact: true }).click()
   await expect(form).toHaveCount(0)
   const card = page.getByRole("article", {

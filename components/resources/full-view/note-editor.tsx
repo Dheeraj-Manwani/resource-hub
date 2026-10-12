@@ -417,7 +417,8 @@ export default function NoteEditor({
           !event.isComposing && (slashKeyHandler.current?.(event) ?? false),
         attributes: {
           class: cn(
-            "prose-dark px-3 py-2 outline-none [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:text-subtle [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
+            "prose-dark outline-none [&_.is-editor-empty:first-child::before]:pointer-events-none [&_.is-editor-empty:first-child::before]:float-left [&_.is-editor-empty:first-child::before]:h-0 [&_.is-editor-empty:first-child::before]:text-subtle [&_.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
+            !workspace && "px-3 py-2",
             bare ? "min-h-full" : "min-h-40"
           ),
         },
@@ -510,6 +511,13 @@ export default function NoteEditor({
     [draftKey]
   )
 
+  const previousFullscreen = useRef(fullscreen)
+  useEffect(() => {
+    if (previousFullscreen.current === fullscreen) return
+    previousFullscreen.current = fullscreen
+    editor?.commands.focus(undefined, { scrollIntoView: false })
+  }, [editor, fullscreen])
+
   useEffect(() => {
     if (
       editor &&
@@ -575,7 +583,8 @@ export default function NoteEditor({
         editable &&
           (bare
             ? "bg-bg-sunken ring-1 ring-transparent focus-within:ring-border-strong"
-            : "border border-border bg-surface focus-within:border-border-strong")
+            : "border border-border bg-surface focus-within:border-border-strong"),
+        fullscreen && "rounded-none ring-0 focus-within:ring-0"
       )}
     >
       {draftKey && (draft?.phase === "failed" || retrying) ? (
@@ -622,22 +631,31 @@ export default function NoteEditor({
       {editable ? (
         <>
           <SelectionMenu editor={editor} />
-          {workspace && (
-            <WorkspaceControls
-              editor={editor}
-              title={documentTitle}
-              width={writingWidth}
-              onWidth={setWritingWidth}
-              fullscreen={fullscreen}
-              onFullscreen={onFullscreen}
-              uploading={uploading}
-            />
-          )}
-          <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-1">
+          <div
+            role="toolbar"
+            aria-label="Document toolbar"
+            className={cn(
+              "flex shrink-0 items-center gap-1 border-b border-border px-2 py-1.5",
+              fullscreen && "hidden"
+            )}
+          >
             <BlockActions editor={editor} />
-            <span className="text-xs text-subtle">
-              {uploading ? "Uploading images…" : "Type / to insert a block"}
+            <span className="min-w-0 flex-1 text-center text-xs text-subtle">
+              <span className="hidden sm:inline">
+                {uploading ? "Uploading images…" : "Type / to insert a block"}
+              </span>
             </span>
+            {workspace && (
+              <WorkspaceControls
+                editor={editor}
+                title={documentTitle}
+                width={writingWidth}
+                onWidth={setWritingWidth}
+                fullscreen={fullscreen}
+                onFullscreen={onFullscreen}
+                uploading={uploading}
+              />
+            )}
             <FormattingMenu
               editor={editor}
               onInsertImage={
@@ -650,14 +668,16 @@ export default function NoteEditor({
               }
             />
           </div>
-          <ImageControls
-            editor={editor}
-            onReplace={
-              onUploadImage
-                ? (file, pos, src) => uploadImage(editor, file, pos, src)
-                : undefined
-            }
-          />
+          <div className={cn(fullscreen && "hidden")}>
+            <ImageControls
+              editor={editor}
+              onReplace={
+                onUploadImage
+                  ? (file, pos, src) => uploadImage(editor, file, pos, src)
+                  : undefined
+              }
+            />
+          </div>
           <SlashMenu
             editor={editor}
             keyHandlerRef={slashKeyHandler}
@@ -689,6 +709,7 @@ export default function NoteEditor({
         className={cn(
           bare && "min-h-0 flex-1 overflow-y-auto",
           workspace && "document-writing-area",
+          fullscreen && "document-fullscreen-area",
           workspace &&
             (writingWidth === "narrow"
               ? "document-width-narrow"

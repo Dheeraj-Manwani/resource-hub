@@ -144,8 +144,12 @@ test("create buttons show loading, preserve dialogs and allow retry after errors
     exact: true,
   })
   await noteDialog
+    .getByRole("button", { name: "Edit title", exact: true })
+    .click()
+  await noteDialog
     .getByPlaceholder("Untitled", { exact: true })
     .fill("Loading quick note")
+  await page.keyboard.press("Enter")
   await page.keyboard.press("Escape")
   const unsaved = page.getByRole("dialog", {
     name: "Unsaved changes",

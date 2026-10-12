@@ -149,6 +149,7 @@ test("filters hide without clearing results and project Add menus keep both path
     name: "New doc",
     exact: true,
   })
+  await newNote.getByRole("button", { name: "Edit title", exact: true }).click()
   await newNote.getByPlaceholder("Untitled", { exact: true }).fill("Menu note")
   const saved = await write(page, "POST", "/quick-notes", () =>
     newNote.getByRole("button", { name: "Save", exact: true }).click()

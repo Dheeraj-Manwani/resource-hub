@@ -224,21 +224,13 @@ export function WorkspaceControls({
   onFullscreen?: () => void
   uploading: boolean
 }) {
-  const words = useEditorState({
-    editor,
-    selector: ({ editor }) =>
-      editor.getText().trim().split(/\s+/u).filter(Boolean).length,
-  })
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-      <span className="mr-auto text-xs text-text-muted" aria-label="Word count">
-        {words} {words === 1 ? "word" : "words"}
-      </span>
+    <div className="flex shrink-0 items-center gap-1">
       <select
         aria-label="Writing width"
         value={width}
         onChange={(e) => onWidth(e.target.value)}
-        className="h-7 rounded-md border border-border bg-surface px-2 text-xs"
+        className="h-7 max-w-24 rounded-md border border-border bg-surface px-1.5 text-xs sm:max-w-none"
       >
         <option value="narrow">Narrow</option>
         <option value="comfortable">Comfortable</option>

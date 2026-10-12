@@ -2,7 +2,7 @@
 
 import { useSyncController } from "@/components/sync-provider"
 
-import { FolderIcon, XIcon } from "lucide-react"
+import { FolderIcon, PencilIcon, XIcon } from "lucide-react"
 import dynamic from "next/dynamic"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "react-hot-toast"
@@ -150,6 +150,8 @@ function DialogBody({
 }) {
   const sync = useSyncController()
   const [title, setTitle] = useState(draft.title)
+  const [editingTitle, setEditingTitle] = useState(false)
+  const titleBeforeEdit = useRef(draft.title)
   const [projectId, setProjectId] = useState(draft.projectId)
   const [pendingUploads, setPendingUploads] = useState(0)
   const { options: projectOptions } = useProjectOptions()
@@ -159,25 +161,66 @@ function DialogBody({
 
   return (
     <>
-      <DialogHeader className="shrink-0 flex-row items-center gap-2 border-b border-border py-4 pr-4 pl-6">
-        <div className="flex min-w-0 flex-1 flex-col gap-0">
-          <DialogTitle className="sr-only">
-            {draft.id ? "Edit text doc" : "New doc"}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            An optional title and a rich-text body you can paste images and
-            links into.
-          </DialogDescription>
-          <Input
-            autoFocus
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value)
-              onLiveChange({ title: e.target.value })
-            }}
-            placeholder="Untitled"
-            className="h-auto border-none bg-transparent px-3.5 py-2 text-2xl font-semibold shadow-none focus-visible:ring-0"
-          />
+      <DialogTitle className="sr-only">
+        {draft.id ? "Edit text doc" : "New doc"}
+      </DialogTitle>
+      <DialogDescription className="sr-only">
+        An optional title and a rich-text body you can paste images and links
+        into.
+      </DialogDescription>
+      <DialogHeader
+        className={cn(
+          "shrink-0 flex-row items-center gap-2 border-b border-border px-4 py-1.5",
+          fullscreen && "hidden"
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          {editingTitle ? (
+            <Input
+              autoFocus
+              aria-label="Document title"
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value)
+                onLiveChange({ title: e.target.value })
+              }}
+              onBlur={() => setEditingTitle(false)}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" && e.key !== "Escape") return
+                e.preventDefault()
+                e.stopPropagation()
+                if (e.key === "Escape") {
+                  setTitle(titleBeforeEdit.current)
+                  onLiveChange({ title: titleBeforeEdit.current })
+                }
+                e.currentTarget.blur()
+              }}
+              placeholder="Untitled"
+              disabled={saving}
+              className="h-7 max-w-80 px-2 text-sm font-medium"
+            />
+          ) : (
+            <>
+              <span
+                className="max-w-80 truncate text-sm font-medium"
+                title={title || "Untitled"}
+              >
+                {title || "Untitled"}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Edit title"
+                disabled={saving}
+                onClick={() => {
+                  titleBeforeEdit.current = title
+                  setEditingTitle(true)
+                }}
+              >
+                <PencilIcon />
+              </Button>
+            </>
+          )}
         </div>
         <DialogClose
           render={
@@ -194,7 +237,12 @@ function DialogBody({
         </DialogClose>
       </DialogHeader>
 
-      <div className="flex min-h-0 flex-1 flex-col px-6 py-4">
+      <div
+        className={cn(
+          "relative flex min-h-0 flex-1 flex-col",
+          !fullscreen && "px-4 py-3"
+        )}
+      >
         <NoteEditor
           content={(draft.bodyJson as Record<string, unknown>) ?? null}
           debounceMs={0}
@@ -213,9 +261,36 @@ function DialogBody({
           onUploadImage={(file) => uploadQuickNoteImage(file, sync)}
           onLinkPreview={fetchQuickNoteLinkPreview}
         />
+        {fullscreen && (
+          <div className="absolute top-3 right-4 z-10 flex items-center gap-2">
+            <Button
+              loading={saving}
+              onClick={onSaveClick}
+              disabled={saving || pendingUploads > 0}
+              className="shadow-lg"
+            >
+              Save
+            </Button>
+            <Button
+              variant="destructive"
+              size="icon"
+              aria-label="Exit full screen"
+              title="Exit full screen"
+              onClick={onFullscreen}
+              className="border border-destructive/30 bg-popover text-destructive shadow-lg hover:bg-destructive/20"
+            >
+              <XIcon />
+            </Button>
+          </div>
+        )}
       </div>
 
-      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-6 py-3">
+      <div
+        className={cn(
+          "flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3",
+          fullscreen && "hidden"
+        )}
+      >
         <ProjectSinglePicker
           value={projectId}
           onChange={(id) => {
@@ -410,7 +485,7 @@ function TextNoteDialog({
           className={cn(
             "flex flex-col gap-0 p-0",
             fullscreen
-              ? "h-[100dvh] max-h-none w-screen max-w-none rounded-none sm:max-w-none"
+              ? "top-0 left-0 h-[100dvh] max-h-none w-screen max-w-none translate-x-0 translate-y-0 rounded-none sm:max-w-none data-open:animate-none"
               : "h-[90vh] max-h-250 w-[95vw] max-w-5xl sm:max-w-5xl"
           )}
         >

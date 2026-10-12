@@ -107,6 +107,9 @@ test("project creation defaults work on desktop, mobile and resource details", a
     exact: true,
   })
   await noteDialog
+    .getByRole("button", { name: "Edit title", exact: true })
+    .click()
+  await noteDialog
     .getByPlaceholder("Untitled", { exact: true })
     .fill("Context note")
   const note = await write(page, "POST", "/quick-notes", () =>

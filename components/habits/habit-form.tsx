@@ -1,8 +1,21 @@
 "use client"
-import { useState, type ReactNode } from "react"
+import {
+  cloneElement,
+  isValidElement,
+  useId,
+  useState,
+  type ReactNode,
+} from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
@@ -12,7 +25,9 @@ import {
 } from "@/components/ui/dialog"
 import { useHabitWrite } from "@/hooks/queries/habits"
 import { showToast } from "@/lib/toast"
-import { habitFromStarter, habitStarters } from "@/lib/habits/templates"
+import { habitFromStarter } from "@/lib/habits/templates"
+import { habitColors } from "@/lib/habits/planning"
+import { HabitHelp } from "./habit-help"
 import {
   addDays,
   createHabitSchema,
@@ -37,15 +52,75 @@ function LabelField({
   children: ReactNode
   hint?: string
 }) {
+  const hintId = useId()
   return (
-    <label className="grid min-w-0 gap-1.5 text-sm">
-      <span className="font-medium">{label}</span>
-      {children}
-      {hint && <span className="text-xs text-text-muted">{hint}</span>}
-    </label>
+    <div className="grid min-w-0 gap-1.5 text-sm">
+      <label className="grid min-w-0 gap-1.5">
+        <span className="font-medium">{label}</span>
+        {hint && isValidElement<{ "aria-describedby"?: string }>(children)
+          ? cloneElement(children, { "aria-describedby": hintId })
+          : children}
+      </label>
+      {hint && (
+        <p id={hintId} className="text-xs text-text-muted">
+          {hint}
+        </p>
+      )}
+    </div>
   )
 }
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+function HabitSelect({
+  label,
+  value,
+  onChange,
+  options,
+  disabled,
+  "aria-describedby": descriptionId,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: { value: string; label: string; decoration?: ReactNode }[]
+  disabled?: boolean
+  "aria-describedby"?: string
+}) {
+  const selected = options.find((option) => option.value === value)
+  return (
+    <Select
+      value={value}
+      disabled={disabled}
+      items={options.map(({ value, label }) => ({ value, label }))}
+      onValueChange={(value: string | null) => {
+        if (value !== null) onChange(value)
+      }}
+    >
+      <SelectTrigger
+        aria-label={label}
+        aria-describedby={descriptionId}
+        className="w-full min-w-0 rounded-lg bg-background px-3 shadow-xs hover:border-border-strong data-[size=default]:h-11"
+      >
+        <SelectValue>
+          {selected?.decoration}
+          {selected?.label}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent align="start" alignItemWithTrigger={false} className="p-1">
+        {options.map((option) => (
+          <SelectItem
+            key={option.value}
+            value={option.value}
+            label={option.label}
+            className="min-h-10 py-2 pl-3"
+          >
+            {option.decoration}
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
 export function HabitForm({
   habit,
   today,
@@ -77,7 +152,6 @@ export function HabitForm({
   const [times, setTimes] = useState(form.config.times.join(", "))
   const [reminders, setReminders] = useState(form.config.reminders.join(", "))
   const [error, setError] = useState("")
-  const [starter, setStarter] = useState("")
   const [clientId] = useState(() => crypto.randomUUID())
   const [expectedRevision] = useState(habit?.revision)
   const save = useHabitWrite("habit.save")
@@ -157,298 +231,254 @@ export function HabitForm({
       }}
     >
       <DialogContent
-        className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"
+        className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
         showCloseButton={!save.isPending}
       >
-        <DialogHeader>
-          <DialogTitle>{habit ? "Edit habit" : "New habit"}</DialogTitle>
+        <DialogHeader className="shrink-0 gap-1 border-b border-border px-5 py-4 pr-10 sm:px-6">
+          <div className="flex items-center gap-1.5">
+            <DialogTitle className="text-lg font-semibold">
+              {habit ? "Edit habit" : "New habit"}
+            </DialogTitle>
+            <HabitHelp
+              disabled={save.isPending}
+              onChooseTemplate={
+                habit
+                  ? undefined
+                  : (id) => {
+                      const input = habitFromStarter(id, today, weekStart)
+                      if (input) {
+                        setForm(input)
+                        setTimes(input.config.times.join(", "))
+                        setReminders(input.config.reminders.join(", "))
+                        setError("")
+                      }
+                    }
+              }
+            />
+          </div>
           <DialogDescription>
             Give yourself a clear goal and a rhythm that fits your life.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} className="grid gap-5">
-          {!habit && (
-            <fieldset className="grid gap-2 rounded-lg border p-3">
-              <legend className="px-1 text-sm font-medium">
-                Start your way
-              </legend>
-              <label className="grid gap-1.5 text-sm">
-                Starter template (optional)
-                <select
-                  className={controlClass}
-                  value={starter}
-                  onChange={(e) => setStarter(e.target.value)}
-                >
-                  <option value="">Choose a starter</option>
-                  {habitStarters.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label} · {item.description}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 justify-self-start"
-                disabled={!starter || save.isPending}
-                onClick={() => {
-                  const input = habitFromStarter(starter, today, weekStart)
-                  if (input) {
-                    setForm(input)
-                    setTimes("")
-                    setReminders("")
-                    setError("")
-                  }
-                }}
-              >
-                Use starter
-              </Button>
-              <p className="text-xs text-text-muted">
-                This replaces the form fields. Adjust anything before saving;
-                nothing is created yet.
-              </p>
-            </fieldset>
-          )}
-          <LabelField label="Habit name">
-            <Input
-              className="h-11"
-              required
-              maxLength={100}
-              autoFocus
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Read a little every day"
-            />
-          </LabelField>
-          <LabelField label="Your reason (optional)">
-            <Textarea
-              maxLength={500}
-              value={form.reason}
-              onChange={(e) => setForm({ ...form, reason: e.target.value })}
-              placeholder="What makes this worth your time?"
-            />
-          </LabelField>
-          <div className="grid grid-cols-2 gap-4">
-            <LabelField label="Icon">
-              <select
-                className={controlClass}
-                value={form.icon}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    icon: e.target.value as HabitInput["icon"],
-                  })
-                }
-              >
-                {["🌱", "📖", "🏃", "💧", "🧘", "🎨", "💪", "🎵"].map(
-                  (icon) => (
-                    <option key={icon}>{icon}</option>
-                  )
-                )}
-              </select>
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+            <LabelField label="Habit name">
+              <Input
+                className="h-11"
+                required
+                maxLength={100}
+                autoFocus
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Read a little every day"
+              />
             </LabelField>
-            <LabelField label="Colour">
-              <select
-                className={controlClass}
-                value={form.color}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    color: e.target.value as HabitInput["color"],
-                  })
-                }
-              >
-                {["orange", "green", "blue", "violet", "rose"].map((color) => (
-                  <option key={color} value={color}>
-                    {color}
-                  </option>
-                ))}
-              </select>
+            <LabelField label="Your reason (optional)">
+              <Textarea
+                className="min-h-20 resize-y"
+                maxLength={500}
+                value={form.reason}
+                onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                placeholder="What makes this worth your time?"
+              />
             </LabelField>
-          </div>
-          <fieldset className="grid gap-3 rounded-xl border p-4">
-            <legend className="px-1 font-medium">Your goal</legend>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <LabelField label="Track">
-                <select
-                  className={controlClass}
-                  value={config.goalType}
-                  onChange={(e) => {
-                    const goalType = e.target.value as HabitConfig["goalType"]
-                    setConfig({
-                      goalType,
-                      target: goalType === "done" ? 1 : 30,
-                    })
-                  }}
-                >
-                  <option value="minutes">Minutes</option>
-                  <option value="quantity">Quantity</option>
-                  <option value="done">Done / not done</option>
-                </select>
-              </LabelField>
-              <LabelField label="Goal period">
-                <select
-                  className={controlClass}
-                  value={config.goalPeriod}
-                  disabled={config.schedule === "flexible"}
-                  onChange={(e) =>
-                    setConfig({
-                      goalPeriod: e.target.value as HabitConfig["goalPeriod"],
+            <div className="grid grid-cols-2 gap-4">
+              <LabelField label="Icon">
+                <HabitSelect
+                  label="Icon"
+                  value={form.icon}
+                  onChange={(value) =>
+                    setForm({
+                      ...form,
+                      icon: value as HabitInput["icon"],
                     })
                   }
-                >
-                  <option value="day">Daily</option>
-                  <option value="week">Weekly</option>
-                  <option value="month">Monthly</option>
-                </select>
-              </LabelField>
-              {config.goalType !== "done" && (
-                <LabelField
-                  label={
-                    config.goalType === "minutes"
-                      ? "Target minutes"
-                      : "Target quantity"
-                  }
-                >
-                  <Input
-                    className="h-11"
-                    type="number"
-                    min="0.001"
-                    step="0.001"
-                    max="1000000"
-                    required
-                    value={config.target}
-                    onChange={(e) =>
-                      setConfig({ target: Number(e.target.value) })
-                    }
-                  />
-                </LabelField>
-              )}
-              {config.goalType === "quantity" && (
-                <LabelField label="Unit">
-                  <Input
-                    className="h-11"
-                    maxLength={30}
-                    required
-                    value={config.unit}
-                    onChange={(e) => setConfig({ unit: e.target.value })}
-                    placeholder="pages, reps, glasses…"
-                  />
-                </LabelField>
-              )}
-            </div>
-          </fieldset>
-          <fieldset className="grid gap-3 rounded-xl border p-4">
-            <legend className="px-1 font-medium">Your rhythm</legend>
-            <LabelField label="Repeat">
-              <select
-                className={controlClass}
-                value={config.schedule}
-                onChange={(e) => {
-                  const schedule = e.target.value as HabitConfig["schedule"]
-                  setConfig({
-                    schedule,
-                    ...(schedule === "flexible"
-                      ? { goalPeriod: "day" as const }
-                      : {}),
-                  })
-                }}
-              >
-                <option value="daily">Every day</option>
-                <option value="weekdays">Selected weekdays</option>
-                <option value="interval">Every N days</option>
-                <option value="monthly">Dates each month</option>
-                <option value="flexible">N days a week, you choose when</option>
-              </select>
-            </LabelField>
-            {(config.goalPeriod === "week" ||
-              config.schedule === "flexible") && (
-              <LabelField
-                label="Goal week starts on"
-                hint="Defaults to your account setting. Saved with the schedule to keep earlier results stable."
-              >
-                <select
-                  className={controlClass}
-                  value={config.weekStart}
-                  onChange={(e) =>
-                    setConfig({ weekStart: Number(e.target.value) })
-                  }
-                >
-                  {weekdays.map((day, index) => (
-                    <option key={day} value={index}>
-                      {day}
-                    </option>
-                  ))}
-                </select>
-              </LabelField>
-            )}
-            {config.schedule === "weekdays" && (
-              <fieldset>
-                <legend className="mb-2 text-sm">Weekdays</legend>
-                <div className="flex flex-wrap gap-1">
-                  {weekdays.map((day, index) => (
-                    <Button
-                      className="h-11 min-w-11"
-                      key={day}
-                      type="button"
-                      aria-pressed={config.weekdays.includes(index)}
-                      variant={
-                        config.weekdays.includes(index) ? "default" : "outline"
-                      }
-                      onClick={() =>
-                        setConfig({
-                          weekdays: config.weekdays.includes(index)
-                            ? config.weekdays.filter((d) => d !== index)
-                            : [...config.weekdays, index].sort(),
-                        })
-                      }
-                    >
-                      {day}
-                    </Button>
-                  ))}
-                </div>
-              </fieldset>
-            )}
-            {config.schedule === "interval" && (
-              <LabelField
-                label="Every how many days?"
-                hint="Counted from the start date."
-              >
-                <Input
-                  className="h-11"
-                  type="number"
-                  min={1}
-                  max={365}
-                  required
-                  value={config.intervalDays}
-                  onChange={(e) =>
-                    setConfig({ intervalDays: Number(e.target.value) })
-                  }
+                  options={[
+                    ["🌱", "Growth"],
+                    ["📖", "Reading"],
+                    ["🏃", "Movement"],
+                    ["💧", "Hydration"],
+                    ["🧘", "Mindfulness"],
+                    ["🎨", "Creativity"],
+                    ["💪", "Strength"],
+                    ["🎵", "Music"],
+                  ].map(([value, label]) => ({
+                    value,
+                    label,
+                    decoration: (
+                      <span aria-hidden="true" className="text-lg">
+                        {value}
+                      </span>
+                    ),
+                  }))}
                 />
               </LabelField>
-            )}
-            {config.schedule === "monthly" && (
-              <>
+              <LabelField label="Colour">
+                <HabitSelect
+                  label="Colour"
+                  value={form.color}
+                  onChange={(value) =>
+                    setForm({
+                      ...form,
+                      color: value as HabitInput["color"],
+                    })
+                  }
+                  options={Object.entries(habitColors).map(
+                    ([value, color]) => ({
+                      value,
+                      label: value[0].toUpperCase() + value.slice(1),
+                      decoration: (
+                        <span
+                          aria-hidden="true"
+                          className="size-2.5 rounded-full"
+                          style={{ backgroundColor: color }}
+                        />
+                      ),
+                    })
+                  )}
+                />
+              </LabelField>
+            </div>
+            <fieldset className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4">
+              <legend className="px-1 font-medium">Your goal</legend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <LabelField label="Track">
+                  <HabitSelect
+                    label="Track"
+                    value={config.goalType}
+                    onChange={(value) => {
+                      const goalType = value as HabitConfig["goalType"]
+                      setConfig({
+                        goalType,
+                        target: goalType === "done" ? 1 : 30,
+                      })
+                    }}
+                    options={[
+                      { value: "minutes", label: "Minutes" },
+                      { value: "quantity", label: "Quantity" },
+                      { value: "done", label: "Done / not done" },
+                    ]}
+                  />
+                </LabelField>
+                <LabelField label="Goal period">
+                  <HabitSelect
+                    label="Goal period"
+                    value={config.goalPeriod}
+                    disabled={config.schedule === "flexible"}
+                    onChange={(value) =>
+                      setConfig({
+                        goalPeriod: value as HabitConfig["goalPeriod"],
+                      })
+                    }
+                    options={[
+                      { value: "day", label: "Daily" },
+                      { value: "week", label: "Weekly" },
+                      { value: "month", label: "Monthly" },
+                    ]}
+                  />
+                </LabelField>
+                {config.goalType !== "done" && (
+                  <LabelField
+                    label={
+                      config.goalType === "minutes"
+                        ? "Target minutes"
+                        : "Target quantity"
+                    }
+                  >
+                    <Input
+                      className="h-11"
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      max="1000000"
+                      required
+                      value={config.target}
+                      onChange={(e) =>
+                        setConfig({ target: Number(e.target.value) })
+                      }
+                    />
+                  </LabelField>
+                )}
+                {config.goalType === "quantity" && (
+                  <LabelField label="Unit">
+                    <Input
+                      className="h-11"
+                      maxLength={30}
+                      required
+                      value={config.unit}
+                      onChange={(e) => setConfig({ unit: e.target.value })}
+                      placeholder="pages, reps, glasses…"
+                    />
+                  </LabelField>
+                )}
+              </div>
+            </fieldset>
+            <fieldset className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4">
+              <legend className="px-1 font-medium">Your rhythm</legend>
+              <LabelField label="Repeat">
+                <HabitSelect
+                  label="Repeat"
+                  value={config.schedule}
+                  onChange={(value) => {
+                    const schedule = value as HabitConfig["schedule"]
+                    setConfig({
+                      schedule,
+                      ...(schedule === "flexible"
+                        ? { goalPeriod: "day" as const }
+                        : {}),
+                    })
+                  }}
+                  options={[
+                    { value: "daily", label: "Every day" },
+                    { value: "weekdays", label: "Selected weekdays" },
+                    { value: "interval", label: "Every N days" },
+                    { value: "monthly", label: "Dates each month" },
+                    {
+                      value: "flexible",
+                      label: "N days a week, you choose when",
+                    },
+                  ]}
+                />
+              </LabelField>
+              {(config.goalPeriod === "week" ||
+                config.schedule === "flexible") && (
+                <LabelField
+                  label="Goal week starts on"
+                  hint="Defaults to your account setting. Saved with the schedule to keep earlier results stable."
+                >
+                  <HabitSelect
+                    label="Goal week starts on"
+                    value={String(config.weekStart)}
+                    onChange={(value) =>
+                      setConfig({ weekStart: Number(value) })
+                    }
+                    options={weekdays.map((label, index) => ({
+                      value: String(index),
+                      label,
+                    }))}
+                  />
+                </LabelField>
+              )}
+              {config.schedule === "weekdays" && (
                 <fieldset>
-                  <legend className="mb-2 text-sm">Monthly dates</legend>
-                  <div className="grid grid-cols-7 gap-1">
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                  <legend className="mb-2 text-sm">Weekdays</legend>
+                  <div className="flex flex-wrap gap-1">
+                    {weekdays.map((day, index) => (
                       <Button
-                        className="h-11 min-w-0 px-0"
-                        type="button"
+                        className="h-11 min-w-11"
                         key={day}
-                        aria-pressed={config.monthDays.includes(day)}
+                        type="button"
+                        aria-pressed={config.weekdays.includes(index)}
                         variant={
-                          config.monthDays.includes(day) ? "default" : "outline"
+                          config.weekdays.includes(index)
+                            ? "default"
+                            : "outline"
                         }
                         onClick={() =>
                           setConfig({
-                            monthDays: config.monthDays.includes(day)
-                              ? config.monthDays.filter((d) => d !== day)
-                              : [...config.monthDays, day].sort(
-                                  (a, b) => a - b
-                                ),
+                            weekdays: config.weekdays.includes(index)
+                              ? config.weekdays.filter((d) => d !== index)
+                              : [...config.weekdays, index].sort(),
                           })
                         }
                       >
@@ -457,126 +487,185 @@ export function HabitForm({
                     ))}
                   </div>
                 </fieldset>
-                <LabelField label="When a month has no chosen date">
-                  <select
-                    className={controlClass}
-                    value={config.missingDate}
+              )}
+              {config.schedule === "interval" && (
+                <LabelField
+                  label="Every how many days?"
+                  hint="Counted from the start date."
+                >
+                  <Input
+                    className="h-11"
+                    type="number"
+                    min={1}
+                    max={365}
+                    required
+                    value={config.intervalDays}
                     onChange={(e) =>
-                      setConfig({
-                        missingDate: e.target
-                          .value as HabitConfig["missingDate"],
-                      })
+                      setConfig({ intervalDays: Number(e.target.value) })
                     }
-                  >
-                    <option value="skip">Skip that date</option>
-                    <option value="last_day">
-                      Use the month&apos;s last day
-                    </option>
-                  </select>
+                  />
                 </LabelField>
-              </>
-            )}
-            {config.schedule === "flexible" && (
-              <LabelField
-                label="Days per week"
-                hint="Meet your daily goal on this many distinct days. Multiple logs on one day still count as one day."
-              >
-                <Input
-                  className="h-11"
-                  type="number"
-                  min={1}
-                  max={7}
-                  required
-                  value={config.weeklyDays}
-                  onChange={(e) =>
-                    setConfig({ weeklyDays: Number(e.target.value) })
-                  }
-                />
-              </LabelField>
-            )}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <LabelField label="Start date">
-                <Input
-                  className="h-11"
-                  required
-                  type="date"
-                  value={config.startDate}
-                  onChange={(e) => setConfig({ startDate: e.target.value })}
-                />
-              </LabelField>
-              <LabelField label="End date (optional)">
-                <Input
-                  className="h-11"
-                  type="date"
-                  value={config.endDate ?? ""}
-                  onChange={(e) =>
-                    setConfig({ endDate: e.target.value || null })
-                  }
-                />
-              </LabelField>
-              <LabelField
-                label="Preferred times (optional)"
-                hint="24-hour times, separated by commas: 07:00, 19:30"
-              >
-                <Input
-                  className="h-11"
-                  value={times}
-                  onChange={(e) => setTimes(e.target.value)}
-                  placeholder="19:00"
-                />
-              </LabelField>
-              <LabelField
-                label="Reminder times (optional)"
-                hint="24-hour times, separated by commas. Reminders appear while the app is open; they never record progress."
-              >
-                <Input
-                  className="h-11"
-                  value={reminders}
-                  onChange={(e) => setReminders(e.target.value)}
-                  placeholder="18:55"
-                />
-              </LabelField>
-              <LabelField
-                label="Default session minutes"
-                hint="Pre-filled when you start a timer. You can choose a different duration for each session."
-              >
-                <Input
-                  className="h-11"
-                  type="number"
-                  required
-                  min={1}
-                  max={1440}
-                  value={config.defaultDuration}
-                  onChange={(e) =>
-                    setConfig({ defaultDuration: Number(e.target.value) })
-                  }
-                />
-              </LabelField>
+              )}
+              {config.schedule === "monthly" && (
+                <>
+                  <fieldset>
+                    <legend className="mb-2 text-sm">Monthly dates</legend>
+                    <div className="grid grid-cols-7 gap-1">
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map(
+                        (day) => (
+                          <Button
+                            className="h-11 min-w-0 px-0"
+                            type="button"
+                            key={day}
+                            aria-pressed={config.monthDays.includes(day)}
+                            variant={
+                              config.monthDays.includes(day)
+                                ? "default"
+                                : "outline"
+                            }
+                            onClick={() =>
+                              setConfig({
+                                monthDays: config.monthDays.includes(day)
+                                  ? config.monthDays.filter((d) => d !== day)
+                                  : [...config.monthDays, day].sort(
+                                      (a, b) => a - b
+                                    ),
+                              })
+                            }
+                          >
+                            {day}
+                          </Button>
+                        )
+                      )}
+                    </div>
+                  </fieldset>
+                  <LabelField label="When a month has no chosen date">
+                    <HabitSelect
+                      label="When a month has no chosen date"
+                      value={config.missingDate}
+                      onChange={(value) =>
+                        setConfig({
+                          missingDate: value as HabitConfig["missingDate"],
+                        })
+                      }
+                      options={[
+                        { value: "skip", label: "Skip that date" },
+                        {
+                          value: "last_day",
+                          label: "Use the month’s last day",
+                        },
+                      ]}
+                    />
+                  </LabelField>
+                </>
+              )}
+              {config.schedule === "flexible" && (
+                <LabelField
+                  label="Days per week"
+                  hint="Meet your daily goal on this many distinct days. Multiple logs on one day still count as one day."
+                >
+                  <Input
+                    className="h-11"
+                    type="number"
+                    min={1}
+                    max={7}
+                    required
+                    value={config.weeklyDays}
+                    onChange={(e) =>
+                      setConfig({ weeklyDays: Number(e.target.value) })
+                    }
+                  />
+                </LabelField>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <LabelField label="Start date">
+                  <Input
+                    className="h-11"
+                    required
+                    type="date"
+                    value={config.startDate}
+                    onChange={(e) => setConfig({ startDate: e.target.value })}
+                  />
+                </LabelField>
+                <LabelField label="End date (optional)">
+                  <Input
+                    className="h-11"
+                    type="date"
+                    value={config.endDate ?? ""}
+                    onChange={(e) =>
+                      setConfig({ endDate: e.target.value || null })
+                    }
+                  />
+                </LabelField>
+              </div>
+            </fieldset>
+            <fieldset className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4">
+              <legend className="px-1 font-medium">Times &amp; sessions</legend>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <LabelField
+                  label="Preferred times (optional)"
+                  hint="24-hour times, separated by commas: 07:00, 19:30"
+                >
+                  <Input
+                    className="h-11"
+                    value={times}
+                    onChange={(e) => setTimes(e.target.value)}
+                    placeholder="19:00"
+                  />
+                </LabelField>
+                <LabelField
+                  label="Reminder times (optional)"
+                  hint="24-hour times, separated by commas. Reminders appear while the app is open; they never record progress."
+                >
+                  <Input
+                    className="h-11"
+                    value={reminders}
+                    onChange={(e) => setReminders(e.target.value)}
+                    placeholder="18:55"
+                  />
+                </LabelField>
+                <LabelField
+                  label="Default session minutes"
+                  hint="Pre-filled when you start a timer. You can choose a different duration for each session."
+                >
+                  <Input
+                    className="h-11"
+                    type="number"
+                    required
+                    min={1}
+                    max={1440}
+                    value={config.defaultDuration}
+                    onChange={(e) =>
+                      setConfig({ defaultDuration: Number(e.target.value) })
+                    }
+                  />
+                </LabelField>
+              </div>
+            </fieldset>
+            <div className="rounded-lg bg-muted/50 p-3 text-sm">
+              <p className="font-medium">Upcoming dates</p>
+              <p className="mt-1 text-text-muted">
+                {config.schedule === "flexible"
+                  ? `${config.weeklyDays} days each week — choose the days as you go.`
+                  : preview.length
+                    ? preview.join(" · ")
+                    : "No upcoming dates within this schedule."}
+              </p>
+              {habit && (
+                <p className="mt-2 text-xs">
+                  Goal and schedule changes begin{" "}
+                  {effectiveFrom > today ? effectiveFrom : addDays(today, 1)}.
+                  Earlier records keep their original goals.
+                </p>
+              )}
             </div>
-          </fieldset>
-          <div className="rounded-lg bg-muted/50 p-3 text-sm">
-            <p className="font-medium">Upcoming dates</p>
-            <p className="mt-1 text-text-muted">
-              {config.schedule === "flexible"
-                ? `${config.weeklyDays} days each week — choose the days as you go.`
-                : preview.length
-                  ? preview.join(" · ")
-                  : "No upcoming dates within this schedule."}
-            </p>
-            {habit && (
-              <p className="mt-2 text-xs">
-                Goal and schedule changes begin{" "}
-                {effectiveFrom > today ? effectiveFrom : addDays(today, 1)}.
-                Earlier records keep their original goals.
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
               </p>
             )}
           </div>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          <div className="flex justify-end gap-2">
+          <div className="flex shrink-0 justify-end gap-2 border-t border-border bg-muted/20 px-5 py-4 sm:px-6">
             <Button
               className="h-11"
               type="button"

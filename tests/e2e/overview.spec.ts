@@ -164,6 +164,7 @@ test("Focus first: descendant context, task completion, doc editing and resource
   await expect(editor.locator(".tiptap")).toContainText(
     "Research context survives editing."
   )
+  await editor.getByRole("button", { name: "Edit title", exact: true }).click()
   await editor
     .getByPlaceholder("Untitled", { exact: true })
     .fill("Updated launch notes")

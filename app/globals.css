@@ -307,6 +307,13 @@
   .document-width-wide > .tiptap {
     max-width: none;
   }
+  .document-fullscreen-area {
+    scroll-padding-top: 4rem;
+  }
+  .document-fullscreen-area > .tiptap {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
   .prose-dark figure[data-document-image] {
     margin: 1rem 0;
     max-width: 100%;

@@ -27,6 +27,35 @@ test("independent habit journey: create, log, correct, undo, edit, pause and arc
   await page.getByRole("button", { name: "Create your first habit" }).click()
   const form = page.getByRole("dialog", { name: "New habit" })
   await form.getByLabel("Habit name").fill("Read for myself")
+  await expect(form.getByLabel("Starter template (optional)")).toHaveCount(0)
+  await form.getByRole("button", { name: "About habits", exact: true }).click()
+  const help = page.getByRole("dialog", { name: "About habits", exact: true })
+  await expect(help).toContainText("Record your progress")
+  await expect(
+    help.getByRole("button", { name: /^Use .* template$/ })
+  ).toHaveCount(6)
+  await page.keyboard.press("Escape")
+  await expect(help).toHaveCount(0)
+  await expect(form.getByLabel("Habit name")).toHaveValue("Read for myself")
+  await form.getByLabel("Icon", { exact: true }).click()
+  await expect(
+    page.getByRole("option", { name: "Growth", exact: true })
+  ).toBeFocused()
+  await page.keyboard.press("r")
+  await expect(
+    page.getByRole("option", { name: "Reading", exact: true })
+  ).toBeFocused()
+  await page.keyboard.press("Enter")
+  await expect(form.getByLabel("Icon", { exact: true })).toContainText(
+    "Reading"
+  )
+  await form.getByLabel("Colour", { exact: true }).click()
+  await page.getByRole("option", { name: "Blue", exact: true }).click()
+  await expect(form.getByLabel("Colour", { exact: true })).toContainText("Blue")
+  await form.screenshot({
+    path: testInfo.outputPath("habit-form-desktop.png"),
+    animations: "disabled",
+  })
   await form
     .getByLabel("Your reason (optional)")
     .fill("Make space for curiosity")
@@ -292,14 +321,16 @@ test("monthly scheduling form and backdated progress work on a tablet", async ({
   const past = addDays(monthBounds(initial.today).start, -1)
   await form.getByLabel("Habit name").fill("Reading journey")
   await form.getByLabel("Start date", { exact: true }).fill(addDays(past, -30))
-  await form
-    .getByRole("combobox", { name: "Repeat", exact: true })
-    .selectOption("monthly")
+  await form.getByLabel("Repeat", { exact: true }).click()
+  await page
+    .getByRole("option", { name: "Dates each month", exact: true })
+    .click()
   await form.getByRole("button", { name: "1", exact: true }).click()
   await form.getByRole("button", { name: "31", exact: true }).click()
-  await form
-    .getByLabel("When a month has no chosen date")
-    .selectOption("last_day")
+  await form.getByLabel("When a month has no chosen date").click()
+  await page
+    .getByRole("option", { name: "Use the month’s last day", exact: true })
+    .click()
   await expect(form).toContainText("Upcoming dates")
   await expect
     .poll(() =>
@@ -309,9 +340,8 @@ test("monthly scheduling form and backdated progress work on a tablet", async ({
   await page.screenshot({
     path: testInfo.outputPath("habit-monthly-form-tablet.png"),
   })
-  await form
-    .getByRole("combobox", { name: "Repeat", exact: true })
-    .selectOption("daily")
+  await form.getByLabel("Repeat", { exact: true }).click()
+  await page.getByRole("option", { name: "Every day", exact: true }).click()
   const created = await write(page, "POST", "/habits", () =>
     form.getByRole("button", { name: "Create habit", exact: true }).click()
   )

@@ -330,6 +330,9 @@ test("real account: projects, resources, tasks, notes, tags, associations and tr
       exact: true,
     })
     await dialog
+      .getByRole("button", { name: "Edit title", exact: true })
+      .click()
+    await dialog
       .getByPlaceholder("Untitled", { exact: true })
       .fill("E2E quick note")
     await dialog
@@ -346,6 +349,7 @@ test("real account: projects, resources, tasks, notes, tags, associations and tr
       name: "Edit text doc",
       exact: true,
     })
+    await edit.getByRole("button", { name: "Edit title", exact: true }).click()
     await edit
       .getByPlaceholder("Untitled", { exact: true })
       .fill("E2E quick note edited")

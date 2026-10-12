@@ -234,6 +234,34 @@ test("slash commands, block actions and workspace controls preserve unsaved cont
     .getByRole("heading", { name: "Workspace journey", exact: true })
     .click()
   const editor = page.locator(".tiptap")
+  const dialog = page.getByRole("dialog", {
+    name: "Edit text doc",
+    exact: true,
+  })
+  const toolbar = dialog.getByRole("toolbar", { name: "Document toolbar" })
+  await expect(
+    dialog.getByLabel("Document title", { exact: true })
+  ).toHaveCount(0)
+  await expect(
+    dialog.getByText("Workspace journey", { exact: true })
+  ).toBeVisible()
+  await expect(toolbar).toBeVisible()
+  await expect(toolbar.getByLabel("Writing width")).toBeVisible()
+  await expect(
+    toolbar.getByRole("button", { name: "Block actions", exact: true })
+  ).toBeVisible()
+  await expect(page.getByLabel("Word count")).toHaveCount(0)
+  await dialog.getByRole("button", { name: "Edit title" }).click()
+  await dialog
+    .getByLabel("Document title", { exact: true })
+    .fill("Discarded title")
+  await page.keyboard.press("Escape")
+  await expect(
+    dialog.getByText("Workspace journey", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("dialog", { name: "Unsaved changes" })
+  ).toHaveCount(0)
   await editor.locator("p").last().click()
   await page.keyboard.press("Control+End")
   await expect
@@ -259,7 +287,6 @@ test("slash commands, block actions and workspace controls preserve unsaved cont
   await expect(editor.locator("p").nth(1)).toHaveText("Second paragraph")
   await page.keyboard.type("New section")
   await expect(editor.locator("h2")).toHaveText("New section")
-  await expect(page.getByLabel("Word count")).toHaveText("6 words")
   await page.getByRole("button", { name: "Block actions", exact: true }).click()
   await page
     .getByRole("button", { name: "Duplicate block", exact: true })
@@ -274,11 +301,6 @@ test("slash commands, block actions and workspace controls preserve unsaved cont
   await editor.locator("h2").last().click()
   await page.getByRole("button", { name: "Block actions", exact: true }).click()
   await page.getByRole("button", { name: "Move up", exact: true }).click()
-  await page.getByRole("button", { name: "Full screen", exact: true }).click()
-  await expect(
-    page.getByRole("button", { name: "Exit full screen" })
-  ).toBeVisible()
-  await expect(editor.locator("h2")).toHaveCount(2)
   await page.getByLabel("Writing width").selectOption("narrow")
   await expect(editor).toHaveCSS("max-width", "608px")
   await page.getByRole("button", { name: "Export", exact: true }).click()
@@ -320,14 +342,99 @@ test("slash commands, block actions and workspace controls preserve unsaved cont
     /New section/
   )
   await page.keyboard.press("Escape")
+  await dialog.getByRole("button", { name: "Edit title" }).click()
+  await dialog
+    .getByLabel("Document title", { exact: true })
+    .fill("Workspace revised")
+  await page.keyboard.press("Enter")
+  await expect(
+    dialog.getByLabel("Document title", { exact: true })
+  ).toHaveCount(0)
+  await expect(
+    dialog.getByText("Workspace revised", { exact: true })
+  ).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath("compact-editor.png") })
+  const editorElement = await editor.elementHandle()
+  await page.getByRole("button", { name: "Full screen", exact: true }).click()
+  await expect(
+    page.getByRole("button", { name: "Exit full screen" })
+  ).toBeVisible()
+  await expect(toolbar).toBeHidden()
+  await expect(
+    dialog.getByText("Workspace revised", { exact: true })
+  ).toBeHidden()
+  await expect(
+    dialog.getByRole("button", { name: "Cancel", exact: true })
+  ).toBeHidden()
+  await expect(
+    dialog.getByRole("button", { name: "Save", exact: true })
+  ).toHaveCount(1)
+  await expect(editor).toHaveCSS("padding-top", "64px")
+  await expect(editor.locator("h2")).toHaveCount(2)
+  await editor.locator("h2").last().click()
+  await page.keyboard.press("Control+End")
+  await page.keyboard.press("Enter")
+  await page.keyboard.type("Writing in full screen")
+  await expect(editor).toContainText("Writing in full screen")
+  await page.keyboard.press("Control+z")
+  await expect(editor).not.toContainText("Writing in full screen")
+  await page.keyboard.press("Control+Shift+z")
+  await expect(editor).toContainText("Writing in full screen")
+  await page.screenshot({ path: testInfo.outputPath("fullscreen-editor.png") })
   await page.getByRole("button", { name: "Exit full screen" }).click()
+  await expect(toolbar).toBeVisible()
+  expect(await editorElement!.evaluate((element) => element.isConnected)).toBe(
+    true
+  )
+  await expect(editor).toContainText("Writing in full screen")
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect
+    .poll(() =>
+      dialog.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        return bounds.left >= 0 && bounds.right <= window.innerWidth
+      })
+    )
+    .toBe(true)
+  expect(
+    await toolbar.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth
+    )
+  ).toBe(true)
+  await page.screenshot({
+    path: testInfo.outputPath("compact-editor-mobile.png"),
+  })
+  await page.getByRole("button", { name: "Full screen", exact: true }).click()
+  await expect(
+    dialog.getByRole("button", { name: "Save", exact: true })
+  ).toBeVisible()
+  await expect
+    .poll(() =>
+      dialog.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        return (
+          Math.round(bounds.left) === 0 &&
+          Math.round(bounds.top) === 0 &&
+          Math.round(bounds.width) === window.innerWidth &&
+          Math.round(bounds.height) === window.innerHeight
+        )
+      })
+    )
+    .toBe(true)
+  await page.screenshot({
+    path: testInfo.outputPath("fullscreen-editor-mobile.png"),
+  })
   await write(page, "PATCH", `/quick-notes/${doc.id}`, () =>
     page.getByRole("button", { name: "Save", exact: true }).click()
   )
   await page
-    .getByRole("heading", { name: "Workspace journey", exact: true })
+    .getByRole("heading", { name: "Workspace revised", exact: true })
     .click()
   await expect(editor.locator("h2")).toHaveCount(2)
+  await expect(editor).toContainText("Writing in full screen")
+  await expect(
+    dialog.getByText("Workspace revised", { exact: true })
+  ).toBeVisible()
 })
 
 test("uploads keep their insertion point and failed uploads leave no broken images", async ({
