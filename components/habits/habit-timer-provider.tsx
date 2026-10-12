@@ -26,7 +26,7 @@ import {
   subscribeTimerStorage,
   type StoredTimer,
 } from "@/lib/habits/timer-storage"
-import type { Habit } from "@/lib/habits/model"
+import { isTimeGoal, type Habit } from "@/lib/habits/model"
 import { useSyncController } from "@/components/sync-provider"
 import { invalidateHabitViews } from "@/hooks/queries/habits"
 import { announceHabitReward, type HabitReward } from "@/lib/habits/motivation"
@@ -202,10 +202,9 @@ export function HabitTimerProvider({
             showToast(
               result.completed ? `${timer.name}: goal met!` : "Session saved",
               {
-                description:
-                  timer.goal.goalType === "minutes"
-                    ? "Your working time is now recorded."
-                    : "Time recorded. Log your quantity or completion separately.",
+                description: isTimeGoal(timer.goal)
+                  ? "Your working time is now recorded."
+                  : "Time recorded. Log your quantity or completion separately.",
               },
               "success"
             )

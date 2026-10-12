@@ -1,7 +1,27 @@
 "use client"
-import { useEffect, useState, useSyncExternalStore } from "react"
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ComponentProps,
+  type ReactNode,
+} from "react"
 import { createPortal } from "react-dom"
-import { Maximize2Icon, PauseIcon, PlayIcon } from "lucide-react"
+import {
+  CheckIcon,
+  CoffeeIcon,
+  DownloadIcon,
+  MessageSquareIcon,
+  PauseIcon,
+  PictureInPicture2Icon,
+  PlayIcon,
+  PlusIcon,
+  RefreshCwIcon,
+  SaveIcon,
+  SkipForwardIcon,
+  SquareIcon,
+  Trash2Icon,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -21,11 +41,12 @@ import {
   timerPhaseRemaining,
   type TimerMode,
 } from "@/lib/habits/timer"
-import { todayIn, versionOn } from "@/lib/habits/model"
+import { isTimeGoal, todayIn, versionOn } from "@/lib/habits/model"
 import { useSettings } from "@/hooks/queries/settings"
 import { controlClass } from "./habit-form"
 import { HabitNudge } from "./habit-motivation"
 import { useHabitPreferences } from "@/hooks/queries/habits"
+import { cn } from "@/lib/utils"
 
 type PiPWindowApi = {
   requestWindow: (options: { width: number; height: number }) => Promise<Window>
@@ -64,7 +85,7 @@ export function HabitTimerUI() {
         throw new Error(
           "Pop-out is unavailable in this browser. Your timer stays here."
         )
-      const next = await api.requestWindow({ width: 400, height: 460 })
+      const next = await api.requestWindow({ width: 280, height: 180 })
       next.document.title = "Habit timer"
       const base = next.document.createElement("base")
       base.href = document.baseURI
@@ -88,7 +109,7 @@ export function HabitTimerUI() {
           }
         }
       }
-      next.document.body.className = "bg-background text-foreground p-4"
+      next.document.body.className = "m-0 bg-background text-foreground p-2"
       setPopup(next)
     } catch (cause) {
       setPipError(
@@ -129,16 +150,25 @@ export function HabitTimerUI() {
               aria-label="Timer in pop-out"
               className="fixed right-4 bottom-24 z-40 max-w-[calc(100%-2rem)] rounded-xl border bg-card p-3 shadow-xl md:bottom-4"
             >
-              <p className="text-sm">
-                {timer.session.name} · Timer is popped out
-              </p>
-              <Button
-                className="mt-2 h-11"
-                variant="outline"
-                onClick={() => popup.close()}
-              >
-                Bring timer back
-              </Button>
+              <div className="flex items-center gap-2">
+                <PictureInPicture2Icon
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-text-muted"
+                />
+                <p
+                  className="max-w-44 min-w-0 truncate text-xs"
+                  title={timer.session.name}
+                >
+                  {timer.session.name}
+                </p>
+                <TimerAction
+                  compact
+                  label="Bring timer back"
+                  icon={<PictureInPicture2Icon />}
+                  variant="ghost"
+                  onClick={() => popup.close()}
+                />
+              </div>
             </aside>
           )}
         </>
@@ -270,7 +300,7 @@ function StartDialog() {
           <HabitNudge habitId={habit.id} hasReason={!!habit.reason} />
           <p className="text-xs text-text-muted">
             Time is recorded only after you finish and confirm it.
-            {current.config.goalType !== "minutes" &&
+            {!isTimeGoal(current.config) &&
               " Log quantity or mark done separately; the timer records your working time."}
           </p>
           {error && (
@@ -313,6 +343,31 @@ function StartDialog() {
     </Dialog>
   )
 }
+function TimerAction({
+  compact = false,
+  label,
+  icon,
+  className,
+  ...props
+}: ComponentProps<typeof Button> & {
+  compact?: boolean
+  label: string
+  icon: ReactNode
+}) {
+  return (
+    <Button
+      type="button"
+      {...props}
+      size={compact ? "icon-sm" : "default"}
+      className={cn(compact ? "size-7 [&_svg]:size-3.5" : "h-11", className)}
+      aria-label={label}
+      title={compact ? label : undefined}
+    >
+      {icon}
+      {!compact && label}
+    </Button>
+  )
+}
 function TimerPanel({
   pip = false,
   supported,
@@ -332,29 +387,45 @@ function TimerPanel({
   const cycle = session.pomodoro
   const disabled = timer.conflict || !isActiveTimer(session.status)
   return (
-    <div className="grid gap-3" aria-label={pip ? "Habit timer" : undefined}>
-      {preferences?.nudges && !preferences.quiet && elapsed >= 300000 && (
-        <p
-          className="text-xs text-text-muted"
-          aria-label="Session encouragement"
-        >
-          {Math.floor(elapsed / 60000)} minutes of working time. Finish when you
-          are ready; review and save to keep it.
-        </p>
-      )}
+    <div
+      className={cn("grid min-w-0", pip ? "gap-2" : "gap-3")}
+      aria-label={pip ? "Habit timer" : undefined}
+    >
+      {!pip &&
+        preferences?.nudges &&
+        !preferences.quiet &&
+        elapsed >= 300000 && (
+          <p
+            className="text-xs text-text-muted"
+            aria-label="Session encouragement"
+          >
+            {Math.floor(elapsed / 60000)} minutes of working time. Finish when
+            you are ready; review and save to keep it.
+          </p>
+        )}
       <div className="flex items-center justify-between gap-2">
-        <p className="min-w-0 truncate text-sm font-medium">
+        <p
+          className={cn(
+            "min-w-0 truncate font-medium",
+            pip ? "text-xs" : "text-sm"
+          )}
+          title={session.name}
+        >
           {session.icon} {session.name}
         </p>
         <Button
           size="icon"
-          className="size-11 shrink-0"
+          className={cn(
+            "shrink-0",
+            pip ? "size-7 [&_svg]:size-3.5" : "size-11"
+          )}
           variant="ghost"
           aria-label={pip ? "Bring timer back" : "Pop out timer"}
+          title={pip ? "Bring timer back" : "Picture-in-picture"}
           disabled={!supported}
           onClick={onPopOut}
         >
-          <Maximize2Icon />
+          <PictureInPicture2Icon />
         </Button>
       </div>
       <div className="flex items-end justify-between gap-2">
@@ -368,48 +439,72 @@ function TimerPanel({
                 ? "Remaining time"
                 : "Elapsed time"
           }
-          className="font-heading text-4xl font-medium tabular-nums"
+          className={cn(
+            "font-heading font-medium tabular-nums",
+            pip ? "text-2xl leading-none" : "text-4xl"
+          )}
         >
           {formatTimer(session.mode !== "stopwatch" ? remaining : elapsed)}
         </span>
-        <span className="text-xs text-text-muted">
-          {session.status === "review"
-            ? "Review work"
-            : session.status === "running"
-              ? expired
-                ? "Time's up"
-                : session.mode
-              : session.status === "finished"
-                ? "Waiting to sync"
-                : session.status === "discarded"
-                  ? "Discard pending"
-                  : "Paused"}
-        </span>
+        {(!pip || session.status !== "running" || expired) && (
+          <span
+            className={cn("text-text-muted", pip ? "text-[11px]" : "text-xs")}
+          >
+            {session.status === "review"
+              ? "Review work"
+              : session.status === "running"
+                ? expired
+                  ? "Time's up"
+                  : session.mode
+                : session.status === "finished"
+                  ? "Waiting to sync"
+                  : session.status === "discarded"
+                    ? "Discard pending"
+                    : "Paused"}
+          </span>
+        )}
       </div>
       {cycle && (
-        <div className="space-y-1 text-xs text-text-muted">
+        <div
+          className={cn(
+            "space-y-1 text-text-muted",
+            pip ? "text-[11px]" : "text-xs"
+          )}
+        >
           <p role="status">
-            {cycle.phase === "break" ? "Break" : "Work"} · Round {cycle.round}{" "}
-            of {cycle.rounds}
-            {expired ? " · Phase finished" : ""}
+            {cycle.phase === "break" ? "Break" : "Work"} ·{" "}
+            {pip
+              ? `${cycle.round}/${cycle.rounds}`
+              : `Round ${cycle.round} of ${cycle.rounds}`}
+            {expired && !pip ? " · Phase finished" : ""}
           </p>
-          <p>
-            {formatTimer(elapsed)} working time so far. Breaks are excluded.
-          </p>
+          {!pip && (
+            <p>
+              {formatTimer(elapsed)} working time so far. Breaks are excluded.
+            </p>
+          )}
         </div>
       )}
-      {timer.recovered && isActiveTimer(session.status) && (
+      {!pip && timer.recovered && isActiveTimer(session.status) && (
         <p className="text-xs text-text-muted">
           Recovered or synced timer. Review elapsed work before saving.
         </p>
       )}
       {session.status === "review" && !timer.conflict ? (
-        <ReviewSession key={session.id} />
+        <ReviewSession
+          key={session.id}
+          compact={pip}
+          hidden={pip && discard}
+          onDiscard={pip ? () => setDiscard(true) : undefined}
+        />
       ) : (
-        isActiveTimer(session.status) && (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              className="h-11"
+        isActiveTimer(session.status) &&
+        (!pip || !discard) && (
+          <div className={cn("flex flex-wrap", pip ? "gap-1.5" : "gap-2")}>
+            <TimerAction
+              compact={pip}
+              label={session.status === "running" ? "Pause" : "Resume"}
+              icon={session.status === "running" ? <PauseIcon /> : <PlayIcon />}
               variant="outline"
               disabled={
                 disabled ||
@@ -423,77 +518,91 @@ function TimerPanel({
                   action: session.status === "running" ? "pause" : "resume",
                 })
               }
-            >
-              {session.status === "running" ? <PauseIcon /> : <PlayIcon />}
-              {session.status === "running" ? "Pause" : "Resume"}
-            </Button>
+            />
             {cycle &&
               (cycle.phase === "break" ||
                 (expired && cycle.round < cycle.rounds)) && (
-                <Button
-                  className="h-11"
+                <TimerAction
+                  compact={pip}
+                  label={
+                    cycle.phase === "work"
+                      ? "Start break"
+                      : expired
+                        ? "Start next round"
+                        : "Skip break · start next round"
+                  }
+                  icon={
+                    cycle.phase === "work" ? (
+                      <CoffeeIcon />
+                    ) : (
+                      <SkipForwardIcon />
+                    )
+                  }
                   variant="outline"
                   disabled={disabled}
                   onClick={() => timer.command({ action: "next_phase" })}
-                >
-                  {cycle.phase === "work"
-                    ? "Start break"
-                    : expired
-                      ? "Start next round"
-                      : "Skip break · start next round"}
-                </Button>
+                />
               )}
             {session.mode === "countdown" && (
-              <Button
-                className="h-11"
+              <TimerAction
+                compact={pip}
+                label="+5 min"
+                icon={<PlusIcon />}
                 variant="outline"
                 disabled={disabled || session.targetMs + 300000 > MAX_TIMER_MS}
                 onClick={() =>
                   timer.command({ action: "add_time", minutes: 5 })
                 }
-              >
-                +5 min
-              </Button>
+              />
             )}
-            <Button
-              className="h-11"
+            <TimerAction
+              compact={pip}
+              label="Finish"
+              icon={<SquareIcon />}
               disabled={disabled}
               onClick={() => timer.command({ action: "review" })}
-            >
-              Finish
-            </Button>
-            <Button
-              className="h-11"
+            />
+            <TimerAction
+              compact={pip}
+              label="Discard"
+              icon={<Trash2Icon />}
               variant="ghost"
               disabled={disabled}
               onClick={() => setDiscard(true)}
-            >
-              Discard
-            </Button>
+            />
           </div>
         )
       )}
       {discard && (
-        <div className="rounded-lg border p-3 text-sm">
-          <p>Discard this session? No time will be recorded.</p>
+        <div
+          className={cn(
+            "rounded-lg border",
+            pip ? "p-2 text-[11px]" : "p-3 text-sm"
+          )}
+        >
+          <p>
+            {pip
+              ? "Discard without saving?"
+              : "Discard this session? No time will be recorded."}
+          </p>
           <div className="mt-2 flex gap-2">
-            <Button
-              className="h-11"
+            <TimerAction
+              compact={pip}
+              label="Keep session"
+              icon={<CheckIcon />}
               variant="outline"
               onClick={() => setDiscard(false)}
-            >
-              Keep session
-            </Button>
-            <Button
-              className="h-11"
+            />
+            <TimerAction
+              compact={pip}
+              label="Discard session"
+              icon={<Trash2Icon />}
               variant="destructive"
               onClick={() => {
                 timer.command({ action: "discard" })
                 setDiscard(false)
               }}
-            >
-              Discard session
-            </Button>
+            />
           </div>
         </div>
       )}
@@ -518,22 +627,22 @@ function TimerPanel({
             timer clears these unsent changes; it does not record them.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button
-              className="h-11"
+            <TimerAction
+              compact={pip}
+              label="Save unsent copy"
+              icon={<DownloadIcon />}
               variant="outline"
               onClick={timer.downloadDraft}
-            >
-              Save unsent copy
-            </Button>
-            <Button
-              className="h-11"
+            />
+            <TimerAction
+              compact={pip}
+              label="Use latest timer"
+              icon={<RefreshCwIcon />}
               variant="outline"
               loading={timer.busy}
               disabled={!timer.online}
               onClick={timer.reviewLatest}
-            >
-              Use latest timer
-            </Button>
+            />
           </div>
         </div>
       )}
@@ -545,31 +654,49 @@ function TimerPanel({
     </div>
   )
 }
-function ReviewSession() {
+function ReviewSession({
+  compact = false,
+  hidden = false,
+  onDiscard,
+}: {
+  compact?: boolean
+  hidden?: boolean
+  onDiscard?: () => void
+}) {
   const timer = useHabitTimer(),
     session = timer.session!
   const tracked = timerElapsed(session, timer.now)
   const [confirmed, setConfirmed] = useState(Math.floor(tracked / 60) / 1000)
   const [notes, setNotes] = useState("")
+  const [showNotes, setShowNotes] = useState(false)
   const confirmedMs = Math.round(confirmed * 60000)
   const valid = confirmedMs >= 1000 && confirmedMs <= tracked
   return (
     <form
-      className="grid gap-3"
+      hidden={hidden}
+      className={cn("grid", compact ? "gap-2" : "gap-3")}
       onSubmit={(e) => {
         e.preventDefault()
         if (valid) timer.command({ action: "finish", confirmedMs, notes })
       }}
     >
-      <p className="text-xs text-text-muted">
-        {formatTimer(tracked)} tracked, excluding pauses and breaks. If you
-        slept, stopped working, or left the timer running, reduce the work time
-        here.
+      <p className={cn("text-text-muted", compact ? "text-[11px]" : "text-xs")}>
+        {formatTimer(tracked)} tracked
+        {compact
+          ? ". Adjust before saving."
+          : ", excluding pauses and breaks. If you slept, stopped working, or left the timer running, reduce the work time here."}
       </p>
-      <label className="grid gap-1.5 text-sm font-medium">
-        Actual working minutes
+      <label
+        className={
+          compact
+            ? "flex items-center justify-between gap-2 text-xs font-medium"
+            : "grid gap-1.5 text-sm font-medium"
+        }
+      >
+        {compact ? "Minutes worked" : "Actual working minutes"}
         <Input
-          className="h-11"
+          className={compact ? "h-7 w-24 text-xs" : "h-11"}
+          aria-label="Actual working minutes"
           type="number"
           step="0.001"
           min="0.017"
@@ -579,60 +706,78 @@ function ReviewSession() {
           onChange={(e) => setConfirmed(Number(e.target.value))}
         />
       </label>
-      <label className="grid gap-1.5 text-sm font-medium">
-        Session note (optional)
-        <Textarea
-          maxLength={2000}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
-      </label>
-      {session.goal.goalType !== "minutes" && (
+      {(!compact || showNotes) && (
+        <label
+          className={
+            compact
+              ? "grid gap-1 text-xs font-medium"
+              : "grid gap-1.5 text-sm font-medium"
+          }
+        >
+          Session note (optional)
+          <Textarea
+            className={compact ? "min-h-12 text-xs" : undefined}
+            maxLength={2000}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </label>
+      )}
+      {!isTimeGoal(session.goal) && (
         <p className="text-xs text-text-muted">
           This saves time only. Log your quantity or completion separately.
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
-        <Button
+      <div className={cn("flex flex-wrap", compact ? "gap-1.5" : "gap-2")}>
+        <TimerAction
+          compact={compact}
+          label="Save session"
+          icon={<SaveIcon />}
           type="submit"
-          className="h-11"
           disabled={!valid || timer.conflict}
-        >
-          Save session
-        </Button>
-        <Button
-          className="h-11"
-          type="button"
+        />
+        <TimerAction
+          compact={compact}
+          label="Continue"
+          icon={<PlayIcon />}
           variant="outline"
           disabled={
             timer.conflict || timerPhaseRemaining(session, timer.now) <= 0
           }
           onClick={() => timer.command({ action: "resume" })}
-        >
-          Continue
-        </Button>
+        />
         {session.mode === "countdown" && (
-          <Button
-            className="h-11"
-            type="button"
+          <TimerAction
+            compact={compact}
+            label="+5 min"
+            icon={<PlusIcon />}
             variant="outline"
             disabled={
               timer.conflict || session.targetMs + 300000 > MAX_TIMER_MS
             }
             onClick={() => timer.command({ action: "add_time", minutes: 5 })}
-          >
-            +5 min
-          </Button>
+          />
         )}
-        <Button
-          type="button"
-          className="h-11"
+        {compact && (
+          <TimerAction
+            compact
+            label="Session note (optional)"
+            icon={<MessageSquareIcon />}
+            variant="ghost"
+            aria-expanded={showNotes}
+            onClick={() => setShowNotes(!showNotes)}
+          />
+        )}
+        <TimerAction
+          compact={compact}
+          label="Discard session"
+          icon={<Trash2Icon />}
           variant="ghost"
           disabled={timer.conflict}
-          onClick={() => timer.command({ action: "discard" })}
-        >
-          Discard session
-        </Button>
+          onClick={() =>
+            onDiscard ? onDiscard() : timer.command({ action: "discard" })
+          }
+        />
       </div>
       {!valid && (
         <p className="text-xs text-text-muted">

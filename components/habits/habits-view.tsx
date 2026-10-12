@@ -28,6 +28,8 @@ import {
   dateSchema,
   flexibleProgress,
   goalLabel,
+  goalUnit,
+  isTimeGoal,
   isScheduled,
   logHabitSchema,
   progressOn,
@@ -49,13 +51,7 @@ import {
   HabitExperienceSettings,
 } from "./habit-motivation"
 
-const colors = {
-  orange: "#f97316",
-  green: "#22c55e",
-  blue: "#3b82f6",
-  violet: "#a78bfa",
-  rose: "#fb7185",
-}
+import { habitColors as colors } from "@/lib/habits/appearance"
 function shortDate(date: string) {
   return new Intl.DateTimeFormat("en", {
     month: "short",
@@ -65,11 +61,26 @@ function shortDate(date: string) {
 }
 function unit(habit: Habit, date: string) {
   const config = versionOn(habit, date)?.config
-  return config?.goalType === "minutes"
-    ? "minutes"
-    : config?.goalType === "done"
-      ? "completion"
-      : (config?.unit ?? "")
+  return config?.goalType === "done"
+    ? "completion"
+    : config
+      ? goalUnit(config)
+      : ""
+}
+function entryLabel(habit: Habit, log: HabitLog) {
+  const config = habit.versions.find(
+    (version) => version.id === log.versionId
+  )?.config
+  const entryUnit =
+    config?.goalType === "done" ? "completion" : config ? goalUnit(config) : ""
+  if (log.source === "timer") {
+    const hours = config?.goalType === "hours"
+    const elapsed =
+      Math.round(((log.elapsedMs ?? 0) / (hours ? 3600000 : 60000)) * 1000) /
+      1000
+    return `${elapsed} ${hours ? "hours" : "minutes"} · timer${log.kind === "progress" && !isTimeGoal(config) ? ` · ${log.amount} ${entryUnit}` : ""}`
+  }
+  return log.kind === "skip" ? "Skipped" : `${log.amount} ${entryUnit}`
 }
 function Ring({
   amount,
@@ -859,12 +870,7 @@ export function HabitDetails({
             <div key={log.id} className="rounded-lg border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">
-                  {shortDate(log.date)} ·{" "}
-                  {log.source === "timer"
-                    ? `${Math.round((log.elapsedMs ?? 0) / 60) / 1000} minutes · timer${log.kind === "progress" && unit(habit, log.date) !== "minutes" ? ` · ${log.amount} ${unit(habit, log.date)}` : ""}`
-                    : log.kind === "skip"
-                      ? "Skipped"
-                      : `${log.amount} ${unit(habit, log.date)}`}
+                  {shortDate(log.date)} · {entryLabel(habit, log)}
                 </p>
                 <div className="flex gap-1">
                   {log.kind === "progress" && (

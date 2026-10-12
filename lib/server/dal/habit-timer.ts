@@ -14,7 +14,14 @@ import { getSettings } from "./settings"
 import { claimHabitRewards } from "./habit-rewards"
 import type { HabitReward } from "@/lib/habits/motivation"
 import { ownedHabit, habitDetails } from "./habits"
-import { goalPeriod, progressOn, todayIn, versionOn } from "@/lib/habits/model"
+import {
+  goalPeriod,
+  isTimeGoal,
+  progressOn,
+  timerGoalAmount,
+  todayIn,
+  versionOn,
+} from "@/lib/habits/model"
 import {
   applyTimerCommand,
   splitWorkByDate,
@@ -206,10 +213,8 @@ export async function commandHabitTimer(
           part.date >= version.config.startDate &&
           (!version.config.endDate || part.date <= version.config.endDate)
         const amount =
-          eligible &&
-          row.goal.goalType === "minutes" &&
-          version.config.goalType === "minutes"
-            ? Math.round(part.elapsedMs / 60) / 1000
+          eligible && isTimeGoal(row.goal) && isTimeGoal(version.config)
+            ? timerGoalAmount(version.config, part.elapsedMs)
             : 0
         const period = eligible
           ? goalPeriod(version.config, part.date, version.effectiveFrom)

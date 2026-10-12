@@ -13,6 +13,9 @@ import {
   type HabitLog,
 } from "@/lib/habits/model"
 import type { HabitPlanEdit } from "@/lib/habits/planning"
+import { recordedMinutes } from "@/lib/habits/planning"
+import { habitsCsv } from "@/lib/habits/csv"
+import { habitJourney } from "@/lib/habits/motivation"
 
 function habit(config: Partial<HabitConfig> = {}): Habit {
   return {
@@ -99,6 +102,57 @@ describe("history range navigation", () => {
   })
 })
 describe("saved effort and schedule-aware consistency", () => {
+  it("preserves minute records when a later goal changes to hours", () => {
+    const h = habit({ target: 120, schedule: "weekdays", weekdays: [1, 3] })
+    h.versions.push({
+      id: "v2",
+      revision: 2,
+      effectiveFrom: "2026-10-07",
+      config: {
+        ...h.versions[0].config,
+        goalType: "hours",
+        target: 2,
+        unit: "hours",
+      },
+    })
+    h.logs = [log(h, "2026-10-05", 90), log(h, "2026-10-07", 1.5)]
+    const a = analyse(h)
+    expect(a.days[0]).toMatchObject({
+      amount: 90,
+      unit: "minutes",
+      minutes: 90,
+    })
+    expect(a.days[2]).toMatchObject({ amount: 1.5, unit: "hours", minutes: 90 })
+    expect(a.summary.minutes).toBe(180)
+    expect(a.timeWeeks[0].target).toBe(240)
+  })
+  it("counts hour goals in their own unit while aggregating manual and timer work in minutes", () => {
+    const h = habit({
+      goalType: "hours",
+      unit: "hours",
+      target: 4,
+      schedule: "weekdays",
+      weekdays: [1],
+    })
+    h.logs = [
+      log(h, "2026-10-05", 1.5),
+      log(h, "2026-10-05", 2.5, { source: "timer", elapsedMs: 9000000 }),
+    ]
+    const a = analyse(h)
+    expect(a.days[0]).toMatchObject({
+      amount: 4,
+      unit: "hours",
+      minutes: 240,
+      state: "complete",
+    })
+    expect(a.summary).toMatchObject({ minutes: 240, completedGoals: 1 })
+    expect(a.timeWeeks[0]).toMatchObject({ minutes: 240, target: 240 })
+    expect(recordedMinutes(h, "2026-10-05")).toBe(240)
+    expect(habitJourney(h, "2026-10-12", 1).metrics.minutes).toBe(240)
+    expect(habitsCsv([h])).toContain('"progress","1.5","hours"')
+    expect(habitsCsv([h])).toContain('"manual","90"')
+    expect(habitsCsv([h])).toContain('"timer","150"')
+  })
   it("does not count a preferred time, extra plan or calendar read as work", () => {
     const h = habit({ times: ["09:00", "19:00"] }),
       before = JSON.stringify(h),

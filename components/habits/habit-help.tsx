@@ -39,7 +39,13 @@ export function HabitHelp({
       >
         <CircleHelpIcon />
       </DialogTrigger>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto p-5 sm:max-w-2xl sm:p-6">
+      <DialogContent
+        overlayProps={{
+          forceRender: true,
+          className: "z-[60] bg-black/65 supports-backdrop-filter:backdrop-blur-sm",
+        }}
+        className="z-[61] max-h-[85dvh] overflow-y-auto p-5 ring-foreground/20 shadow-2xl sm:max-w-xl sm:p-6"
+      >
         <DialogHeader className="pr-6">
           <DialogTitle className="text-lg">About habits</DialogTitle>
           <DialogDescription>

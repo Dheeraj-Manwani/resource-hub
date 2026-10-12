@@ -1,4 +1,4 @@
-import type { Habit } from "./model"
+import { goalMinutes, goalUnit, isTimeGoal, type Habit } from "./model"
 export function csvCell(value: unknown) {
   let text = value === null || value === undefined ? "" : String(value)
   // Spreadsheet cells supplied as text must not become formulas.
@@ -55,18 +55,14 @@ export function habitsCsv(items: Habit[]) {
         log.date,
         log.kind,
         log.amount,
-        config?.goalType === "minutes"
-          ? "minutes"
-          : config?.goalType === "done"
-            ? "done"
-            : (config?.unit ?? ""),
+        config ? goalUnit(config) : "",
         log.periodStart,
         log.periodEnd,
         log.source ?? "manual",
         log.source === "timer"
           ? (log.elapsedMs ?? 0) / 60000
-          : log.kind === "progress" && config?.goalType === "minutes"
-            ? log.amount
+          : log.kind === "progress" && config && isTimeGoal(config)
+            ? goalMinutes(config, log.amount)
             : "",
         log.notes,
         log.timezone ?? "",

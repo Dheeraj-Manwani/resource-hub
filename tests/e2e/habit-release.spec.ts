@@ -69,6 +69,11 @@ test("starter to calendar Pomodoro, explicit save, correction, archive and expor
   await form.getByLabel("Reminder times (optional)").fill("18:55")
   await form.getByRole("button", { name: "About habits", exact: true }).click()
   const help = page.getByRole("dialog", { name: "About habits", exact: true })
+  await expect(help).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath("habit-help-desktop.png"),
+    animations: "disabled",
+  })
   await help
     .getByRole("button", { name: "Use Movement template", exact: true })
     .click()

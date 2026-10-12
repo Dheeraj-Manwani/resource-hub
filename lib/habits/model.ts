@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { habitColors, habitIcons } from "./appearance"
 import type { HabitPlanEdit } from "./planning"
 
 export const dateSchema = z.iso
@@ -13,7 +14,7 @@ const timesSchema = z
   .transform((values) => [...new Set(values)].sort())
 export const habitConfigSchema = z
   .object({
-    goalType: z.enum(["done", "quantity", "minutes"]),
+    goalType: z.enum(["done", "quantity", "minutes", "hours"]),
     target: z.number().positive().max(1000000).multipleOf(0.001),
     unit: z.string().trim().max(30),
     goalPeriod: z.enum(["day", "week", "month"]),
@@ -56,8 +57,8 @@ export type HabitStatus = z.infer<typeof habitStatusSchema>
 const fields = {
   name: z.string().trim().min(1).max(100),
   reason: z.string().trim().max(500),
-  icon: z.enum(["🌱", "📖", "🏃", "💧", "🧘", "🎨", "💪", "🎵"]),
-  color: z.enum(["orange", "green", "blue", "violet", "rose"]),
+  icon: z.enum(Object.keys(habitIcons) as (keyof typeof habitIcons)[]),
+  color: z.enum(Object.keys(habitColors) as (keyof typeof habitColors)[]),
   config: habitConfigSchema,
 }
 export const createHabitSchema = z.object({ ...fields, id: z.uuid() }).strict()
@@ -312,10 +313,38 @@ export function upcomingDates(config: HabitConfig, from: string, count = 5) {
   }
   return dates
 }
+export function isTimeGoal(config?: Pick<HabitConfig, "goalType">) {
+  return config?.goalType === "minutes" || config?.goalType === "hours"
+}
+export function goalUnit(config: HabitConfig) {
+  return isTimeGoal(config)
+    ? config.goalType
+    : config.goalType === "done"
+      ? "done"
+      : config.unit
+}
+export function goalMinutes(
+  config: Pick<HabitConfig, "goalType">,
+  amount: number
+) {
+  return config.goalType === "hours"
+    ? amount * 60
+    : config.goalType === "minutes"
+      ? amount
+      : 0
+}
+export function timerGoalAmount(
+  config: Pick<HabitConfig, "goalType">,
+  elapsedMs: number
+) {
+  if (!isTimeGoal(config)) return 0
+  const unitMs = config.goalType === "hours" ? 3600000 : 60000
+  return Math.round((elapsedMs / unitMs) * 1000) / 1000
+}
 export function goalLabel(config: HabitConfig) {
   return config.goalType === "done"
     ? `Done once per ${config.goalPeriod}`
-    : `${config.target} ${config.goalType === "minutes" ? "minutes" : config.unit} per ${config.goalPeriod}`
+    : `${config.target} ${goalUnit(config)} per ${config.goalPeriod}`
 }
 export function defaultConfig(today: string, weekStart: number): HabitConfig {
   return {

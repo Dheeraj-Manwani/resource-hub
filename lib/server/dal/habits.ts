@@ -17,6 +17,8 @@ import { claimHabitRewards } from "./habit-rewards"
 import {
   addDays,
   goalPeriod,
+  goalMinutes,
+  isTimeGoal,
   monthBounds,
   nextEffectiveDate,
   progressOn,
@@ -417,8 +419,12 @@ export async function changeHabitLog(
         ...(input.amount !== undefined ? { amount: input.amount } : {}),
         ...(input.amount !== undefined &&
         log.source === "timer" &&
-        version.config.goalType === "minutes"
-          ? { elapsedMs: Math.round(input.amount * 60000) }
+        isTimeGoal(version.config)
+          ? {
+              elapsedMs: Math.round(
+                goalMinutes(version.config, input.amount) * 60000
+              ),
+            }
           : {}),
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
         ...(input.deleted !== undefined

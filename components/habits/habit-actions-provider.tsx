@@ -12,7 +12,13 @@ import {
 } from "@/components/ui/dialog"
 import { QueryFeedback } from "@/components/query-feedback"
 import { useHabits, useHabitWrite } from "@/hooks/queries/habits"
-import { goalLabel, progressOn, statusOn, versionOn } from "@/lib/habits/model"
+import {
+  goalLabel,
+  goalUnit,
+  progressOn,
+  statusOn,
+  versionOn,
+} from "@/lib/habits/model"
 import {
   habitPlanSchema,
   recordedMinutes,
@@ -143,9 +149,7 @@ function HabitActionDialog({
                 </p>
                 <p className="text-sm">
                   {progress.amount} / {progress.target}{" "}
-                  {progress.version.config.goalType === "minutes"
-                    ? "minutes"
-                    : progress.version.config.unit || "done"}
+                  {goalUnit(progress.version.config)}
                   {progress.complete
                     ? " · Goal met ✓"
                     : progress.skipped

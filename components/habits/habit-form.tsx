@@ -27,6 +27,7 @@ import { useHabitWrite } from "@/hooks/queries/habits"
 import { showToast } from "@/lib/toast"
 import { habitFromStarter } from "@/lib/habits/templates"
 import { habitColors } from "@/lib/habits/planning"
+import { habitIcons } from "@/lib/habits/appearance"
 import { HabitHelp } from "./habit-help"
 import {
   addDays,
@@ -34,6 +35,9 @@ import {
   dateSchema,
   defaultConfig,
   nextEffectiveDate,
+  isTimeGoal,
+  goalMinutes,
+  timerGoalAmount,
   upcomingDates,
   type Habit,
   type HabitConfig,
@@ -70,6 +74,19 @@ function LabelField({
   )
 }
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+function readableDate(date: string, today: string) {
+  if (date === today) return "Today"
+  if (date === addDays(today, 1)) return "Tomorrow"
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    ...(date.slice(0, 4) !== today.slice(0, 4)
+      ? { year: "numeric" as const }
+      : {}),
+    timeZone: "UTC",
+  }).format(new Date(`${date}T12:00:00Z`))
+}
 function HabitSelect({
   label,
   value,
@@ -186,12 +203,11 @@ export function HabitForm({
         ...config,
         times: parseTimes(times),
         reminders: parseTimes(reminders),
-        unit:
-          config.goalType === "minutes"
-            ? "minutes"
-            : config.goalType === "done"
-              ? "times"
-              : config.unit,
+        unit: isTimeGoal(config)
+          ? config.goalType
+          : config.goalType === "done"
+            ? "times"
+            : config.unit,
       },
     })
     if (!parsed.success) {
@@ -293,16 +309,7 @@ export function HabitForm({
                       icon: value as HabitInput["icon"],
                     })
                   }
-                  options={[
-                    ["🌱", "Growth"],
-                    ["📖", "Reading"],
-                    ["🏃", "Movement"],
-                    ["💧", "Hydration"],
-                    ["🧘", "Mindfulness"],
-                    ["🎨", "Creativity"],
-                    ["💪", "Strength"],
-                    ["🎵", "Music"],
-                  ].map(([value, label]) => ({
+                  options={Object.entries(habitIcons).map(([value, label]) => ({
                     value,
                     label,
                     decoration: (
@@ -350,11 +357,23 @@ export function HabitForm({
                       const goalType = value as HabitConfig["goalType"]
                       setConfig({
                         goalType,
-                        target: goalType === "done" ? 1 : 30,
+                        target:
+                          isTimeGoal(config) && isTimeGoal({ goalType })
+                            ? Math.max(
+                                0.001,
+                                timerGoalAmount(
+                                  { goalType },
+                                  goalMinutes(config, config.target) * 60000
+                                )
+                              )
+                            : goalType === "done" || goalType === "hours"
+                              ? 1
+                              : 30,
                       })
                     }}
                     options={[
                       { value: "minutes", label: "Minutes" },
+                      { value: "hours", label: "Hours" },
                       { value: "quantity", label: "Quantity" },
                       { value: "done", label: "Done / not done" },
                     ]}
@@ -380,9 +399,14 @@ export function HabitForm({
                 {config.goalType !== "done" && (
                   <LabelField
                     label={
-                      config.goalType === "minutes"
-                        ? "Target minutes"
+                      isTimeGoal(config)
+                        ? `Target ${config.goalType}`
                         : "Target quantity"
+                    }
+                    hint={
+                      config.goalType === "hours"
+                        ? "Use decimals for part of an hour: 1.5 hours is 1 hour 30 minutes."
+                        : undefined
                     }
                   >
                     <Input
@@ -648,14 +672,19 @@ export function HabitForm({
                 {config.schedule === "flexible"
                   ? `${config.weeklyDays} days each week — choose the days as you go.`
                   : preview.length
-                    ? preview.join(" · ")
+                    ? preview
+                        .map((date) => readableDate(date, today))
+                        .join(" · ")
                     : "No upcoming dates within this schedule."}
               </p>
               {habit && (
                 <p className="mt-2 text-xs">
-                  Goal and schedule changes begin{" "}
-                  {effectiveFrom > today ? effectiveFrom : addDays(today, 1)}.
-                  Earlier records keep their original goals.
+                  Goal and schedule changes start:{" "}
+                  {readableDate(
+                    effectiveFrom > today ? effectiveFrom : addDays(today, 1),
+                    today
+                  )}
+                  . Earlier records keep their original goals.
                 </p>
               )}
             </div>

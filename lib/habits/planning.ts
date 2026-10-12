@@ -5,6 +5,7 @@ import {
   dateSchema,
   flexibleProgress,
   goalLabel,
+  goalMinutes,
   isScheduled,
   progressOn,
   statusOn,
@@ -14,13 +15,8 @@ import {
   type Habit,
 } from "./model"
 
-export const habitColors = {
-  orange: "#f97316",
-  green: "#22c55e",
-  blue: "#3b82f6",
-  violet: "#8b5cf6",
-  rose: "#f43f5e",
-}
+import { habitColors } from "./appearance"
+export { habitColors } from "./appearance"
 export const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
 export const habitRangeSchema = z
   .object({ from: dateSchema, to: dateSchema })
@@ -122,8 +118,8 @@ export function recordedMinutes(habit: Habit, date: string) {
         const version = habit.versions.find((v) => v.id === log.versionId)
         return (
           sum +
-          (log.kind === "progress" && version?.config.goalType === "minutes"
-            ? log.amount
+          (log.kind === "progress" && version
+            ? goalMinutes(version.config, log.amount)
             : 0)
         )
       }, 0) * 1000

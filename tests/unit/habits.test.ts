@@ -5,6 +5,9 @@ import {
   defaultConfig,
   flexibleProgress,
   goalPeriod,
+  goalLabel,
+  goalMinutes,
+  timerGoalAmount,
   isScheduled,
   monthBounds,
   nextEffectiveDate,
@@ -131,7 +134,20 @@ describe("habit civil dates and schedules", () => {
   })
 })
 describe("habit progress and immutable goal history", () => {
-  it.each(["done", "quantity", "minutes"] as const)(
+  it("converts fractional hours and timer work without treating quantities as time", () => {
+    const config = {
+      ...defaultConfig("2026-10-01", 1),
+      goalType: "hours" as const,
+      target: 4,
+    }
+    expect(goalLabel(config)).toBe("4 hours per day")
+    expect(goalMinutes(config, 1.5)).toBe(90)
+    expect(timerGoalAmount(config, 5400000)).toBe(1.5)
+    expect(timerGoalAmount({ goalType: "minutes" }, 5400000)).toBe(90)
+    expect(goalMinutes({ goalType: "quantity" }, 4)).toBe(0)
+    expect(timerGoalAmount({ goalType: "done" }, 5400000)).toBe(0)
+  })
+  it.each(["done", "quantity", "minutes", "hours"] as const)(
     "supports %s goals and ignores deleted entries",
     (goalType) => {
       const h = habit({

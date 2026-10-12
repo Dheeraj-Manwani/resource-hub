@@ -384,6 +384,153 @@ test("a lost finish response and refresh retry without duplicating recorded work
   expect(logs[0].notes).toBe("Keep my work after a lost response")
 })
 
+test("compact PiP countdown uses icon controls and preserves reviewed work", async ({
+  page,
+  testAccount,
+}, testInfo) => {
+  // Exercise the PiP portal in a browser popup at its default dimensions, even
+  // on platforms where native always-on-top windows are unavailable in CI.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "documentPictureInPicture", {
+      configurable: true,
+      value: {
+        requestWindow: async ({
+          width,
+          height,
+        }: {
+          width: number
+          height: number
+        }) => {
+          const popup = window.open(
+            "about:blank",
+            "habit-pip",
+            `width=${width},height=${height}`
+          )
+          if (!popup) throw new Error("Test popup could not open")
+          return popup
+        },
+      },
+    })
+  })
+  const { id } = await createHabit(page.request)
+  const sessionId = randomUUID()
+  expect(
+    (
+      await page.request.post("/api/v1/habits/timer", {
+        data: { id: sessionId, habitId: id, mode: "countdown", minutes: 5 },
+      })
+    ).ok()
+  ).toBe(true)
+  const connection = postgres(process.env.DATABASE_URL!, { max: 1 })
+  const database = drizzle(connection, { schema, casing: "snake_case" })
+  try {
+    await database
+      .update(schema.habitTimerSessions)
+      .set({ runningSince: new Date(Date.now() - 120000) })
+      .where(
+        and(
+          eq(schema.habitTimerSessions.id, sessionId),
+          eq(schema.habitTimerSessions.userId, testAccount.id)
+        )
+      )
+  } finally {
+    await connection.end()
+  }
+  await page.goto("/habits")
+  const dock = page.getByRole("complementary", {
+    name: "Habit timer",
+    exact: true,
+  })
+  const popupReady = page.waitForEvent("popup")
+  await dock.getByRole("button", { name: "Pop out timer", exact: true }).click()
+  const popup = await popupReady
+  await popup.setViewportSize({ width: 280, height: 180 })
+  await expect(popup.getByRole("timer")).toBeVisible()
+  await expect
+    .poll(() =>
+      popup.evaluate(() => {
+        const panel = document.querySelector('[aria-label="Habit timer"]')!
+        const timer = panel.querySelector('[role="timer"]')!
+        return {
+          fits:
+            panel.getBoundingClientRect().bottom <= innerHeight &&
+            document.documentElement.scrollWidth <= innerWidth,
+          smallDigits: parseFloat(getComputedStyle(timer).fontSize) <= 24,
+          iconControls: [...panel.querySelectorAll("button")].every(
+            (button) =>
+              !!button.getAttribute("aria-label") &&
+              !!button.title &&
+              !button.textContent?.trim()
+          ),
+        }
+      })
+    )
+    .toEqual({ fits: true, smallDigits: true, iconControls: true })
+  await popup.screenshot({
+    path: testInfo.outputPath("habit-pip-compact.png"),
+    animations: "disabled",
+  })
+  await popup.getByRole("button", { name: "Pause", exact: true }).click()
+  await settle(page, testAccount.id)
+  await expect(
+    popup.getByRole("button", { name: "Resume", exact: true })
+  ).toBeVisible()
+  await popup.getByRole("button", { name: "Resume", exact: true }).click()
+  await settle(page, testAccount.id)
+  await popup.getByRole("button", { name: "+5 min", exact: true }).click()
+  await settle(page, testAccount.id)
+  expect(
+    (await (await page.request.get("/api/v1/habits/timer")).json()).session
+      .targetMs
+  ).toBe(600000)
+  await popup.getByRole("button", { name: "Discard", exact: true }).click()
+  await expect(
+    popup.getByText("Discard without saving?", { exact: true })
+  ).toBeVisible()
+  await popup.getByRole("button", { name: "Keep session", exact: true }).click()
+  await popup.getByRole("button", { name: "Finish", exact: true }).click()
+  await settle(page, testAccount.id)
+  await popup.getByLabel("Actual working minutes").fill("1")
+  const note = popup.getByRole("textbox", {
+    name: "Session note (optional)",
+    exact: true,
+  })
+  await expect(note).toHaveCount(0)
+  const noteToggle = popup.getByRole("button", {
+    name: "Session note (optional)",
+    exact: true,
+  })
+  await noteToggle.click()
+  await note.fill("Focused chapter")
+  await noteToggle.click()
+  await noteToggle.click()
+  await expect(note).toHaveValue("Focused chapter")
+  await noteToggle.click()
+  await popup
+    .getByRole("button", { name: "Discard session", exact: true })
+    .click()
+  await popup.getByRole("button", { name: "Keep session", exact: true }).click()
+  await expect(popup.getByLabel("Actual working minutes")).toHaveValue("1")
+  await popup.screenshot({
+    path: testInfo.outputPath("habit-pip-review.png"),
+    animations: "disabled",
+  })
+  await popup.getByRole("button", { name: "Save session", exact: true }).click()
+  await settle(page, testAccount.id)
+  await expect.poll(() => popup.isClosed()).toBe(true)
+  const result: HabitBundle = await (
+    await page.request.get("/api/v1/habits")
+  ).json()
+  expect(result.items.find((habit) => habit.id === id)!.logs).toEqual([
+    expect.objectContaining({
+      amount: 1,
+      elapsedMs: 60000,
+      notes: "Focused chapter",
+      source: "timer",
+    }),
+  ])
+})
+
 test("pop-out controls share the timer and closing PiP returns it to the app", async ({
   page,
   testAccount,
@@ -466,7 +613,7 @@ test("pop-out controls share the timer and closing PiP returns it to the app", a
         window as Window & { documentPictureInPicture?: { window: Window } }
       ).documentPictureInPicture!.window
       ;[...pip.document.querySelectorAll("button")]
-        .find((button) => button.textContent?.trim() === "Start break")!
+        .find((button) => button.getAttribute("aria-label") === "Start break")!
         .click()
     })
     await settle(page, testAccount.id)
@@ -479,7 +626,7 @@ test("pop-out controls share the timer and closing PiP returns it to the app", a
         window as Window & { documentPictureInPicture?: { window: Window } }
       ).documentPictureInPicture!.window
       const pause = [...pip.document.querySelectorAll("button")].find(
-        (button) => button.textContent?.trim() === "Pause"
+        (button) => button.getAttribute("aria-label") === "Pause"
       )!
       pause.click()
     })

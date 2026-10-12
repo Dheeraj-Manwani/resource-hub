@@ -1,6 +1,13 @@
 import { z } from "zod"
 import { analyseHabitHistory, roundWork } from "./history"
-import { addDays, weekDates, versionOn, type Habit } from "./model"
+import {
+  addDays,
+  goalMinutes,
+  isTimeGoal,
+  weekDates,
+  versionOn,
+  type Habit,
+} from "./model"
 
 export const motivationDefaults = {
   quiet: false,
@@ -71,12 +78,11 @@ const definitions: Omit<Milestone, "value" | "earned">[] = [
 ]
 function logMinutes(habit: Habit, log: Habit["logs"][number]) {
   if (log.deleted) return 0
+  const config = habit.versions.find((v) => v.id === log.versionId)?.config
   return log.source === "timer"
     ? (log.elapsedMs ?? 0) / 60000
-    : log.kind === "progress" &&
-        habit.versions.find((v) => v.id === log.versionId)?.config.goalType ===
-          "minutes"
-      ? log.amount
+    : log.kind === "progress" && config
+      ? goalMinutes(config, log.amount)
       : 0
 }
 function hasWork(habit: Habit, log: Habit["logs"][number]) {
@@ -150,7 +156,7 @@ export function habitJourney(habit: Habit, today: string, weekStart: number) {
       : gap
         ? "Welcome back whenever you're ready. Your earlier work is still here."
         : habit.reason ||
-          (current?.config.goalType === "minutes"
+          (isTimeGoal(current?.config)
             ? "Five minutes is a place to start. Choose a time that fits today."
             : "One small step is a place to start. Choose what fits today.")
   const week = weekDates(today, weekStart),

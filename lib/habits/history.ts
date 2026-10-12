@@ -3,6 +3,9 @@ import {
   addDays,
   dateSchema,
   goalPeriod,
+  goalMinutes,
+  goalUnit,
+  isTimeGoal,
   monthBounds,
   statusOn,
   weekDates,
@@ -59,11 +62,7 @@ export function shiftHistoryDate(
 }
 export const roundWork = (n: number) => Math.round(n * 1000) / 1000
 export function historyUnit(version: HabitVersion) {
-  return version.config.goalType === "minutes"
-    ? "minutes"
-    : version.config.goalType === "done"
-      ? "done"
-      : version.config.unit
+  return goalUnit(version.config)
 }
 export type HistoryDay = {
   date: string
@@ -189,8 +188,8 @@ export function analyseHabitHistory(
     const minutes =
       log.source === "timer"
         ? (log.elapsedMs ?? 0) / 60000
-        : log.kind === "progress" && version.config.goalType === "minutes"
-          ? log.amount
+        : log.kind === "progress"
+          ? goalMinutes(version.config, log.amount)
           : 0
     const amount = log.kind === "progress" ? log.amount : 0,
       hasWork = amount > 0 || minutes > 0
@@ -212,7 +211,7 @@ export function analyseHabitHistory(
     if (hasWork && (!work.firstWorkDate || log.date < work.firstWorkDate))
       work.firstWorkDate = log.date
     workByPeriod.set(key, work)
-    if (amount && version.config.goalType !== "minutes")
+    if (amount && !isTimeGoal(version.config))
       totals.set(
         historyUnit(version),
         (totals.get(historyUnit(version)) ?? 0) + amount
@@ -307,10 +306,10 @@ export function analyseHabitHistory(
         type: flexible ? "flexible" : config.goalPeriod,
         amount: work?.amount ?? 0,
         target: flexible ? config.weeklyDays : config.target,
-        timeTarget:
-          config.goalType === "minutes"
-            ? config.target * (flexible ? config.weeklyDays : 1)
-            : null,
+        timeTarget: isTimeGoal(config)
+          ? goalMinutes(config, config.target) *
+            (flexible ? config.weeklyDays : 1)
+          : null,
         unit: flexible ? "completed days" : historyUnit(version),
         minutes: work?.minutes ?? 0,
         complete: false,
