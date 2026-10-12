@@ -3,6 +3,11 @@
 import { useState } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { SlidersHorizontalIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useSettings, useUpdateSettings } from "@/hooks/queries/settings"
+import type { SettingsDto } from "@/lib/server/dal/settings"
 import { QueryFeedback } from "@/components/query-feedback"
 import { useResourcePreview } from "@/components/resources/resource-preview-provider"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -10,17 +15,17 @@ import { useShell } from "@/components/shell/shell-context"
 import { useOverview } from "@/hooks/queries/overview"
 import { useDetailDrawer } from "@/hooks/use-detail-drawer"
 import {
-  createDefaultOverviewConfiguration,
+  readOverviewConfiguration,
   type OverviewConfiguration,
 } from "@/lib/overview/sections"
 import type { OverviewSectionContext } from "./section-context"
 import { OverviewSections } from "./overview-sections"
 import { countLabel } from "./section-ui"
+import { OverviewCustomizer } from "./overview-customizer"
 
 const OverviewDocDialog = dynamic(() => import("./overview-doc-dialog"), {
   ssr: false,
 })
-const DEFAULT_CONFIGURATION = createDefaultOverviewConfiguration()
 function OverviewSkeleton() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -37,19 +42,29 @@ function OverviewSkeleton() {
 
 export function OverviewView({
   userName,
-  configuration = DEFAULT_CONFIGURATION,
+  initialSettings,
 }: {
   userName: string
-  configuration?: OverviewConfiguration
+  initialSettings?: SettingsDto
 }) {
   const overviewQuery = useOverview()
+  const settingsQuery = useSettings(initialSettings)
+  const updateSettings = useUpdateSettings()
+  const router = useRouter()
   const { data } = overviewQuery
   const { openTask, openResource } = useDetailDrawer()
   const { openPreview } = useResourcePreview()
   const { openAddTask, openAddProject, openAddQuickNote, openAddResource } =
     useShell()
   const [docId, setDocId] = useState<string | null>(null)
-  if (overviewQuery.isPending) return <OverviewSkeleton />
+  const [draft, setDraft] = useState<OverviewConfiguration | null>(null)
+  const [saveError, setSaveError] = useState("")
+  const savedConfiguration = readOverviewConfiguration(
+    settingsQuery.data?.overviewConfiguration
+  )
+  const shownConfiguration = draft ?? savedConfiguration
+  if (overviewQuery.isPending || settingsQuery.isPending)
+    return <OverviewSkeleton />
   if (!data) return <QueryFeedback query={overviewQuery} label="overview" />
   const { tasks, resources, projects } = data
   const date = new Intl.DateTimeFormat("en", {
@@ -69,6 +84,11 @@ export function OverviewView({
       openAddProject,
       openAddQuickNote,
       openAddResource,
+      reviewResources: () => {
+        const section = document.getElementById("overview-resources")
+        if (section) section.scrollIntoView({ block: "start" })
+        else router.push("/resources?reviewed=false")
+      },
     },
   }
   return (
@@ -77,8 +97,29 @@ export function OverviewView({
       aria-label={`Overview for ${userName}`}
     >
       <QueryFeedback query={overviewQuery} label="overview" loading={false} />
+      <QueryFeedback
+        query={settingsQuery}
+        label="overview preferences"
+        loading={false}
+      />
       <header>
-        <p className="text-xs tracking-wide text-subtle uppercase">{date}</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs tracking-wide text-subtle uppercase">{date}</p>
+          <Button
+            variant="outline"
+            className="min-h-11"
+            disabled={!settingsQuery.data || draft !== null}
+            aria-expanded={draft !== null}
+            aria-controls="overview-customizer"
+            onClick={() => {
+              setSaveError("")
+              updateSettings.reset()
+              setDraft(structuredClone(savedConfiguration))
+            }}
+          >
+            <SlidersHorizontalIcon /> Customize overview
+          </Button>
+        </div>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">
           Your day, with a clear next step.
         </h1>
@@ -91,7 +132,33 @@ export function OverviewView({
         </p>
       </header>
 
-      <OverviewSections configuration={configuration} context={context} />
+      {draft && (
+        <OverviewCustomizer
+          configuration={draft}
+          onChange={setDraft}
+          onCancel={() => {
+            setDraft(null)
+            setSaveError("")
+          }}
+          saving={updateSettings.isPending}
+          paused={updateSettings.isPaused}
+          error={saveError}
+          onSave={async () => {
+            setSaveError("")
+            try {
+              await updateSettings.mutateAsync({ overviewConfiguration: draft })
+              setDraft(null)
+            } catch (error) {
+              setSaveError(
+                error instanceof Error
+                  ? error.message
+                  : "Could not save overview preferences."
+              )
+            }
+          }}
+        />
+      )}
+      <OverviewSections configuration={shownConfiguration} context={context} />
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-subtle">
         <span>
           {countLabel(resources.total, "resource")} ·{" "}

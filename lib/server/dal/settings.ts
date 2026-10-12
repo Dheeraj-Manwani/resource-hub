@@ -5,7 +5,10 @@ import { randomBytes } from "node:crypto"
 
 import { db } from "@/lib/db"
 import { userSettings } from "@/lib/db/schema"
-import { readOverviewConfiguration, type OverviewConfiguration } from "@/lib/overview/sections"
+import {
+  readOverviewConfiguration,
+  type OverviewConfiguration,
+} from "@/lib/overview/sections"
 
 export type SettingsDto = {
   timezone: string
@@ -35,9 +38,10 @@ export async function getSettings(userId: string): Promise<SettingsDto> {
       icsToken: row.icsToken,
       hasSeenOnboarding: row.hasSeenOnboarding,
       pinnedProjectIds: row.pinnedProjectIds,
-      overviewConfiguration: row.overviewConfiguration === null
-        ? null
-        : readOverviewConfiguration(row.overviewConfiguration),
+      overviewConfiguration:
+        row.overviewConfiguration === null
+          ? null
+          : readOverviewConfiguration(row.overviewConfiguration),
     }
   }
   await db.insert(userSettings).values({ userId }).onConflictDoNothing()

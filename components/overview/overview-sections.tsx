@@ -1,6 +1,7 @@
 "use client"
 
 import type { ComponentType } from "react"
+import { cn } from "@/lib/utils"
 import { HabitsToday } from "@/components/habits/habits-today"
 import {
   sectionsForRegion,
@@ -48,6 +49,45 @@ export function OverviewSections({
   configuration: OverviewConfiguration
   context: OverviewSectionContext
 }) {
+  const shown = configuration.sections.filter(
+    (section) =>
+      section.enabled &&
+      (section.id !== "needs-attention" ||
+        context.data.tasks.blockedCount > 0 ||
+        context.data.resources.toReviewCount > 0)
+  )
+  if (!shown.length)
+    return (
+      <p className="rounded-xl border border-border p-5 text-sm text-text-muted">
+        {configuration.sections.some((section) => section.enabled)
+          ? "Nothing needs attention right now."
+          : "Your overview is empty. Use Customize overview to add sections."}
+      </p>
+    )
+
+  // The DOM and visual order match; avoid dense placement or independent columns.
+  if (configuration.layout === "ordered")
+    return (
+      <div
+        className="grid items-start gap-7 lg:grid-cols-2"
+        data-testid="overview-ordered-sections"
+      >
+        {shown.map((section) => (
+          <div
+            key={section.id}
+            data-overview-section={section.id}
+            className={cn(
+              "min-w-0",
+              (section.region === "top" || section.region === "bottom") &&
+                "lg:col-span-2"
+            )}
+          >
+            <OverviewSection section={section} context={context} />
+          </div>
+        ))}
+      </div>
+    )
+
   const top = sectionsForRegion(configuration, "top")
   const main = sectionsForRegion(configuration, "main")
   const aside = sectionsForRegion(configuration, "aside")

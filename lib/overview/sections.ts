@@ -135,7 +135,10 @@ export const overviewConfigurationSchema = z
           path: ["sections", index, "id"],
         })
       seen.add(section.id)
-      if (section.id !== "task-priorities" && section.options.initialHorizon !== undefined)
+      if (
+        section.id !== "task-priorities" &&
+        section.options.initialHorizon !== undefined
+      )
         context.addIssue({
           code: "custom",
           message: "This section does not support a task view",
@@ -145,7 +148,9 @@ export const overviewConfigurationSchema = z
   })
 
 /** Missing/new section types stay in the picker instead of appearing unexpectedly. */
-export function readOverviewConfiguration(value: unknown): OverviewConfiguration {
+export function readOverviewConfiguration(
+  value: unknown
+): OverviewConfiguration {
   const result = overviewConfigurationSchema.safeParse(value)
   if (!result.success) return createDefaultOverviewConfiguration()
   const saved = result.data
@@ -154,8 +159,8 @@ export function readOverviewConfiguration(value: unknown): OverviewConfiguration
     ...saved,
     sections: [
       ...saved.sections,
-      ...createDefaultOverviewConfiguration().sections
-        .filter((section) => !present.has(section.id))
+      ...createDefaultOverviewConfiguration()
+        .sections.filter((section) => !present.has(section.id))
         .map((section) => ({ ...section, enabled: false })),
     ],
   }
@@ -173,8 +178,13 @@ export function setOverviewSectionEnabled(
     ...configuration,
     layout: "ordered",
     sections: enabled
-      ? [...configuration.sections.filter((section) => section.id !== id), changed]
-      : configuration.sections.map((section) => section.id === id ? changed : section),
+      ? [
+          ...configuration.sections.filter((section) => section.id !== id),
+          changed,
+        ]
+      : configuration.sections.map((section) =>
+          section.id === id ? changed : section
+        ),
   }
 }
 
@@ -183,8 +193,12 @@ export function reorderOverviewSection(
   id: OverviewSectionId,
   target: OverviewSectionId
 ): OverviewConfiguration {
-  const from = configuration.sections.findIndex((section) => section.id === id && section.enabled)
-  const to = configuration.sections.findIndex((section) => section.id === target && section.enabled)
+  const from = configuration.sections.findIndex(
+    (section) => section.id === id && section.enabled
+  )
+  const to = configuration.sections.findIndex(
+    (section) => section.id === target && section.enabled
+  )
   if (from < 0 || to < 0 || from === to) return configuration
   const sections = [...configuration.sections]
   const [section] = sections.splice(from, 1)
