@@ -9,6 +9,7 @@ import {
 } from "drizzle-orm/pg-core"
 
 import { user } from "./auth"
+import type { OverviewConfiguration } from "@/lib/overview/sections"
 
 export const libraryViewEnum = pgEnum("library_view", ["grid", "list", "focus"])
 
@@ -33,6 +34,8 @@ export const userSettings = pgTable("user_settings", {
   hasSeenOnboarding: boolean().notNull().default(false),
   /** null shows all projects; [] keeps every project under More. */
   pinnedProjectIds: jsonb().$type<string[]>(),
+  /** null keeps the original overview; saved choices follow the account. */
+  overviewConfiguration: jsonb().$type<OverviewConfiguration>(),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp({ withTimezone: true })
     .notNull()

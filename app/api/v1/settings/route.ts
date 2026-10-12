@@ -4,6 +4,7 @@ import { json, parseBody, route } from "@/lib/server/api"
 import { requireApiUser } from "@/lib/server/dal/session"
 import { getSettings, updateSettings } from "@/lib/server/dal/settings"
 import { writeLimit } from "@/lib/server/rate-limit"
+import { overviewConfigurationSchema } from "@/lib/overview/sections"
 
 const patchSchema = z
   .object({
@@ -23,6 +24,7 @@ const patchSchema = z
     calendarColorMode: z.enum(["project", "priority", "status"]),
     hasSeenOnboarding: z.boolean(),
     pinnedProjectIds: z.array(z.uuid()).max(5000).nullable(),
+    overviewConfiguration: overviewConfigurationSchema.nullable(),
   })
   .partial()
   .strict()

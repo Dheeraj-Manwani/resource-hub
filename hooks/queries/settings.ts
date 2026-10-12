@@ -48,6 +48,7 @@ export function useUpdateSettings() {
   const qc = useQueryClient()
   return useMutation({
     ...syncMutation("settings.update"),
+    scope: { id: "settings" },
     mutationFn: (patch: Partial<SettingsDto>) =>
       api<SettingsDto>("/api/v1/settings", { method: "PATCH", body: patch }),
     onMutate: async (patch) => {
