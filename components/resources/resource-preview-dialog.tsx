@@ -7,8 +7,10 @@ import {
   CircleIcon,
   Edit,
   ExternalLinkIcon,
+  InfoIcon,
   StarIcon,
 } from "lucide-react"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -26,6 +28,10 @@ import {
 } from "@/components/ui/tooltip"
 import { useResource, useUpdateResource } from "@/hooks/queries/resources"
 import { displayTitle } from "@/lib/resources/dto"
+import {
+  FILE_PREVIEW_LABELS,
+  resourcePreviewKind,
+} from "@/lib/resources/preview"
 import { cn } from "@/lib/utils"
 
 import {
@@ -35,6 +41,7 @@ import {
   TaskCountChip,
 } from "./cards/card-parts"
 import { ResourceFullView } from "./full-view/resource-full-view"
+import { FilePreview } from "./full-view/file-preview"
 import { useLightbox } from "./lightbox/lightbox-provider"
 import { TypeBadge } from "./type-icon"
 
@@ -63,6 +70,28 @@ export function ResourcePreviewDialog({
   const { data: resource, isPending, isError } = query
   const update = useUpdateResource()
   const { openImages } = useLightbox()
+  const [showDetails, setShowDetails] = useState(false)
+  const kind = resource ? resourcePreviewKind(resource) : "link"
+  const fileView =
+    !!resource &&
+    (resource.type === "file" ||
+      !!resource.file ||
+      [
+        "pdf",
+        "spreadsheet",
+        "document",
+        "text",
+        "video",
+        "audio",
+        "presentation",
+        "archive",
+      ].includes(kind))
+  const wide = ["pdf", "spreadsheet", "document", "text", "github"].includes(
+    kind
+  )
+  const media = ["image", "video", "youtube", "pinterest"].includes(kind)
+  const social = ["instagram", "x"].includes(kind)
+  const reader = ["note", "link"].includes(kind)
 
   return (
     <Dialog
@@ -71,7 +100,16 @@ export function ResourcePreviewDialog({
         if (!open) onClose()
       }}
     >
-      <DialogContent className="flex max-h-[85vh] w-full max-w-3xl flex-col gap-0 p-0 sm:max-w-3xl">
+      <DialogContent
+        data-preview-kind={kind}
+        className={cn(
+          "flex max-h-[90dvh] w-[calc(100%-1rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl",
+          wide && "h-[88dvh] max-w-6xl sm:max-w-6xl",
+          media && "max-w-5xl sm:max-w-5xl",
+          social && "max-w-2xl sm:max-w-2xl",
+          kind === "audio" && "max-w-2xl sm:max-w-2xl"
+        )}
+      >
         {!resource ? (
           isError ? (
             <div className="p-6">
@@ -94,9 +132,37 @@ export function ResourcePreviewDialog({
             <div className="px-4">
               <QueryFeedback query={query} label="resource" loading={false} />
             </div>
-            <div className="flex items-center gap-1 border-b border-border px-4 py-2.5 pr-12">
-              <TypeBadge type={resource.type} />
+            <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2.5 pr-12">
+              {fileView ? (
+                <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium">
+                  {FILE_PREVIEW_LABELS[
+                    kind as keyof typeof FILE_PREVIEW_LABELS
+                  ] ?? "File"}
+                </span>
+              ) : (
+                <TypeBadge type={resource.type} />
+              )}
+              <span className="hidden text-xs text-text-muted sm:inline">
+                Preview
+              </span>
               <div className="ml-auto flex items-center gap-0.5">
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="Resource details"
+                        aria-expanded={showDetails}
+                        aria-controls="resource-preview-details"
+                        onClick={() => setShowDetails((show) => !show)}
+                      />
+                    }
+                  >
+                    <InfoIcon />
+                  </TooltipTrigger>
+                  <TooltipContent>Resource details</TooltipContent>
+                </Tooltip>
                 <Tooltip>
                   <TooltipTrigger
                     render={
@@ -192,40 +258,76 @@ export function ResourcePreviewDialog({
               </div>
             </div>
 
-            <div className="flex-1 space-y-4 overflow-y-auto p-5">
-              <div className="space-y-1">
-                <DialogTitle className="text-lg font-semibold">
-                  {displayTitle(resource)}
-                </DialogTitle>
-                <DialogDescription className="sr-only">
-                  Resource preview
-                </DialogDescription>
-                <MetaLine resource={resource} />
-              </div>
-
-              <ResourceFullView
-                resource={resource}
-                onOpenImage={(imgId) => openImages([resource], imgId)}
-                interactive={false}
-              />
-
-              {resource.notes ? (
-                <p className="text-sm whitespace-pre-line text-text-muted">
-                  {resource.notes}
-                </p>
-              ) : null}
-
-              {resource.projects.length || resource.taskCount ? (
-                <div className="flex flex-wrap gap-1">
-                  <ProjectChips projects={resource.projects} />
-                  <TaskCountChip count={resource.taskCount} />
-                </div>
-              ) : null}
-
-              <TagChips tags={resource.tags} max={12} />
+            <div className="shrink-0 space-y-1 border-b border-border px-5 py-3">
+              <DialogTitle
+                className="truncate text-lg font-semibold"
+                title={displayTitle(resource)}
+              >
+                {displayTitle(resource)}
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                {fileView
+                  ? `${FILE_PREVIEW_LABELS[kind as keyof typeof FILE_PREVIEW_LABELS] ?? "File"} preview`
+                  : "Resource preview"}
+                . Read the resource here or choose Edit to change its details.
+              </DialogDescription>
+              <MetaLine resource={resource} />
             </div>
+            <div
+              className={cn(
+                "min-h-0 flex-1",
+                wide && fileView ? "overflow-hidden" : "overflow-y-auto",
+                media && "bg-black/90",
+                reader && "bg-muted/30"
+              )}
+            >
+              {fileView ? (
+                <FilePreview
+                  key={resource.file?.id ?? resource.url ?? resource.id}
+                  resource={resource}
+                  modal
+                />
+              ) : (
+                <div
+                  className={cn(
+                    "p-5",
+                    reader &&
+                      "mx-auto my-5 max-w-3xl rounded-sm border border-border bg-surface p-6 shadow-sm sm:p-10",
+                    social && "mx-auto max-w-[590px]",
+                    kind === "github" && "space-y-4"
+                  )}
+                >
+                  <ResourceFullView
+                    resource={resource}
+                    onOpenImage={(imgId) => openImages([resource], imgId)}
+                    interactive={false}
+                  />
+                </div>
+              )}
+            </div>
+            {showDetails ? (
+              <div
+                id="resource-preview-details"
+                className="max-h-40 shrink-0 space-y-3 overflow-y-auto border-t border-border bg-surface px-5 py-4"
+              >
+                {resource.notes ? (
+                  <p className="text-sm whitespace-pre-line text-text-muted">
+                    {resource.notes}
+                  </p>
+                ) : null}
 
-            <DialogFooter className="mx-0 mb-0 rounded-t-none border-t border-border bg-transparent px-4 py-3">
+                {resource.projects.length || resource.taskCount ? (
+                  <div className="flex flex-wrap gap-1">
+                    <ProjectChips projects={resource.projects} />
+                    <TaskCountChip count={resource.taskCount} />
+                  </div>
+                ) : null}
+
+                <TagChips tags={resource.tags} max={12} />
+              </div>
+            ) : null}
+
+            <DialogFooter className="mx-0 mb-0 shrink-0 flex-row rounded-t-none border-t border-border bg-transparent px-4 py-3">
               <Button variant="outline" onClick={onClose}>
                 Close
               </Button>

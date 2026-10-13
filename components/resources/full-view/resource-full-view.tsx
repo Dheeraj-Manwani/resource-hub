@@ -1,14 +1,16 @@
 "use client"
-import { QueryFeedback, LoadingState } from "@/components/query-feedback"
-import { BookOpenIcon, DownloadIcon, ExternalLinkIcon } from "lucide-react"
+import { QueryFeedback } from "@/components/query-feedback"
+import { BookOpenIcon, ExternalLinkIcon } from "lucide-react"
 import dynamic from "next/dynamic"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useReadme, useUpdateResource } from "@/hooks/queries/resources"
 import type { ResourceDto } from "@/lib/resources/dto"
 import { displayTitle } from "@/lib/resources/dto"
+import { resourcePreviewKind } from "@/lib/resources/preview"
+import { FilePreview } from "./file-preview"
 
 import { aspectOf, CopyButton } from "../cards/type-cards"
 import { GithubCardBody } from "../cards/github-card"
@@ -80,138 +82,6 @@ function GithubFullView({ resource }: { resource: ResourceDto }) {
   )
 }
 
-function FilePreview({ resource }: { resource: ResourceDto }) {
-  const file = resource.file
-  const src = file?.url ?? resource.url
-  const mime =
-    file?.mime ??
-    (resource.url?.toLowerCase().endsWith(".pdf") ? "application/pdf" : "")
-  const [loading, setLoading] = useState(true)
-  const [failed, setFailed] = useState(false)
-  const [slow, setSlow] = useState(false)
-  const [attempt, setAttempt] = useState(0)
-  useEffect(() => {
-    if (!loading || failed) return
-    const timer = setTimeout(() => setSlow(true), 15_000)
-    return () => clearTimeout(timer)
-  }, [loading, failed, attempt])
-  const retry = () => {
-    setLoading(true)
-    setFailed(false)
-    setSlow(false)
-    setAttempt((value) => value + 1)
-  }
-  const ready = () => setLoading(false)
-  const unavailable = () => {
-    setFailed(true)
-    setLoading(false)
-  }
-  const pdf = mime === "application/pdf"
-  const video = !!file && mime.startsWith("video/")
-  const audio = !!file && mime.startsWith("audio/")
-  const inline = !!src && (pdf || video || audio)
-  return (
-    <div className="space-y-2">
-      {inline && !failed ? (
-        <div className="relative overflow-hidden rounded-lg border border-border bg-surface">
-          {loading ? (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <LoadingState label="Loading preview…" />
-            </div>
-          ) : null}
-          {pdf ? (
-            <iframe
-              key={attempt}
-              src={src!}
-              title={displayTitle(resource)}
-              className="h-[70vh] w-full"
-              onLoad={ready}
-              onError={unavailable}
-            />
-          ) : video ? (
-            <video
-              key={attempt}
-              src={src!}
-              controls
-              className="w-full rounded-lg bg-black"
-              preload="metadata"
-              onLoadedMetadata={ready}
-              onError={unavailable}
-            />
-          ) : (
-            <audio
-              key={attempt}
-              src={src!}
-              controls
-              className="w-full"
-              preload="metadata"
-              onLoadedMetadata={ready}
-              onError={unavailable}
-            />
-          )}
-        </div>
-      ) : null}
-      <div className="flex flex-wrap items-center gap-2">
-        {failed ? (
-          <p role="alert" className="text-sm text-destructive">
-            Couldn&apos;t load this preview.
-          </p>
-        ) : slow && loading ? (
-          <p role="status" className="text-sm text-text-muted">
-            Preview is taking longer than expected. You can open or download the
-            file below.
-          </p>
-        ) : !inline ? (
-          <p className="text-sm text-text-muted">
-            No inline preview for this file type.
-          </p>
-        ) : null}
-        {failed || (slow && loading) ? (
-          <Button size="sm" variant="outline" onClick={retry}>
-            Retry preview
-          </Button>
-        ) : null}
-        {src ? (
-          <Button
-            size="sm"
-            variant="outline"
-            nativeButton={false}
-            render={<a href={src} target="_blank" rel="noopener noreferrer" />}
-          >
-            <ExternalLinkIcon />
-            Open in new tab
-          </Button>
-        ) : null}
-        {file ? (
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={
-              <a
-                href={file.downloadUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              />
-            }
-          >
-            <DownloadIcon />
-            Download
-          </Button>
-        ) : null}
-      </div>
-    </div>
-  )
-}
-
-function FileFullView({ resource }: { resource: ResourceDto }) {
-  return (
-    <FilePreview
-      key={resource.file?.url ?? resource.url ?? resource.id}
-      resource={resource}
-    />
-  )
-}
-
 /** Large, playable/readable rendering of a resource (drawer + focus view). */
 export function ResourceFullView({
   resource,
@@ -226,6 +96,29 @@ export function ResourceFullView({
   const update = useUpdateResource()
   const title = displayTitle(resource)
   const m = resource.metadata
+
+  if (
+    resource.file ||
+    (resource.url &&
+      [
+        "pdf",
+        "spreadsheet",
+        "document",
+        "text",
+        "video",
+        "audio",
+        "image",
+        "presentation",
+        "archive",
+      ].includes(resourcePreviewKind(resource)))
+  ) {
+    return (
+      <FilePreview
+        key={resource.file?.id ?? resource.url ?? resource.id}
+        resource={resource}
+      />
+    )
+  }
 
   switch (resource.type) {
     case "youtube":
@@ -297,7 +190,12 @@ export function ResourceFullView({
         </div>
       )
     case "file":
-      return <FileFullView resource={resource} />
+      return (
+        <FilePreview
+          key={resource.file?.id ?? resource.url ?? resource.id}
+          resource={resource}
+        />
+      )
     default:
       return (
         <div className="space-y-3">
