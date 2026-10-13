@@ -107,9 +107,11 @@ function FilterBar({
   onToggleSelectMode,
   extraFilters,
   extraActiveCount,
+  extraActions,
 }: {
   extraFilters?: React.ReactNode
   extraActiveCount?: number
+  extraActions?: React.ReactNode
   independentFilter?: boolean
   independentOnly: boolean
   setIndependentOnly: (v: boolean) => void
@@ -145,6 +147,7 @@ function FilterBar({
       }
       actions={
         <>
+          {extraActions}
           <Button
             size="sm"
             variant={selectMode ? "default" : "outline"}
@@ -333,12 +336,18 @@ export function LibraryView({
   emptyDescriptionIndependent,
   extraFilters,
   extraActiveCount,
+  extraActions,
+  toolbarDetails,
 }: {
   title: React.ReactNode
   description?: React.ReactNode
   initialSettings: SettingsDto
   extraFilters?: React.ReactNode
   extraActiveCount?: number
+  /** Additional actions placed in the same row as filters and view controls. */
+  extraActions?: React.ReactNode
+  /** Optional status or help between the toolbar and its content. */
+  toolbarDetails?: React.ReactNode
   baseFilters?: ResourceFilters
   emptyTitle: string
   emptyDescription: string
@@ -581,6 +590,7 @@ export function LibraryView({
       <FilterBar
         extraFilters={extraFilters}
         extraActiveCount={extraActiveCount}
+        extraActions={extraActions}
         independentFilter={independentFilter}
         independentOnly={independentOnly}
         setIndependentOnly={setIndependentOnly}
@@ -604,6 +614,7 @@ export function LibraryView({
           setSelected(new Set())
         }}
       />
+      {toolbarDetails}
       <QueryFeedback query={query} label="resources" loading={false} />
       <PendingCreations entity="resource" filters={filters} />
       {body}

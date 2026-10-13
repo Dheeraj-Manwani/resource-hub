@@ -1,6 +1,7 @@
 "use client"
 
 import { PendingCreations } from "@/components/pending-creations"
+import { QueryFeedback } from "@/components/query-feedback"
 
 import { FolderPlusIcon } from "lucide-react"
 import Link from "next/link"
@@ -14,6 +15,7 @@ import { buildProjectTree, findNode, flattenTree } from "@/lib/projects/tree"
 
 import { ProjectIcon } from "./project-icon"
 import { ProjectItemMenu } from "./project-item-menu"
+import { ProjectTabToolbar } from "./project-tab-toolbar"
 
 /** Direct children of this project, or (with "include sub-projects") every
  * descendant flattened with relative indentation. Reuses the sidebar's
@@ -22,11 +24,14 @@ import { ProjectItemMenu } from "./project-item-menu"
 export function ProjectSubprojectsTab({
   projectId,
   includeDescendants,
+  onIncludeDescendantsChange,
 }: {
   projectId: string
   includeDescendants: boolean
+  onIncludeDescendantsChange: (include: boolean) => void
 }) {
-  const { data: flat } = useProjectTree()
+  const query = useProjectTree()
+  const { data: flat } = query
   const { openAddProject } = useShell()
 
   const { node, rows } = useMemo(() => {
@@ -42,64 +47,66 @@ export function ProjectSubprojectsTab({
     }
   }, [flat, projectId, includeDescendants])
 
-  if (!flat) return null
   const baseDepth = (node?.depth ?? 0) + 1
-
-  if (!rows.length) {
-    return (
-      <EmptyState
-        icon={FolderPlusIcon}
-        title="No sub-projects yet"
-        description="Split this project into smaller pieces, each with its own resources and tasks."
-      >
-        <Button onClick={() => openAddProject(projectId)}>
-          <FolderPlusIcon />
-          New sub-project
-        </Button>
-      </EmptyState>
-    )
-  }
 
   return (
     <div>
-      <div className="mb-2 flex h-6 items-center justify-end">
-        <Button
-          variant="outline"
-          size="xs"
-          onClick={() => openAddProject(projectId)}
-        >
-          <FolderPlusIcon />
-          New sub-project
-        </Button>
-      </div>
+      <ProjectTabToolbar
+        includeDescendants={includeDescendants}
+        onIncludeDescendantsChange={onIncludeDescendantsChange}
+        actions={
+          <Button size="sm" onClick={() => openAddProject(projectId)}>
+            <FolderPlusIcon />
+            Add sub-project
+          </Button>
+        }
+      />
+      <QueryFeedback query={query} label="sub-projects" />
       <PendingCreations entity="project" filters={{ parentId: projectId }} />
-      <div className="space-y-2">
-        {rows.map((p) => (
-          <ProjectItemMenu
-            key={p.id}
-            project={p}
-            trigger={
-              <div
-                style={{ marginLeft: `${(p.depth - baseDepth) * 20 + 12}px` }}
-                className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5 transition-colors hover:border-brand/40"
-              />
-            }
+      {flat &&
+        (!rows.length ? (
+          <EmptyState
+            icon={FolderPlusIcon}
+            title="No sub-projects yet"
+            description="Split this project into smaller pieces, each with its own resources and tasks."
           >
-            <Link
-              href={`/projects/${p.id}`}
-              className="flex min-w-0 flex-1 items-center gap-3"
-            >
-              <ProjectIcon icon={p.icon} color={p.color} size={18} />
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                {p.name}
-              </span>
-              <span className="shrink-0 text-xs text-subtle">
-                {p.directCount} {p.directCount === 1 ? "resource" : "resources"}
-              </span>
-            </Link>
-          </ProjectItemMenu>
+            <Button onClick={() => openAddProject(projectId)}>
+              <FolderPlusIcon />
+              New sub-project
+            </Button>
+          </EmptyState>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((p) => (
+              <ProjectItemMenu
+                key={p.id}
+                project={p}
+                trigger={
+                  <div
+                    style={{
+                      marginLeft: `${(p.depth - baseDepth) * 20 + 12}px`,
+                    }}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5 transition-colors hover:border-brand/40"
+                  />
+                }
+              >
+                <Link
+                  href={`/projects/${p.id}`}
+                  className="flex min-w-0 flex-1 items-center gap-3"
+                >
+                  <ProjectIcon icon={p.icon} color={p.color} size={18} />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                    {p.name}
+                  </span>
+                  <span className="shrink-0 text-xs text-subtle">
+                    {p.directCount}{" "}
+                    {p.directCount === 1 ? "resource" : "resources"}
+                  </span>
+                </Link>
+              </ProjectItemMenu>
+            ))}
+          </div>
         ))}
-      </div>
     </div>
   )
 }

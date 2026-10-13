@@ -4,7 +4,7 @@ import { write } from "./helpers"
 test("filters hide without clearing results and project Add menus keep both paths", async ({
   page,
   testAccount,
-}) => {
+}, testInfo) => {
   const parentResponse = await page.request.post("/api/v1/projects", {
     data: { name: "Filter project" },
   })
@@ -69,10 +69,15 @@ test("filters hide without clearing results and project Add menus keep both path
     ["/calendar", "Filter by project", parent.name],
   ]) {
     await page.goto(path)
+    if (path === "/calendar")
+      await expect(
+        page.getByRole("region", { name: "Calendar dates" }).getByRole("grid")
+      ).toBeVisible()
     await expect(
       page.getByRole("combobox", { name: control, exact: true })
     ).toHaveCount(0)
     await toggle.click()
+    await expect(toggle).toHaveAttribute("aria-expanded", "true")
     await page.getByRole("combobox", { name: control, exact: true }).click()
     await page.getByRole("option", { name: option, exact: true }).click()
     await toggle.click()
@@ -173,4 +178,66 @@ test("filters hide without clearing results and project Add menus keep both path
   await expect(
     page.getByRole("switch", { name: "Include sub-projects" })
   ).toHaveCount(0)
+
+  // Every project toolbar belongs to the selected panel, below the same tab strip.
+  // Resource-specific controls can wrap on mobile while retaining the shared order.
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    for (const [label, action] of [
+      ["Resources", "Add"],
+      ["Tasks", "Add task"],
+      ["Sub-projects", "Add sub-project"],
+      ["Docs", "Add"],
+    ]) {
+      const selectedTab = page.getByRole("tab", {
+        name: new RegExp(`^${label}`),
+      })
+      await selectedTab.click()
+      await expect(selectedTab).toHaveAttribute("aria-selected", "true")
+      const filters = tab.getByRole("button", { name: /^Filters/ })
+      await expect(filters).toBeVisible()
+      const tabBox = await page
+        .getByRole("tablist", { name: "Project tabs" })
+        .boundingBox()
+      const filterBox = await filters.boundingBox()
+      const actionBox = await tab
+        .getByRole("button", { name: action, exact: true })
+        .boundingBox()
+      expect(tabBox).not.toBeNull()
+      expect(filterBox).not.toBeNull()
+      expect(actionBox).not.toBeNull()
+      expect(filterBox!.y).toBeGreaterThanOrEqual(tabBox!.y + tabBox!.height)
+      if (width === 1440)
+        expect(Math.abs(actionBox!.y - filterBox!.y)).toBeLessThan(2)
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth
+        )
+      ).toBe(true)
+      await filters.click()
+      const scope = tab.getByRole("switch", { name: "Include sub-projects" })
+      await expect(scope).toBeVisible()
+      if (
+        label === "Resources" &&
+        (await scope.getAttribute("aria-checked")) === "false"
+      )
+        await scope.click()
+      await expect(scope).toBeChecked()
+      await filters.click()
+      await expect(filters).toContainText("1")
+      if (label === "Tasks")
+        await expect(
+          tab.getByRole("heading", {
+            name: "No tasks in this project yet",
+            exact: true,
+          })
+        ).toBeVisible()
+      await page.screenshot({
+        path: testInfo.outputPath(
+          `project-${label.toLowerCase()}-${width}.png`
+        ),
+        fullPage: true,
+      })
+    }
+  }
 })

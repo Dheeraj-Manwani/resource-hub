@@ -1,6 +1,5 @@
 "use client"
 
-import { FilterPanel } from "@/components/filter-panel"
 import { AddMenu } from "@/components/add-menu"
 
 import { QueryFeedback } from "@/components/query-feedback"
@@ -43,6 +42,7 @@ import { ProjectIconPicker } from "./project-icon-picker"
 import { ProjectInfoModal } from "./project-info-modal"
 import { ProjectQuickNotesTab } from "./project-quick-notes-tab"
 import { ProjectSubprojectsTab } from "./project-subprojects-tab"
+import { ProjectScopeFilter } from "./project-tab-toolbar"
 
 const TABS = ["resources", "tasks", "subprojects", "notes"] as const
 type Tab = (typeof TABS)[number]
@@ -244,106 +244,40 @@ export function ProjectPage({
         </div>
       </ProjectMenu>
 
-      {tab !== "resources" ? (
-        <FilterPanel activeCount={includeDescendants ? 1 : 0}>
-          {" "}
-          <label className="flex items-center gap-2 text-xs text-text-muted">
-            <Switch
-              size="sm"
-              checked={includeDescendants}
-              onCheckedChange={setIncludeDescendants}
-            />
-            Include sub-projects
-          </label>
-        </FilterPanel>
-      ) : null}
-      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        <TabsList variant="pill" className="mb-3">
-          <TabsIndicator />
-          <TabsTrigger value="resources">
-            Resources
-            <TabCount
-              value={project?.directCount}
-              active={tab === "resources"}
-            />
-          </TabsTrigger>
-          <TabsTrigger value="tasks">
-            Tasks
-            <TabCount value={taskProgress?.total} active={tab === "tasks"} />
-          </TabsTrigger>
-          <TabsTrigger value="subprojects">
-            Sub-projects
-            <TabCount value={subProjectCount} active={tab === "subprojects"} />
-          </TabsTrigger>
-          <TabsTrigger value="notes">
-            Docs
-            <TabCount value={notes?.length} active={tab === "notes"} />
-          </TabsTrigger>
-        </TabsList>
+      <Tabs
+        className="min-w-0"
+        value={tab}
+        onValueChange={(v) => setTab(v as Tab)}
+      >
+        <div className="mb-3 min-w-0 overflow-x-auto pb-1">
+          <TabsList variant="pill" aria-label="Project tabs">
+            <TabsIndicator />
+            <TabsTrigger value="resources">
+              Resources
+              <TabCount
+                value={project?.directCount}
+                active={tab === "resources"}
+              />
+            </TabsTrigger>
+            <TabsTrigger value="tasks">
+              Tasks
+              <TabCount value={taskProgress?.total} active={tab === "tasks"} />
+            </TabsTrigger>
+            <TabsTrigger value="subprojects">
+              Sub-projects
+              <TabCount
+                value={subProjectCount}
+                active={tab === "subprojects"}
+              />
+            </TabsTrigger>
+            <TabsTrigger value="notes">
+              Docs
+              <TabCount value={notes?.length} active={tab === "notes"} />
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="resources">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <div className="text-sm text-text-muted" role="status">
-              {checklistData?.enabled
-                ? `${checklistData.checkedResourceIds.length} of ${checklistData.resourceIds.length} done`
-                : null}
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-3">
-              <AddMenu
-                size="xs"
-                items={[
-                  {
-                    label: "Add new resource",
-                    icon: <PlusIcon />,
-                    onSelect: () => openAddResource(undefined, [projectId]),
-                  },
-                  {
-                    label: "Add existing resources",
-                    icon: <ListPlusIcon />,
-                    onSelect: () => setAddingExisting(true),
-                  },
-                ]}
-              />
-              <label className="flex items-center gap-2 text-xs text-text-muted">
-                <Switch
-                  size="sm"
-                  checked={checklistData?.enabled ?? false}
-                  disabled={!checklistData || checklist.mutation.isPending}
-                  onCheckedChange={(enabled) =>
-                    checklist.mutation.mutate({ action: "mode", enabled })
-                  }
-                />
-                Checklist mode
-              </label>
-              {checklistData?.enabled ? (
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  aria-label="Reset checklist"
-                  title="Reset checklist"
-                  className="text-text-muted hover:text-foreground"
-                  disabled={
-                    checklist.mutation.isPending ||
-                    !checklistData.checkedResourceIds.length
-                  }
-                  onClick={() => checklist.mutation.mutate({ action: "reset" })}
-                >
-                  <RotateCcwIcon /> Reset
-                </Button>
-              ) : null}
-            </div>
-          </div>
-          <QueryFeedback
-            query={checklist.query}
-            label="resource checklist"
-            loading={false}
-          />
-          {checklistData?.enabled ? (
-            <p className="mb-3 text-xs text-subtle">
-              Check off resources as you finish. Reset the checklist whenever
-              you want to start again.
-            </p>
-          ) : null}
           <ResourceChecklistContext.Provider value={checklistContext}>
             <LibraryView
               title={project?.name ?? "Project"}
@@ -352,15 +286,80 @@ export function ProjectPage({
               emptyTitle="Nothing filed here yet"
               emptyDescription="Add a new resource here, add existing independent resources, or drag a resource onto this project in the sidebar."
               hideHeader
-              extraFilters={
-                <label className="flex items-center gap-2 text-xs text-text-muted">
-                  <Switch
+              extraActions={
+                <>
+                  <AddMenu
                     size="sm"
-                    checked={includeDescendants}
-                    onCheckedChange={setIncludeDescendants}
+                    items={[
+                      {
+                        label: "Add new resource",
+                        icon: <PlusIcon />,
+                        onSelect: () => openAddResource(undefined, [projectId]),
+                      },
+                      {
+                        label: "Add existing resources",
+                        icon: <ListPlusIcon />,
+                        onSelect: () => setAddingExisting(true),
+                      },
+                    ]}
                   />
-                  Include sub-projects
-                </label>
+                  <label className="flex items-center gap-2 text-xs text-text-muted">
+                    <Switch
+                      size="sm"
+                      checked={checklistData?.enabled ?? false}
+                      disabled={!checklistData || checklist.mutation.isPending}
+                      onCheckedChange={(enabled) =>
+                        checklist.mutation.mutate({ action: "mode", enabled })
+                      }
+                    />
+                    Checklist mode
+                  </label>
+                  {checklistData?.enabled ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Reset checklist"
+                      title="Reset checklist"
+                      className="text-text-muted hover:text-foreground"
+                      disabled={
+                        checklist.mutation.isPending ||
+                        !checklistData.checkedResourceIds.length
+                      }
+                      onClick={() =>
+                        checklist.mutation.mutate({ action: "reset" })
+                      }
+                    >
+                      <RotateCcwIcon /> Reset
+                    </Button>
+                  ) : null}
+                </>
+              }
+              toolbarDetails={
+                <>
+                  <QueryFeedback
+                    query={checklist.query}
+                    label="resource checklist"
+                    loading={false}
+                  />
+                  {checklistData?.enabled ? (
+                    <div className="mb-4 space-y-1">
+                      <p className="text-xs text-subtle" role="status">
+                        {checklistData.checkedResourceIds.length} of{" "}
+                        {checklistData.resourceIds.length} done
+                      </p>
+                      <p className="text-xs text-subtle">
+                        Check off resources as you finish. Reset the checklist
+                        whenever you want to start again.
+                      </p>
+                    </div>
+                  ) : null}
+                </>
+              }
+              extraFilters={
+                <ProjectScopeFilter
+                  includeDescendants={includeDescendants}
+                  onIncludeDescendantsChange={setIncludeDescendants}
+                />
               }
               extraActiveCount={includeDescendants ? 1 : 0}
             />
@@ -372,6 +371,7 @@ export function ProjectPage({
             projectId={projectId}
             projectName={project?.name ?? ""}
             includeDescendants={includeDescendants}
+            onIncludeDescendantsChange={setIncludeDescendants}
           />
         </TabsContent>
 
@@ -379,6 +379,7 @@ export function ProjectPage({
           <ProjectSubprojectsTab
             projectId={projectId}
             includeDescendants={includeDescendants}
+            onIncludeDescendantsChange={setIncludeDescendants}
           />
         </TabsContent>
 
@@ -386,6 +387,7 @@ export function ProjectPage({
           <ProjectQuickNotesTab
             projectId={projectId}
             includeDescendants={includeDescendants}
+            onIncludeDescendantsChange={setIncludeDescendants}
           />
         </TabsContent>
       </Tabs>

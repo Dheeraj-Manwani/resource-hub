@@ -29,6 +29,7 @@ import {
 import type { QuickNoteDto } from "@/lib/quick-notes/dto"
 
 import { AddExistingQuickNoteDialog } from "./add-existing-quick-note-dialog"
+import { ProjectTabToolbar } from "./project-tab-toolbar"
 
 /** Project page's "Notes" tab: quick notes linked to this project (and its
  * sub-projects when "Include sub-projects" is on), with the same card grid
@@ -36,9 +37,11 @@ import { AddExistingQuickNoteDialog } from "./add-existing-quick-note-dialog"
 export function ProjectQuickNotesTab({
   projectId,
   includeDescendants,
+  onIncludeDescendantsChange,
 }: {
   projectId: string
   includeDescendants: boolean
+  onIncludeDescendantsChange: (include: boolean) => void
 }) {
   const notesQuery = useQuickNotes({
     projectId,
@@ -100,19 +103,23 @@ export function ProjectQuickNotesTab({
 
   return (
     <div>
-      <div className="mb-2 flex justify-end">
-        <AddMenu
-          size="xs"
-          items={[
-            { label: "Add new doc", icon: <PlusIcon />, onSelect: openNew },
-            {
-              label: "Add existing docs",
-              icon: <ListPlusIcon />,
-              onSelect: () => setAddingExisting(true),
-            },
-          ]}
-        />
-      </div>
+      <ProjectTabToolbar
+        includeDescendants={includeDescendants}
+        onIncludeDescendantsChange={onIncludeDescendantsChange}
+        actions={
+          <AddMenu
+            size="sm"
+            items={[
+              { label: "Add new doc", icon: <PlusIcon />, onSelect: openNew },
+              {
+                label: "Add existing docs",
+                icon: <ListPlusIcon />,
+                onSelect: () => setAddingExisting(true),
+              },
+            ]}
+          />
+        }
+      />
 
       <QueryFeedback query={notesQuery} label="project notes" loading={false} />
       <PendingCreations
