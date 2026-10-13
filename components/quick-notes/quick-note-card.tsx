@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  ArrowUpRightIcon,
   FolderIcon,
   Trash2Icon,
   FileTextIcon,
@@ -8,16 +9,32 @@ import {
   PencilRulerIcon,
   PencilIcon,
 } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
 import { formatRelative } from "@/lib/format"
 import type { QuickNoteDto } from "@/lib/quick-notes/dto"
-import { cn } from "@/lib/utils"
 import { ItemMenu } from "@/components/ui/item-menu"
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
+import { DocumentCardPreview } from "./document-card-preview"
+
+const appearances = {
+  text: {
+    label: "Text doc",
+    icon: FileTextIcon,
+    color: "bg-sky-400/10 text-sky-300 ring-sky-400/15",
+  },
+  spreadsheet: {
+    label: "Spreadsheet",
+    icon: SheetIcon,
+    color: "bg-emerald-400/10 text-emerald-300 ring-emerald-400/15",
+  },
+  drawing: {
+    label: "Drawing",
+    icon: PencilRulerIcon,
+    color: "bg-violet-400/10 text-violet-300 ring-violet-400/15",
+  },
+}
 
 export function QuickNoteCard({
   note,
@@ -28,15 +45,16 @@ export function QuickNoteCard({
   note: QuickNoteDto
   onOpen: () => void
   onDelete: () => void
-  /** Suppress the project badge when every card in the list already belongs
-   * to the same project (the project page's Notes tab). */
+  /** Suppress the project badge on the project's own Docs tab. */
   hideProject?: boolean
 }) {
-  const preview = note.bodyText?.trim()
+  const appearance = appearances[note.kind]
+  const Icon = appearance.icon
+  const title = note.title || "Untitled"
   return (
     <ItemMenu
-      label={`${note.title || "Untitled"} options`}
-      buttonClassName="absolute top-2 right-2"
+      label={`${title} options`}
+      buttonClassName="absolute top-4 right-3 text-subtle"
       actions={
         <>
           <DropdownMenuItem onClick={onOpen}>
@@ -53,67 +71,68 @@ export function QuickNoteCard({
       trigger={
         <div
           role="button"
+          aria-label={`Open ${title}`}
           tabIndex={0}
           onClick={onOpen}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && e.target === e.currentTarget) onOpen()
+            if (
+              (e.key === "Enter" || e.key === " ") &&
+              e.target === e.currentTarget
+            ) {
+              e.preventDefault()
+              onOpen()
+            }
           }}
-          className="group relative flex h-40 flex-col rounded-xl border border-border bg-surface p-3.5 text-left transition-colors hover:border-border-strong focus-visible:outline-2 focus-visible:outline-brand"
+          className="group relative flex h-68 min-w-0 cursor-pointer flex-col rounded-2xl border border-border bg-surface p-4 text-left transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         />
       }
     >
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Move doc to Trash"
-        onClick={(e) => {
-          e.stopPropagation()
-          onDelete()
-        }}
-        className="absolute top-2 right-10 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
-      >
-        <Trash2Icon />
-      </Button>
-
-      <h3
-        className={cn(
-          "truncate pr-16 text-sm font-medium",
-          !note.title && "text-subtle"
-        )}
-      >
-        {note.kind === "spreadsheet" ? (
-          <SheetIcon className="mr-1 inline size-4" />
-        ) : note.kind === "drawing" ? (
-          <PencilRulerIcon className="mr-1 inline size-4" />
-        ) : (
-          <FileTextIcon className="mr-1 inline size-4" />
-        )}
-        {note.title || "Untitled"}
-      </h3>
-
-      <p className="mt-1.5 flex-1 overflow-hidden text-sm whitespace-pre-line text-text-muted">
-        {preview || <span className="text-subtle italic">Empty doc</span>}
-      </p>
-
-      <div className="mt-2 flex items-center gap-1.5 text-xs text-subtle">
-        <span>
-          {note.kind === "spreadsheet"
-            ? "Spreadsheet"
-            : note.kind === "drawing"
-              ? "Drawing"
-              : "Text"}{" "}
-          ·
+      <div className="flex h-15 min-w-0 shrink-0 items-start gap-3 pr-7">
+        <span
+          className={`flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ${appearance.color}`}
+        >
+          <Icon aria-hidden="true" className="size-5" />
         </span>
-        <span>{formatRelative(note.updatedAt)}</span>
+        <div className="min-w-0 flex-1">
+          <p className="mb-1 text-[11px] font-medium tracking-wide text-subtle">
+            {appearance.label}
+          </p>
+          <h3
+            title={title}
+            className="line-clamp-2 text-[15px] leading-5 font-semibold break-words text-foreground"
+          >
+            {title}
+          </h3>
+        </div>
+      </div>
+      <div className="my-4 min-h-0 flex-1 overflow-hidden rounded-lg border border-border/70 bg-background/40">
+        <DocumentCardPreview note={note} />
+      </div>
+      <div className="flex min-w-0 items-center gap-2 text-[11px] text-subtle">
         {!hideProject && note.project ? (
-          <span className="flex min-w-0 items-center gap-1 truncate rounded-full bg-white/[0.06] px-1.5 py-0.5">
+          <span
+            className="flex min-w-0 items-center gap-1.5"
+            title={note.project.name}
+          >
             <FolderIcon
-              className="size-3 shrink-0"
+              aria-hidden="true"
+              className="size-3.5 shrink-0"
               style={{ color: note.project.color ?? undefined }}
             />
             <span className="truncate">{note.project.name}</span>
           </span>
-        ) : null}
+        ) : (
+          <span className="truncate">
+            {hideProject ? "Updated" : "Personal doc"}
+          </span>
+        )}
+        <span className="ml-auto shrink-0">
+          {formatRelative(note.updatedAt)}
+        </span>
+        <ArrowUpRightIcon
+          aria-hidden="true"
+          className="size-3.5 shrink-0 text-subtle transition-colors group-hover:text-foreground"
+        />
       </div>
     </ItemMenu>
   )
