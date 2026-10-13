@@ -285,6 +285,7 @@ export function ResourcePreviewDialog({
                 <FilePreview
                   key={resource.file?.id ?? resource.url ?? resource.id}
                   resource={resource}
+                  onOpenImage={(imgId) => openImages([resource], imgId)}
                   modal
                 />
               ) : (

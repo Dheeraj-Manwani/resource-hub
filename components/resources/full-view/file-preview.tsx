@@ -209,7 +209,7 @@ function ParsedPreview({
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center justify-between border-b border-border bg-surface px-4 py-2">
         <p className="text-xs text-text-muted">
-          Reading view · Layout may differ from the original
+          Reading view · Open original for images and exact formatting
         </p>
         <div className="flex items-center gap-1">
           <Button
@@ -256,9 +256,11 @@ function ParsedPreview({
 export function FilePreview({
   resource,
   modal = false,
+  onOpenImage,
 }: {
   resource: ResourceDto
   modal?: boolean
+  onOpenImage?: (id: string) => void
 }) {
   const src = resource.file?.url ?? resource.url
   const kind = resourcePreviewKind(resource)
@@ -338,6 +340,7 @@ export function FilePreview({
               recovery
               fit="contain"
               className="max-h-[65vh] w-full"
+              onOpen={onOpenImage ? () => onOpenImage(resource.id) : undefined}
             />
           ) : (
             <div className="flex min-h-64 flex-col items-center justify-center gap-5 bg-gradient-to-b from-brand/10 to-surface p-8">

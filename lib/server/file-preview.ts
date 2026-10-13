@@ -96,7 +96,7 @@ export function sanitizeDocument(html: string) {
       "hr",
     ],
     allowedAttributes: {
-      a: ["href"],
+      a: ["href", "target", "rel"],
       td: ["colspan", "rowspan"],
       th: ["colspan", "rowspan"],
     },

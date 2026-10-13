@@ -98,8 +98,9 @@ export function ResourceFullView({
   const m = resource.metadata
 
   if (
-    resource.file ||
-    (resource.url &&
+    resource.type === "file" ||
+    (resource.type === "link" &&
+      resource.url &&
       [
         "pdf",
         "spreadsheet",
@@ -116,6 +117,7 @@ export function ResourceFullView({
       <FilePreview
         key={resource.file?.id ?? resource.url ?? resource.id}
         resource={resource}
+        onOpenImage={onOpenImage}
       />
     )
   }
@@ -188,13 +190,6 @@ export function ResourceFullView({
             <CopyButton text={resource.bodyText ?? ""} label="Copy text" />
           </div>
         </div>
-      )
-    case "file":
-      return (
-        <FilePreview
-          key={resource.file?.id ?? resource.url ?? resource.id}
-          resource={resource}
-        />
       )
     default:
       return (
