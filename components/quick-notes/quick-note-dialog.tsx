@@ -35,6 +35,11 @@ import { SpreadsheetDialog } from "@/components/docs/spreadsheet-dialog"
 import { DrawingDialog } from "@/components/docs/drawing-dialog"
 import { createDrawing } from "@/lib/docs/drawing"
 import { NewDocPicker } from "@/components/docs/new-doc-picker"
+import {
+  DocumentThemeToggle,
+  useDocumentTheme,
+  type DocumentTheme,
+} from "@/components/docs/document-theme-toggle"
 
 const NoteEditor = dynamic(
   () => import("@/components/resources/full-view/note-editor"),
@@ -138,6 +143,8 @@ function DialogBody({
   fullscreen,
   onFullscreen,
   onUploadStateChange,
+  theme,
+  onThemeChange,
 }: {
   draft: QuickNoteDraft
   onLiveChange: (patch: Partial<LiveDraft>) => void
@@ -147,6 +154,8 @@ function DialogBody({
   fullscreen: boolean
   onFullscreen: () => void
   onUploadStateChange: (pending: number) => void
+  theme: DocumentTheme
+  onThemeChange: (theme: DocumentTheme) => void
 }) {
   const sync = useSyncController()
   const [title, setTitle] = useState(draft.title)
@@ -251,6 +260,8 @@ function DialogBody({
           documentTitle={title}
           fullscreen={fullscreen}
           onFullscreen={onFullscreen}
+          documentTheme={theme}
+          onDocumentThemeChange={onThemeChange}
           onUploadStateChange={(pending) => {
             setPendingUploads(pending)
             onUploadStateChange(pending)
@@ -263,6 +274,7 @@ function DialogBody({
         />
         {fullscreen && (
           <div className="absolute top-3 right-4 z-10 flex items-center gap-2">
+            <DocumentThemeToggle theme={theme} onChange={onThemeChange} />
             <Button
               loading={saving}
               onClick={onSaveClick}
@@ -352,6 +364,7 @@ function TextNoteDialog({
   onSave: (next: QuickNoteDraft, opts: SaveOpts) => void
   saving: boolean
 }) {
+  const { theme, changeTheme } = useDocumentTheme("text")
   const live = useRef<LiveDraft>({
     projectId: null,
     title: "",
@@ -482,8 +495,9 @@ function TextNoteDialog({
       >
         <DialogContent
           showCloseButton={false}
+          data-document-theme={theme}
           className={cn(
-            "flex flex-col gap-0 p-0",
+            "document-theme flex flex-col gap-0 p-0",
             fullscreen
               ? "top-0 left-0 h-[100dvh] max-h-none w-screen max-w-none translate-x-0 translate-y-0 rounded-none sm:max-w-none data-open:animate-none"
               : "h-[90vh] max-h-250 w-[95vw] max-w-5xl sm:max-w-5xl"
@@ -499,6 +513,8 @@ function TextNoteDialog({
               saving={saving}
               fullscreen={fullscreen}
               onFullscreen={() => setFullscreen((value) => !value)}
+              theme={theme}
+              onThemeChange={changeTheme}
               onUploadStateChange={(pending) => {
                 pendingUploads.current = pending
                 setUploading(pending > 0)

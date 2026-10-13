@@ -19,13 +19,16 @@ import "@univerjs/preset-sheets-core/lib/index.css"
 import "@univerjs/preset-sheets-filter/lib/index.css"
 import "@univerjs/preset-sheets-sort/lib/index.css"
 import "@univerjs/preset-sheets-data-validation/lib/index.css"
+import type { DocumentTheme } from "./document-theme-toggle"
 
 export default function SheetEditor({
   initial,
+  theme,
   onChange,
   onReady,
 }: {
   initial: Partial<IWorkbookData>
+  theme: DocumentTheme
   onChange: (workbook: IWorkbookData) => void
   onReady: (
     getSnapshot: () => Promise<IWorkbookData>,
@@ -34,6 +37,7 @@ export default function SheetEditor({
 }) {
   const container = useRef<HTMLDivElement>(null)
   const callbacks = useRef({ onChange, onReady })
+  const setDarkMode = useRef<((dark: boolean) => void) | null>(null)
   useEffect(() => {
     callbacks.current = { onChange, onReady }
   }, [onChange, onReady])
@@ -43,7 +47,7 @@ export default function SheetEditor({
     host.style.height = "100%"
     container.current.appendChild(host)
     const { univer, univerAPI } = createUniver({
-      darkMode: true,
+      darkMode: theme === "dark",
       locale: LocaleType.EN_US,
       locales: {
         [LocaleType.EN_US]: mergeLocales(
@@ -60,6 +64,7 @@ export default function SheetEditor({
         UniverSheetsDataValidationPreset(),
       ],
     })
+    setDarkMode.current = (dark) => univerAPI.toggleDarkMode(dark)
     const workbook = univerAPI.createWorkbook(initial)
     if (initial.name === "Job tracker" && !initial.resources?.length) {
       const status = univerAPI
@@ -87,6 +92,7 @@ export default function SheetEditor({
       timer = setTimeout(() => callbacks.current.onChange(workbook.save()), 100)
     })
     return () => {
+      setDarkMode.current = null
       clearTimeout(timer)
       subscription.dispose()
       host.remove()
@@ -95,11 +101,15 @@ export default function SheetEditor({
     // A new document/import is deliberately mounted with a new key by the host.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  useEffect(() => {
+    setDarkMode.current?.(theme === "dark")
+  }, [theme])
   return (
     <div
       ref={container}
       className="h-full min-h-80 w-full"
       aria-label="Editable spreadsheet"
+      data-document-theme={theme}
     />
   )
 }

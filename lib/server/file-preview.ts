@@ -21,6 +21,8 @@ export function delimitedPreview(
   let row: string[] = [],
     cell = "",
     quoted = false,
+    hasRecord = false,
+    clipped = false,
     columns = 0,
     count = 0
   const pushCell = () => {
@@ -34,14 +36,17 @@ export function delimitedPreview(
     if (rows.length < MAX_ROWS) rows.push(row)
     row = []
     columns = 0
+    hasRecord = false
   }
   let columnCount = 0
   text = text.replace(/^\uFEFF/, "")
   for (let i = 0; i < text.length; i++) {
     const char = text[i]
+    if (char !== "\r" && char !== "\n") hasRecord = true
     if (char === '"' && (quoted || !cell)) {
       if (quoted && text[i + 1] === '"') {
-        cell += '"'
+        if (cell.length < 2000) cell += '"'
+        else clipped = true
         i++
       } else quoted = !quoted
     } else if (char === delimiter && !quoted) pushCell()
@@ -50,9 +55,10 @@ export function delimitedPreview(
       pushRow()
       if (char === "\r" && text[i + 1] === "\n") i++
     } else if (cell.length < 2000) cell += char
+    else clipped = true
   }
   if (quoted) throw new Error("This file has an unfinished quoted cell.")
-  if (cell || row.length || columns) {
+  if (hasRecord || cell || row.length || columns) {
     columnCount = Math.max(columnCount, columns + 1)
     pushRow()
   }
@@ -61,7 +67,7 @@ export function delimitedPreview(
     rows,
     rowCount: count,
     columnCount,
-    truncated: count > MAX_ROWS || columnCount > MAX_COLUMNS,
+    truncated: clipped || count > MAX_ROWS || columnCount > MAX_COLUMNS,
   }
 }
 
@@ -177,17 +183,19 @@ export async function parseFilePreview(
     const sheets = workbook.worksheets.map((sheet): PreviewSheet => {
       const rowCount = sheet.rowCount,
         columnCount = sheet.columnCount
+      let clipped = false
       const rows = Array.from(
         { length: Math.min(rowCount, MAX_ROWS) },
         (_, r) =>
           Array.from({ length: Math.min(columnCount, MAX_COLUMNS) }, (_, c) => {
             const cell = sheet.getCell(r + 1, c + 1)
             // Cached formula results only; never execute workbook formulas or macros.
-            return (
+            const value =
               cell.value instanceof Date
                 ? cell.value.toISOString().slice(0, 10)
                 : cell.text
-            ).slice(0, 2000)
+            if (value.length > 2000) clipped = true
+            return value.slice(0, 2000)
           })
       )
       return {
@@ -195,7 +203,7 @@ export async function parseFilePreview(
         rows,
         rowCount,
         columnCount,
-        truncated: rowCount > MAX_ROWS || columnCount > MAX_COLUMNS,
+        truncated: clipped || rowCount > MAX_ROWS || columnCount > MAX_COLUMNS,
       }
     })
     return { kind: "spreadsheet", sheets }

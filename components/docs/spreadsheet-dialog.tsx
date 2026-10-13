@@ -26,6 +26,7 @@ import {
 } from "@/lib/docs/workbook"
 import { api } from "@/lib/api-client"
 import { useDocEscape } from "./use-doc-escape"
+import { DocumentThemeToggle, useDocumentTheme } from "./document-theme-toggle"
 
 const SheetEditor = dynamic(() => import("./sheet-editor"), {
   ssr: false,
@@ -40,6 +41,7 @@ export function SpreadsheetDialog({
   draft: QuickNoteDraft
   onClose: () => void
 }) {
+  const { theme, changeTheme } = useDocumentTheme("spreadsheet")
   const [initial, setInitial] = useState(
     () => (draft.bodyJson ?? createWorkbook()) as Partial<IWorkbookData>
   )
@@ -294,7 +296,8 @@ export function SpreadsheetDialog({
       <DialogContent
         ref={dialog}
         showCloseButton={false}
-        className="flex h-[100dvh] max-h-none w-screen max-w-none flex-col gap-0 rounded-none p-0 sm:max-w-none"
+        data-document-theme={theme}
+        className="document-theme flex h-[100dvh] max-h-none w-screen max-w-none flex-col gap-0 rounded-none p-0 sm:max-w-none"
       >
         <DialogTitle className="sr-only">Spreadsheet doc</DialogTitle>
         <DialogDescription className="sr-only">
@@ -316,6 +319,7 @@ export function SpreadsheetDialog({
           <span role="status" className="text-xs text-text-muted">
             {status}
           </span>
+          <DocumentThemeToggle theme={theme} onChange={changeTheme} />
           <ProjectSinglePicker
             value={projectId}
             render={<Button size="sm" variant="outline" />}
@@ -385,10 +389,11 @@ export function SpreadsheetDialog({
           images, macros and advanced Excel features are not preserved. Backup
           keeps the full in-app workbook.
         </p>
-        <div className="min-h-0 flex-1 bg-[#18181b] text-[#f4f4f5]">
+        <div className="min-h-0 flex-1 bg-surface text-foreground">
           <SheetEditor
             key={editorKey}
             initial={initial}
+            theme={theme}
             onReady={(getter, baseline) => {
               live.current.bodyJson = baseline
               if (normalizeBaseline.current && lastSaved.current) {

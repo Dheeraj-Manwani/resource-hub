@@ -2,8 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* <html> always carries .dark so shadcn `dark:` variants always apply. */
-@custom-variant dark (&:is(.dark *));
+/* Document workspaces can opt into a local light palette inside the dark app. */
+@custom-variant dark (&:is(.dark *):not([data-document-theme="light"], [data-document-theme="light"] *));
 
 /*
  * Single dark theme. Brand tokens are defined once in :root and mapped onto
@@ -93,6 +93,41 @@
   --sidebar-accent-foreground: var(--text);
   --sidebar-border: var(--border-hairline);
   --sidebar-ring: var(--brand);
+}
+
+.document-theme[data-document-theme="light"] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --bg-sunken: #f8fafc;
+  --surface: #ffffff;
+  --surface-raised: #f1f5f9;
+  --border-hairline: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text: #18181b;
+  --text-muted: #475569;
+  --text-subtle: #64748b;
+  --brand: #c44900;
+  --brand-hover: #a43c00;
+  --brand-fg: #ffffff;
+  --brand-soft: rgb(196 73 0 / 0.1);
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--text);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-fg);
+  --secondary: var(--surface-raised);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-raised);
+  --muted-foreground: var(--text-muted);
+  --accent: #e2e8f0;
+  --accent-foreground: var(--text);
+  --destructive: #dc2626;
+  --border: var(--border-hairline);
+  --input: var(--border-strong);
+  --ring: var(--brand);
 }
 
 @theme inline {

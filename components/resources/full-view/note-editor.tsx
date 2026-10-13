@@ -41,6 +41,7 @@ import {
   WorkspaceControls,
 } from "@/components/docs/document-workspace"
 import { hasTemporaryImages } from "@/lib/docs/text-document"
+import type { DocumentTheme } from "@/components/docs/document-theme-toggle"
 
 type Doc = Record<string, unknown>
 
@@ -291,6 +292,8 @@ export default function NoteEditor({
   fullscreen,
   onFullscreen,
   onUploadStateChange,
+  documentTheme,
+  onDocumentThemeChange,
 }: {
   content: Doc | null
   editable?: boolean
@@ -313,6 +316,8 @@ export default function NoteEditor({
   fullscreen?: boolean
   onFullscreen?: () => void
   onUploadStateChange?: (pending: number) => void
+  documentTheme?: DocumentTheme
+  onDocumentThemeChange?: (theme: DocumentTheme) => void
 }) {
   const sync = useSyncController()
   const instanceId = useId()
@@ -673,6 +678,8 @@ export default function NoteEditor({
                 fullscreen={fullscreen}
                 onFullscreen={onFullscreen}
                 uploading={uploading}
+                theme={documentTheme}
+                onThemeChange={onDocumentThemeChange}
               />
             )}
             <FormattingMenu

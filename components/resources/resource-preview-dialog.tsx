@@ -83,6 +83,7 @@ export function ResourcePreviewDialog({
         "text",
         "video",
         "audio",
+        "image",
         "presentation",
         "archive",
       ].includes(kind))

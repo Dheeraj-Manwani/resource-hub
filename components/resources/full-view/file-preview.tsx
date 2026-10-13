@@ -44,8 +44,10 @@ function SpreadsheetPreview({ sheets }: { sheets: PreviewSheet[] }) {
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-surface">
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2 text-xs text-text-muted">
         <span>
-          {sheet.rowCount.toLocaleString()} rows ·{" "}
-          {sheet.columnCount.toLocaleString()} columns
+          {sheet.rowCount.toLocaleString()}{" "}
+          {sheet.rowCount === 1 ? "row" : "rows"} ·{" "}
+          {sheet.columnCount.toLocaleString()}{" "}
+          {sheet.columnCount === 1 ? "column" : "columns"}
         </span>
         <span>Read-only · Saved values</span>
       </div>
@@ -54,11 +56,18 @@ function SpreadsheetPreview({ sheets }: { sheets: PreviewSheet[] }) {
           role="status"
           className="border-b border-border bg-muted px-4 py-2 text-xs"
         >
-          Showing up to 500 rows and 50 columns. Download for the complete
-          workbook.
+          Preview is limited to 500 rows, 50 columns and 2,000 characters per
+          cell. Download for the complete workbook.
         </p>
       ) : null}
-      <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+      <div
+        key={active}
+        id="resource-preview-sheet"
+        role="tabpanel"
+        aria-labelledby={`resource-preview-sheet-tab-${active}`}
+        tabIndex={0}
+        className="min-h-0 flex-1 overflow-auto overscroll-contain"
+      >
         {sheet.rows.length ? (
           <table
             aria-label={`${sheet.name} spreadsheet`}
@@ -68,7 +77,7 @@ function SpreadsheetPreview({ sheets }: { sheets: PreviewSheet[] }) {
               <tr>
                 <th
                   aria-label="Row number"
-                  className="sticky left-0 z-20 min-w-12 border-r border-b border-border bg-muted px-3 py-2"
+                  className="sticky left-0 z-20 w-12 min-w-12 border-r border-b border-border bg-muted px-3 py-2"
                 />
                 {Array.from(
                   { length: Math.min(sheet.columnCount, 50) },
@@ -89,7 +98,7 @@ function SpreadsheetPreview({ sheets }: { sheets: PreviewSheet[] }) {
                 <tr key={r} className="hover:bg-muted/40">
                   <th
                     scope="row"
-                    className="sticky left-0 border-r border-b border-border bg-muted px-3 py-2 text-center font-normal text-text-muted"
+                    className="sticky left-0 w-12 min-w-12 border-r border-b border-border bg-muted px-3 py-2 text-center font-normal text-text-muted"
                   >
                     {r + 1}
                   </th>
@@ -123,12 +132,28 @@ function SpreadsheetPreview({ sheets }: { sheets: PreviewSheet[] }) {
         {sheets.map((item, index) => (
           <Button
             role="tab"
+            id={`resource-preview-sheet-tab-${index}`}
+            tabIndex={active === index ? 0 : -1}
             aria-selected={active === index}
             aria-controls="resource-preview-sheet"
             key={index}
             size="sm"
             variant={active === index ? "secondary" : "ghost"}
             onClick={() => setActive(index)}
+            onKeyDown={(event) => {
+              let next = index
+              if (event.key === "ArrowRight") next = (index + 1) % sheets.length
+              else if (event.key === "ArrowLeft")
+                next = (index - 1 + sheets.length) % sheets.length
+              else if (event.key === "Home") next = 0
+              else if (event.key === "End") next = sheets.length - 1
+              else return
+              event.preventDefault()
+              setActive(next)
+              event.currentTarget.parentElement
+                ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+                [next]?.focus()
+            }}
           >
             {item.name}
           </Button>
@@ -176,8 +201,6 @@ function ParsedPreview({
   if (data.kind === "spreadsheet")
     return (
       <div
-        id="resource-preview-sheet"
-        role="tabpanel"
         className={cn(
           "flex min-h-0 flex-1 flex-col overflow-hidden",
           !modal && "h-[60vh] flex-none"
@@ -262,8 +285,11 @@ export function FilePreview({
   modal?: boolean
   onOpenImage?: (id: string) => void
 }) {
-  const src = resource.file?.url ?? resource.url
   const kind = resourcePreviewKind(resource)
+  const src =
+    resource.file?.url ??
+    resource.url ??
+    (kind === "image" ? resource.thumbnailUrl : null)
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   const [slow, setSlow] = useState(false)

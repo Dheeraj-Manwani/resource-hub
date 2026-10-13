@@ -15,6 +15,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { toast } from "react-hot-toast"
 import { Button } from "@/components/ui/button"
 import {
+  DocumentThemeToggle,
+  type DocumentTheme,
+} from "./document-theme-toggle"
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -215,6 +219,8 @@ export function WorkspaceControls({
   fullscreen,
   onFullscreen,
   uploading,
+  theme,
+  onThemeChange,
 }: {
   editor: Editor
   title: string
@@ -223,9 +229,14 @@ export function WorkspaceControls({
   fullscreen?: boolean
   onFullscreen?: () => void
   uploading: boolean
+  theme?: DocumentTheme
+  onThemeChange?: (theme: DocumentTheme) => void
 }) {
   return (
     <div className="flex shrink-0 items-center gap-1">
+      {theme && onThemeChange && (
+        <DocumentThemeToggle theme={theme} onChange={onThemeChange} />
+      )}
       <select
         aria-label="Writing width"
         value={width}
