@@ -100,7 +100,7 @@ test("project creation defaults work on desktop, mobile and resource details", a
   await page.setViewportSize({ width: 1440, height: 900 })
   await addMenu(page, "New doc")
   await page
-    .getByRole("button", { name: "Text — write freely, add images and links" })
+    .getByRole("button", { name: "Text — write plain text" })
     .click()
   const noteDialog = page.getByRole("dialog", {
     name: "New doc",

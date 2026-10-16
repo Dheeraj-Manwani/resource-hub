@@ -9,6 +9,12 @@ import { workbookSchema, workbookText } from "@/lib/docs/workbook"
 import { drawingSchema, drawingText } from "@/lib/docs/drawing"
 import { hasTemporaryImages } from "@/lib/docs/text-document"
 import {
+  isPlainTextDocument,
+  isPlainTextFormatCandidate,
+  plainTextFormatSchema,
+  plainTextBodySchema,
+} from "@/lib/docs/plain-text"
+import {
   toQuickNoteDto,
   type QuickNoteDto,
   type QuickNoteProjectDto,
@@ -155,18 +161,29 @@ export async function updateQuickNote(
     if (input.kind && input.kind !== current.kind)
       throw badRequest("A doc's type cannot be changed.")
     if (
-      (current.kind === "spreadsheet" || current.kind === "drawing") &&
+      current.kind === "text" &&
       input.bodyJson !== undefined &&
+      isPlainTextDocument(current.bodyJson) !==
+        isPlainTextFormatCandidate(input.bodyJson)
+    )
+      throw badRequest("Create a copy to change a text doc's editing format.")
+    if (
+      (current.kind === "spreadsheet" ||
+        current.kind === "drawing" ||
+        isPlainTextDocument(current.bodyJson)) &&
+      (input.bodyJson !== undefined || input.bodyText !== undefined) &&
       input.expectedRevision === undefined
     )
-      throw badRequest("Spreadsheet and drawing saves require a revision.")
+      throw badRequest("This document save requires a revision.")
     if (
       input.expectedRevision !== undefined &&
       input.expectedRevision !== current.revision
     )
       throw new ApiError(
         409,
-        "This doc changed in another tab. Download a backup of your edits, then reopen the doc.",
+        isPlainTextDocument(current.bodyJson)
+          ? "This doc changed in another tab. Copy your text before reopening the doc."
+          : "This doc changed in another tab. Download a backup of your edits, then reopen the doc.",
         "revision_conflict"
       )
     await tx
@@ -182,7 +199,7 @@ export async function updateQuickNote(
     const [updated] = await tx
       .update(quickNotes)
       .set({
-        ...documentValues(input, current.kind),
+        ...documentValues(input, current.kind, current.bodyJson),
         revision: current.revision + 1,
       })
       .where(eq(quickNotes.id, id))
@@ -207,13 +224,24 @@ export async function deleteQuickNote(
 
 function documentValues(
   input: QuickNoteInput,
-  kind: "text" | "spreadsheet" | "drawing"
+  kind: "text" | "spreadsheet" | "drawing",
+  currentBodyJson?: unknown
 ) {
   if (kind === "text" && hasTemporaryImages(input.bodyJson))
     throw badRequest("Image uploads must finish before saving a document.")
   const values = { ...input }
   delete values.expectedRevision
   delete values.clientId
+  if (
+    kind === "text" &&
+    isPlainTextFormatCandidate(values.bodyJson ?? currentBodyJson)
+  ) {
+    if (values.bodyJson !== undefined)
+      values.bodyJson = plainTextFormatSchema.parse(values.bodyJson)
+    if (values.bodyText !== undefined)
+      values.bodyText = plainTextBodySchema.parse(values.bodyText)
+    else if (currentBodyJson === undefined) values.bodyText = ""
+  }
   if (kind === "spreadsheet" && values.bodyJson !== undefined) {
     values.bodyJson = workbookSchema.parse(values.bodyJson)
     values.bodyText = workbookText(values.bodyJson)

@@ -7,6 +7,12 @@ import dynamic from "next/dynamic"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "react-hot-toast"
 import { hasTemporaryImages } from "@/lib/docs/text-document"
+import {
+  isPlainTextDocument,
+  plainTextFormat,
+  richDocumentText,
+} from "@/lib/docs/plain-text"
+import { PlainTextDialog } from "@/components/docs/plain-text-dialog"
 import { cn } from "@/lib/utils"
 
 import {
@@ -47,6 +53,7 @@ const NoteEditor = dynamic(
 )
 
 export type QuickNoteDraft = {
+  clientId?: string
   kind?: "text" | "spreadsheet" | "drawing"
   revision?: number
   id: string | null
@@ -73,6 +80,7 @@ export type SaveOpts = {
    * save, so a later save in the same session updates that note instead
    * of creating another one. */
   onSaved: (id: string, revision?: number) => boolean
+  onError?: (error: Error) => void
 }
 
 function isDirty(baseline: LiveDraft, live: LiveDraft) {
@@ -145,6 +153,7 @@ function DialogBody({
   onUploadStateChange,
   theme,
   onThemeChange,
+  onCreatePlainTextCopy,
 }: {
   draft: QuickNoteDraft
   onLiveChange: (patch: Partial<LiveDraft>) => void
@@ -156,6 +165,7 @@ function DialogBody({
   onUploadStateChange: (pending: number) => void
   theme: DocumentTheme
   onThemeChange: (theme: DocumentTheme) => void
+  onCreatePlainTextCopy: () => void
 }) {
   const sync = useSyncController()
   const [title, setTitle] = useState(draft.title)
@@ -252,6 +262,17 @@ function DialogBody({
           !fullscreen && "px-4 py-3"
         )}
       >
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-subtle">
+          <span>Formatted text</span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={saving || pendingUploads > 0}
+            onClick={onCreatePlainTextCopy}
+          >
+            Create plain-text copy
+          </Button>
+        </div>
         <NoteEditor
           content={(draft.bodyJson as Record<string, unknown>) ?? null}
           debounceMs={0}
@@ -358,11 +379,13 @@ function TextNoteDialog({
   onOpenChange,
   onSave,
   saving,
+  onPlainTextCopy,
 }: {
   draft: QuickNoteDraft | null
   onOpenChange: (open: boolean) => void
   onSave: (next: QuickNoteDraft, opts: SaveOpts) => void
   saving: boolean
+  onPlainTextCopy: (snapshot: LiveDraft) => void
 }) {
   const { theme, changeTheme } = useDocumentTheme("text")
   const live = useRef<LiveDraft>({
@@ -455,7 +478,7 @@ function TextNoteDialog({
     onOpenChange(false)
   }
 
-  function triggerSave(keepOpen = false) {
+  function triggerSave(keepOpen = false, createCopy = false) {
     if (!draft || saving) return
     if (
       pendingUploads.current > 0 ||
@@ -479,7 +502,13 @@ function TextNoteDialog({
           savedId.current = id
           savedRevision.current = revision
           baseline.current = snapshot
-          return !isDirty(snapshot, live.current)
+          const currentSaved = !isDirty(snapshot, live.current)
+          if (createCopy && currentSaved) onPlainTextCopy(snapshot)
+          else if (createCopy)
+            toast.error(
+              "The document changed while saving. Create the copy again when you finish editing."
+            )
+          return currentSaved
         },
       }
     )
@@ -515,6 +544,7 @@ function TextNoteDialog({
               onFullscreen={() => setFullscreen((value) => !value)}
               theme={theme}
               onThemeChange={changeTheme}
+              onCreatePlainTextCopy={() => triggerSave(true, true)}
               onUploadStateChange={(pending) => {
                 pendingUploads.current = pending
                 setUploading(pending > 0)
@@ -546,7 +576,7 @@ type DocDialogProps = {
   saving: boolean
 }
 
-/** Keep the existing text editor; choose a type only when creating a doc. */
+/** Existing rich-text docs keep their editor; new text docs use plain text. */
 export function QuickNoteDialog(props: DocDialogProps) {
   if (!props.draft) return null
   return (
@@ -564,7 +594,12 @@ function DocSession(props: DocDialogProps & { draft: QuickNoteDraft }) {
         onOpenChange={props.onOpenChange}
         onChoose={(choice) => {
           if (choice === "text") {
-            setSelected({ ...props.draft, kind: "text" })
+            setSelected({
+              ...props.draft,
+              kind: "text",
+              bodyJson: plainTextFormat(),
+              bodyText: props.draft.bodyText ?? "",
+            })
           } else if (choice === "drawing") {
             setSelected({
               ...props.draft,
@@ -597,5 +632,24 @@ function DocSession(props: DocDialogProps & { draft: QuickNoteDraft }) {
         onClose={() => props.onOpenChange(false)}
       />
     )
-  return <TextNoteDialog {...props} draft={selected} />
+  if (isPlainTextDocument(selected.bodyJson))
+    return <PlainTextDialog {...props} draft={selected} />
+  return (
+    <TextNoteDialog
+      {...props}
+      draft={selected}
+      onPlainTextCopy={(snapshot) =>
+        setSelected({
+          id: null,
+          kind: "text",
+          projectId: snapshot.projectId,
+          title: `${(snapshot.title || "Untitled").slice(0, 187)} (plain text)`,
+          bodyJson: plainTextFormat(),
+          bodyText: snapshot.bodyJson
+            ? richDocumentText(snapshot.bodyJson)
+            : (snapshot.bodyText ?? ""),
+        })
+      }
+    />
+  )
 }

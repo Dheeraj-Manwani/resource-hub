@@ -322,7 +322,7 @@ test("real account: projects, resources, tasks, notes, tags, associations and tr
     await addMenu(page, "New doc")
     await page
       .getByRole("button", {
-        name: "Text — write freely, add images and links",
+        name: "Text — write plain text",
       })
       .click()
     const dialog = page.getByRole("dialog", {

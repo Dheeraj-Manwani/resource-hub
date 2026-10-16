@@ -100,6 +100,7 @@ export function QuickNotesView() {
 
   function handleSave(next: QuickNoteDraft, opts: SaveOpts) {
     const payload = {
+      clientId: next.clientId,
       projectId: next.projectId,
       kind: next.kind,
       expectedRevision: next.revision,
@@ -113,9 +114,12 @@ export function QuickNotesView() {
       if (currentSaved && !opts.keepOpen) setDraft(null)
     }
     if (next.id) {
-      updateNote.mutate({ id: next.id, ...payload }, { onSuccess })
+      updateNote.mutate(
+        { id: next.id, ...payload },
+        { onSuccess, onError: opts.onError }
+      )
     } else {
-      createNote.mutate(payload, { onSuccess })
+      createNote.mutate(payload, { onSuccess, onError: opts.onError })
     }
   }
 

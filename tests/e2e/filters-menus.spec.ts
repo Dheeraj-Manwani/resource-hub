@@ -148,7 +148,7 @@ test("filters hide without clearing results and project Add menus keep both path
   await tab.getByRole("button", { name: "Add", exact: true }).click()
   await page.getByRole("menuitem", { name: "Add new doc", exact: true }).click()
   await page
-    .getByRole("button", { name: "Text — write freely, add images and links" })
+    .getByRole("button", { name: "Text — write plain text" })
     .click()
   const newNote = page.getByRole("dialog", {
     name: "New doc",

@@ -44,6 +44,7 @@ export function QuickAddNoteDialog() {
       saving={createNote.isPending || updateNote.isPending}
       onSave={(next, opts: SaveOpts) => {
         const payload = {
+          clientId: next.clientId,
           projectId: next.projectId,
           kind: next.kind,
           expectedRevision: next.revision,
@@ -59,9 +60,12 @@ export function QuickAddNoteDialog() {
         // Ctrl/Cmd+S may have already created this note on an earlier
         // keep-open save — update it in place instead of creating another.
         if (next.id) {
-          updateNote.mutate({ id: next.id, ...payload }, { onSuccess })
+          updateNote.mutate(
+            { id: next.id, ...payload },
+            { onSuccess, onError: opts.onError }
+          )
         } else {
-          createNote.mutate(payload, { onSuccess })
+          createNote.mutate(payload, { onSuccess, onError: opts.onError })
         }
       }}
     />

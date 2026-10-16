@@ -137,7 +137,7 @@ test("create buttons show loading, preserve dialogs and allow retry after errors
     .first()
     .click()
   await page
-    .getByRole("button", { name: "Text — write freely, add images and links" })
+    .getByRole("button", { name: "Text — write plain text" })
     .click()
   const noteDialog = page.getByRole("dialog", {
     name: "New doc",

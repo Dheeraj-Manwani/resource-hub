@@ -14,7 +14,11 @@ import {
   QuickNoteDialog,
   type QuickNoteDraft,
 } from "@/components/quick-notes/quick-note-dialog"
-import { quickNoteCache, useUpdateQuickNote } from "@/hooks/queries/quick-notes"
+import {
+  quickNoteCache,
+  useUpdateQuickNote,
+  useCreateQuickNote,
+} from "@/hooks/queries/quick-notes"
 import { api } from "@/lib/api-client"
 import type { QuickNoteDto } from "@/lib/quick-notes/dto"
 
@@ -26,6 +30,7 @@ function LoadedDoc({
   onClose: () => void
 }) {
   const update = useUpdateQuickNote()
+  const create = useCreateQuickNote()
   const [draft] = useState<QuickNoteDraft>(() => ({
     id: doc.id,
     kind: doc.kind,
@@ -39,29 +44,30 @@ function LoadedDoc({
   return (
     <QuickNoteDialog
       draft={draft}
-      saving={update.isPending}
+      saving={update.isPending || create.isPending}
       onOpenChange={(open) => {
         if (!open) onClose()
       }}
-      onSave={(next, opts) =>
-        update.mutate(
-          {
-            id: doc.id,
-            kind: next.kind,
-            projectId: next.projectId,
-            expectedRevision: next.revision,
-            title: next.title || null,
-            bodyJson: next.bodyJson,
-            bodyText: next.bodyText,
+      onSave={(next, opts) => {
+        const payload = {
+          clientId: next.clientId,
+          kind: next.kind,
+          projectId: next.projectId,
+          expectedRevision: next.revision,
+          title: next.title || null,
+          bodyJson: next.bodyJson,
+          bodyText: next.bodyText,
+        }
+        const callbacks = {
+          onError: opts.onError,
+          onSuccess: (saved: QuickNoteDto) => {
+            const current = opts.onSaved(saved.id, saved.revision)
+            if (current && !opts.keepOpen) onClose()
           },
-          {
-            onSuccess: (saved) => {
-              const current = opts.onSaved(saved.id, saved.revision)
-              if (current && !opts.keepOpen) onClose()
-            },
-          }
-        )
-      }
+        }
+        if (next.id) update.mutate({ id: next.id, ...payload }, callbacks)
+        else create.mutate(payload, callbacks)
+      }}
     />
   )
 }

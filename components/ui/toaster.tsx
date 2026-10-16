@@ -8,6 +8,8 @@ export function Toaster() {
     <HotToaster
       position="bottom-right"
       containerStyle={{ zIndex: 10000 }}
+      // Modal-inert notifications remain visible without blocking dialog controls.
+      containerClassName="[&[data-base-ui-inert]_*]:pointer-events-none!"
       toastOptions={{
         duration: 4000,
         style: {

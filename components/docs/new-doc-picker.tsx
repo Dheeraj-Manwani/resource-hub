@@ -22,8 +22,8 @@ const blankDocs = [
   {
     kind: "text",
     title: "Text",
-    description: "Write freely, add images and links",
-    label: "Text — write freely, add images and links",
+    description: "Write plain text, preserve every space",
+    label: "Text — write plain text",
     icon: FileTextIcon,
     accent: "bg-sky-400/10 text-sky-400 ring-sky-400/15",
   },
