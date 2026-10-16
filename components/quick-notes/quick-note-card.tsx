@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  ArrowUpRightIcon,
   FolderIcon,
   Trash2Icon,
   FileTextIcon,
@@ -16,7 +15,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { DocumentCardPreview } from "./document-card-preview"
 
 const appearances = {
   text: {
@@ -83,32 +81,25 @@ export function QuickNoteCard({
               onOpen()
             }
           }}
-          className="group relative flex h-68 min-w-0 cursor-pointer flex-col rounded-2xl border border-border bg-surface p-4 text-left transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          className="group relative flex h-28 min-w-0 cursor-pointer flex-col rounded-2xl border border-border bg-surface p-4 text-left transition-colors hover:border-border-strong hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         />
       }
     >
-      <div className="flex h-15 min-w-0 shrink-0 items-start gap-3 pr-7">
+      <div className="flex min-h-10 min-w-0 shrink-0 items-center gap-3 pr-7">
         <span
+          title={appearance.label}
           className={`flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ${appearance.color}`}
         >
           <Icon aria-hidden="true" className="size-5" />
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="mb-1 text-[11px] font-medium tracking-wide text-subtle">
-            {appearance.label}
-          </p>
-          <h3
-            title={title}
-            className="line-clamp-2 text-[15px] leading-5 font-semibold break-words text-foreground"
-          >
-            {title}
-          </h3>
-        </div>
+        <h3
+          title={title}
+          className="line-clamp-2 min-w-0 flex-1 text-[15px] leading-5 font-semibold break-words text-foreground"
+        >
+          {title}
+        </h3>
       </div>
-      <div className="my-4 min-h-0 flex-1 overflow-hidden rounded-lg border border-border/70 bg-background/40">
-        <DocumentCardPreview note={note} />
-      </div>
-      <div className="flex min-w-0 items-center gap-2 text-[11px] text-subtle">
+      <div className="mt-auto flex min-w-0 items-center gap-2 text-[11px] text-subtle">
         {!hideProject && note.project ? (
           <span
             className="flex min-w-0 items-center gap-1.5"
@@ -123,16 +114,12 @@ export function QuickNoteCard({
           </span>
         ) : (
           <span className="truncate">
-            {hideProject ? "Updated" : "Personal doc"}
+            {hideProject ? "Updated" : appearance.label}
           </span>
         )}
         <span className="ml-auto shrink-0">
           {formatRelative(note.updatedAt)}
         </span>
-        <ArrowUpRightIcon
-          aria-hidden="true"
-          className="size-3.5 shrink-0 text-subtle transition-colors group-hover:text-foreground"
-        />
       </div>
     </ItemMenu>
   )

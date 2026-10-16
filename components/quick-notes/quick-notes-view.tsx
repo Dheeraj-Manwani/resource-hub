@@ -166,7 +166,7 @@ export function QuickNotesView() {
       {isPending || (filter === "trash" && trashQuery.isPending) ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-68 rounded-2xl" />
+            <Skeleton key={i} className="h-28 rounded-2xl" />
           ))}
         </div>
       ) : notesQuery.isError && !notesQuery.data ? null : shown.length === 0 ? (

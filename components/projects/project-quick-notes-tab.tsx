@@ -129,7 +129,7 @@ export function ProjectQuickNotesTab({
       {isPending ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-68 rounded-2xl" />
+            <Skeleton key={i} className="h-28 rounded-2xl" />
           ))}
         </div>
       ) : notesQuery.isError && !notesQuery.data ? null : notes.length === 0 ? (
